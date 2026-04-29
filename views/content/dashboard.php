@@ -38,7 +38,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 </h3>
                 <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Review and process participant
                     evaluations from recent activities.</p>
-                <a href="#"
+                <a href="feed.php?action=activity"
                     style="color: var(--gold-accent); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
                     View Activities
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -63,7 +63,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 </h3>
                 <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Monitor program compliance and document
                     submission statuses.</p>
-                <a href="#"
+                <a href="feed.php?action=accreditation"
                     style="color: var(--gold-accent); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
                     Track Progress
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -74,43 +74,34 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 </a>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="feature-card"
-                style="text-align: left; background: linear-gradient(135deg, rgba(0,28,87,0.02) 0%, rgba(223,182,65,0.05) 100%);">
-                <h3 style="color: var(--accent-blue); margin-bottom: 1rem; font-size: 1.25rem;">Quick Actions</h3>
-                <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li style="margin-bottom: 0.8rem;">
-                        <a href="#"
-                            style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; gap: 10px; font-weight: 500;">
-                            <div
-                                style="background: rgba(0,28,87,0.1); padding: 5px; border-radius: 5px; color: var(--accent-blue);">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </div>
-                            Submit Feedback
-                        </a>
-                    </li>
-                    <li style="margin-bottom: 0.8rem;">
-                        <a href="#"
-                            style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; gap: 10px; font-weight: 500;">
-                            <div
-                                style="background: rgba(0,28,87,0.1); padding: 5px; border-radius: 5px; color: var(--accent-blue);">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="12" cy="7" r="4"></circle>
-                                </svg>
-                            </div>
-                            Update Profile
-                        </a>
-                    </li>
-                </ul>
+            <!-- Document Mapping -->
+            <div class="feature-card" style="text-align: left; transition: transform 0.3s; cursor: pointer;"
+                onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='none'">
+                <div class="feature-icon" style="margin-bottom: 1.5rem; display: inline-flex;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                </div>
+                <h3 style="color: var(--accent-blue); margin-bottom: 0.5rem; font-size: 1.25rem;">Document Mapping
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Manage and map institutional documents
+                    to standards.</p>
+                <a href="feed.php?action=document"
+                    style="color: var(--gold-accent); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                    View Documents
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
             </div>
         </div>
-
     </div>
 </main>
 
@@ -121,7 +112,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
         <div
             style="background: white; padding: 2.5rem; border-radius: 8px; max-width: 700px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;">
             <h2 style="color: var(--accent-blue); margin-bottom: 0.5rem; text-align: center;">Complete Your Profile</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem; text-align: center;">Please provide your demographic and geographic information.</p>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem; text-align: center;">Please provide your
+                demographic and geographic information.</p>
 
             <form action="../api/auth.php?action=complete_profile" method="POST" style="text-align: left;">
                 <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
@@ -154,7 +146,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
                     <div style="flex: 1;">
                         <label for="province"
-                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Province *</label>
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Province
+                            *</label>
                         <select id="province" name="province" required
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; background-color: white;">
                             <option value="">Select Province...</option>
@@ -162,7 +155,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     </div>
                     <div style="flex: 1;">
                         <label for="city"
-                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">City / Municipality *</label>
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">City
+                            / Municipality *</label>
                         <select id="city" name="city" required disabled
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; background-color: white;">
                             <option value="">Select City...</option>
@@ -170,7 +164,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     </div>
                     <div style="flex: 1;">
                         <label for="barangay"
-                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Barangay *</label>
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Barangay
+                            *</label>
                         <select id="barangay" name="barangay" required disabled
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; background-color: white;">
                             <option value="">Select Barangay...</option>
@@ -180,7 +175,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
 
                 <div style="margin-bottom: 1rem;">
                     <label for="address"
-                        style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Street / Building Name *</label>
+                        style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Street
+                        / Building Name *</label>
                     <textarea id="address" name="address" rows="2" required placeholder="123 Example Street, Apt 4B..."
                         style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; resize: vertical;"
                         onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';"
@@ -190,7 +186,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
                     <div style="flex: 1;">
                         <label for="contact_number"
-                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Contact Number *</label>
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Contact
+                            Number *</label>
                         <input type="tel" id="contact_number" maxlength="11" name="contact_number" value="09" required
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;"
                             onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';"
@@ -198,7 +195,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     </div>
                     <div style="flex: 1;">
                         <label for="office"
-                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Office *</label>
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Office
+                            *</label>
                         <input type="text" id="office" name="office" required
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;"
                             onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';"
@@ -208,7 +206,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
 
                 <div style="margin-bottom: 2rem;">
                     <label for="position"
-                        style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Position *</label>
+                        style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Position
+                        *</label>
                     <input type="text" id="position" name="position" required
                         style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;"
                         onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';"
@@ -237,11 +236,11 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 // 1. Fetch Provinces
                 const provResponse = await fetch('https://psgc.gitlab.io/api/provinces/');
                 let provinces = await provResponse.json();
-                
+
                 // Fetch NCR Districts (since Metro Manila is not a province)
                 const ncrResponse = await fetch('https://psgc.gitlab.io/api/regions/130000000/districts/');
                 const ncrDistricts = await ncrResponse.json();
-                
+
                 // Combine and sort
                 const allProvinces = [...provinces, ...ncrDistricts].sort(sortByName);
 
@@ -255,7 +254,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 });
 
                 // 2. Handle Province Change
-                provinceSelect.addEventListener('change', async function() {
+                provinceSelect.addEventListener('change', async function () {
                     citySelect.innerHTML = '<option value="">Loading...</option>';
                     citySelect.disabled = true;
                     barangaySelect.innerHTML = '<option value="">Select Barangay...</option>';
@@ -269,9 +268,9 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
 
                     const code = selectedOption.dataset.code;
                     const isDistrict = selectedOption.dataset.isDistrict === "true";
-                    
+
                     // Fetch Cities
-                    const endpoint = isDistrict 
+                    const endpoint = isDistrict
                         ? `https://psgc.gitlab.io/api/districts/${code}/cities-municipalities/`
                         : `https://psgc.gitlab.io/api/provinces/${code}/cities-municipalities/`;
 
@@ -291,7 +290,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                 });
 
                 // 3. Handle City Change
-                citySelect.addEventListener('change', async function() {
+                citySelect.addEventListener('change', async function () {
                     barangaySelect.innerHTML = '<option value="">Loading...</option>';
                     barangaySelect.disabled = true;
 
@@ -302,7 +301,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     }
 
                     const code = selectedOption.dataset.code;
-                    
+
                     // Fetch Barangays
                     const brgyResponse = await fetch(`https://psgc.gitlab.io/api/cities-municipalities/${code}/barangays/`);
                     const barangays = await brgyResponse.json();

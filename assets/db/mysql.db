@@ -38,3 +38,23 @@ CREATE TABLE offices (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (division_id) REFERENCES divisions(division_id)
 );
+
+CREATE TABLE sections (
+    section_id INT AUTO_INCREMENT PRIMARY KEY,
+    acronym TEXT NOT NULL,
+    name TEXT NOT NULL,
+    office_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (office_id) REFERENCES offices(office_id)
+);
+
+CREATE TABLE programs (
+    program_id INT AUTO_INCREMENT PRIMARY KEY,
+    acronym TEXT NOT NULL,
+    name TEXT NOT NULL,
+    section_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (section_id) REFERENCES sections(section_id)
+);

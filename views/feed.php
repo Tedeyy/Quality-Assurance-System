@@ -21,6 +21,12 @@ if (isset($_SESSION['user_id'])) {
     // Authenticated routes
     if ($action === 'dashboard' || $action === '' || $action === 'login' || $action === 'signup') {
         require_once __DIR__ . '/content/dashboard.php';
+    } elseif ($action === 'accreditation') {
+        require_once __DIR__ . '/content/addtracker.php';
+    } elseif ($action === 'activity') {
+        require_once __DIR__ . '/content/ame.php';
+    } elseif ($action === 'document') {
+        require_once __DIR__ . '/content/doctracker.php';
     } else {
         require_once __DIR__ . '/content/dashboard.php';
     }
