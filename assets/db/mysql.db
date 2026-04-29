@@ -4,9 +4,10 @@ use quality_assurance_system;
 CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTO_INCREMENT,
                 google_id TEXT UNIQUE,
-                email TEXT UNIQUE,
-                fname TEXT,
-                lname TEXT,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL, -- encypted
+                fname TEXT NOT NULL,
+                lname TEXT NOT NULL,
                 birthdate DATE,
                 gender ENUM('Male', 'Female', 'Others'),
                 address TEXT,
