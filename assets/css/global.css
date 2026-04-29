@@ -1,0 +1,16 @@
+/**
+ * Global component styles
+ */
+
+.nav-logout {
+    color: #ea4335 !important;
+    font-weight: 600;
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.text-center {
+    text-align: center;
+}

@@ -25,36 +25,51 @@ CREATE TABLE divisions (
     division_id INT AUTO_INCREMENT PRIMARY KEY,
     acronym TEXT NOT NULL,
     name TEXT NOT NULL,
+    parent_division_id INT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_division_id) REFERENCES divisions(division_id)
 );
 
-CREATE TABLE offices (
+CREATE TABLE divisions_offices (
     office_id INT AUTO_INCREMENT PRIMARY KEY,
     acronym TEXT NOT NULL,
     name TEXT NOT NULL,
     division_id INT,
+    parent_office_id INT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (division_id) REFERENCES divisions(division_id)
+    FOREIGN KEY (division_id) REFERENCES divisions(division_id),
+    FOREIGN KEY (parent_office_id) REFERENCES divisions_offices(office_id)
 );
 
-CREATE TABLE sections (
-    section_id INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE accreditations(
+    accreditation_id INT AUTO_INCREMENT PRIMARY KEY,
     acronym TEXT NOT NULL,
     name TEXT NOT NULL,
-    office_id INT,
+    description TEXT,
+    deadline DATE,
+    status ENUM ('In Progress', 'Completed', 'Inactive'),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (office_id) REFERENCES offices(office_id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE programs (
-    program_id INT AUTO_INCREMENT PRIMARY KEY,
-    acronym TEXT NOT NULL,
+CREATE TABLE accreditation_requirement(
+    requirement_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT,
     name TEXT NOT NULL,
-    section_id INT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (section_id) REFERENCES sections(section_id)
+    FOREIGN KEY (category_id) REFERENCES accreditation_categories(category_id)
+);
+
+CREATE TABLE accreditation_categories(
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    accreditation_id INT,
+    parent_category_id INT DEFAULT NULL,
+    name TEXT NOT NULL,
+    FOREIGN KEY (accreditation_id) REFERENCES accreditations(accreditation_id),
+    FOREIGN KEY (parent_category_id) REFERENCES accreditation_categories(category_id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
