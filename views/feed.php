@@ -15,12 +15,22 @@ if (isset($_SESSION['success'])) {
     unset($_SESSION['success']);
 }
 
-$action = $_GET['action'] ?? 'login';
+$action = $_GET['action'] ?? '';
 
-if ($action === 'signup') {
-    require_once __DIR__ . '/content/signup.php';
+if (isset($_SESSION['user_id'])) {
+    // Authenticated routes
+    if ($action === 'dashboard' || $action === '' || $action === 'login' || $action === 'signup') {
+        require_once __DIR__ . '/content/dashboard.php';
+    } else {
+        require_once __DIR__ . '/content/dashboard.php';
+    }
 } else {
-    require_once __DIR__ . '/content/login.php';
+    // Unauthenticated routes
+    if ($action === 'signup') {
+        require_once __DIR__ . '/content/signup.php';
+    } else {
+        require_once __DIR__ . '/content/login.php';
+    }
 }
 
 require_once __DIR__ . '/component/footer.php';
