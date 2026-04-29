@@ -1,0 +1,19 @@
+create database quality_assurance_system;
+use quality_assurance_system;
+
+CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTO_INCREMENT,
+                google_id TEXT UNIQUE,
+                email TEXT UNIQUE,
+                fname TEXT,
+                lname TEXT,
+                birthdate DATE,
+                gender ENUM('Male', 'Female', 'Others'),
+                address TEXT,
+                contact_number INT,
+                office TEXT,
+                role TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            );
+
