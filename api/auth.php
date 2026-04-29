@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $_SESSION['user_id'] = $db->lastInsertId();
             $_SESSION['user_fname'] = $fname;
-            $_SESSION['user_role'] = 'user';
+            $_SESSION['user_position'] = 'user'; // Default position
             $_SESSION['success'] = 'Account created successfully!';
             
             // Redirect to feed/dashboard
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("SELECT id, fname, password, role FROM users WHERE email = :email LIMIT 1");
+            $stmt = $db->prepare("SELECT id, fname, password, position FROM users WHERE email = :email LIMIT 1");
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Successful login
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_fname'] = $user['fname'];
-                $_SESSION['user_role'] = $user['role'];
+                $_SESSION['user_position'] = $user['position'] ?? 'user';
                 $_SESSION['success'] = 'Welcome back, ' . htmlspecialchars($user['fname']) . '!';
                 
                 header('Location: ../views/feed.php');
@@ -91,6 +91,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException $e) {
             $_SESSION['error'] = 'Login failed due to a system error. Please try again.';
             header('Location: ../views/feed.php?action=login');
+            exit;
+        }
+    } elseif ($action === 'complete_profile') {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ../views/feed.php?action=login');
+            exit;
+        }
+
+        $birthdate = $_POST['birthdate'] ?? null;
+        $gender = $_POST['gender'] ?? null;
+        $province = trim($_POST['province'] ?? '');
+        $city = trim($_POST['city'] ?? '');
+        $barangay = trim($_POST['barangay'] ?? '');
+        $address = trim($_POST['address'] ?? '');
+        $contact_number = trim($_POST['contact_number'] ?? '');
+        $office = trim($_POST['office'] ?? '');
+        $position = trim($_POST['position'] ?? '');
+
+        if (empty($birthdate) || empty($gender) || empty($province) || empty($city) || empty($barangay) || empty($address) || empty($contact_number) || empty($office) || empty($position)) {
+            $_SESSION['error'] = 'All profile fields are required.';
+            header('Location: ../views/feed.php');
+            exit;
+        }
+
+        try {
+            $updateQuery = "UPDATE users SET birthdate = :birthdate, gender = :gender, province = :province, city = :city, barangay = :barangay, address = :address, contact_number = :contact_number, office = :office, position = :position WHERE id = :id";
+            $stmt = $db->prepare($updateQuery);
+            $stmt->execute([
+                'birthdate' => $birthdate,
+                'gender' => $gender,
+                'province' => $province,
+                'city' => $city,
+                'barangay' => $barangay,
+                'address' => $address,
+                'contact_number' => $contact_number,
+                'office' => $office,
+                'position' => $position,
+                'id' => $_SESSION['user_id']
+            ]);
+
+            $_SESSION['user_position'] = $position;
+            $_SESSION['success'] = 'Profile completed successfully!';
+            header('Location: ../views/feed.php');
+            exit;
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Failed to update profile. Please try again.';
+            header('Location: ../views/feed.php');
             exit;
         }
     }
