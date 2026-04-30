@@ -163,9 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'client_id' => $client_id,
             'redirect_uri' => $redirect_uri,
             'response_type' => 'code',
-            'scope' => 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+            'scope' => 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.file',
             'access_type' => 'offline',
-            'prompt' => 'select_account'
+            'prompt' => 'consent select_account'
         ];
         
         $url = "https://accounts.google.com/o/oauth2/v2/auth?" . http_build_query($params);
@@ -226,13 +226,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Check if user exists by google_id or email
             $stmt = $db->prepare("SELECT user_id, fname, position FROM users WHERE google_id = :gid OR email = :email LIMIT 1");
             $stmt->execute(['gid' => $google_id, 'email' => $email]);
+            $stmt = $db->prepare("SELECT user_id, fname, position, google_id FROM users WHERE google_id = :gid OR email = :email LIMIT 1");
+            $stmt->execute(['gid' => $google_user['id'], 'email' => $google_user['email']]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($user) {
                 // Update google_id if it's missing (linked by email)
                 if (empty($user['google_id'])) {
-                    $upd = $db->prepare("UPDATE users SET google_id = :gid WHERE user_id = :uid");
-                    $upd->execute(['gid' => $google_id, 'uid' => $user['user_id']]);
+                    $update = $db->prepare("UPDATE users SET google_id = :gid, google_access_token = :at, google_refresh_token = :rt WHERE email = :email");
+                    $update->execute([
+                        'gid' => $google_user['id'],
+                        'at' => $tokens['access_token'],
+                        'rt' => $tokens['refresh_token'] ?? null,
+                        'email' => $google_user['email']
+                    ]);
                 }
                 
                 $_SESSION['user_id'] = $user['user_id'];
@@ -240,18 +247,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_position'] = $user['position'] ?? 'user';
             } else {
                 // Create new user
-                $insert = $db->prepare("INSERT INTO users (google_id, email, fname, lname, password, position) VALUES (:gid, :email, :fname, :lname, :pass, :pos)");
+                $insert = $db->prepare("INSERT INTO users (google_id, email, fname, lname, password, position, google_access_token, google_refresh_token) VALUES (:gid, :email, :fname, :lname, :pass, :pos, :at, :rt)");
                 $insert->execute([
-                    'gid' => $google_id,
-                    'email' => $email,
-                    'fname' => $fname,
-                    'lname' => $lname,
+                    'gid' => $google_user['id'],
+                    'email' => $google_user['email'],
+                    'fname' => $google_user['given_name'] ?? '',
+                    'lname' => $google_user['family_name'] ?? '',
                     'pass' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
-                    'pos' => 'user'
+                    'pos' => 'user',
+                    'at' => $tokens['access_token'],
+                    'rt' => $tokens['refresh_token'] ?? null
                 ]);
                 
                 $_SESSION['user_id'] = $db->lastInsertId();
-                $_SESSION['user_fname'] = $fname;
+                $_SESSION['user_fname'] = $google_user['given_name'] ?? 'User';
                 $_SESSION['user_position'] = 'user';
             }
 

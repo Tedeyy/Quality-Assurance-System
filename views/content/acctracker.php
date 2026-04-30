@@ -71,7 +71,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         ?>
         <div style="border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.4rem; margin-left: <?= $parent_id == 0 ? '0' : '1rem' ?>; position: relative;">
             <!-- Category Header -->
-            <div onclick="toggleCategory(this)"
+            <div onclick="toggleCategory(this)" data-id="cat-header-<?= $cat_id ?>"
                 style="background: #f8fafc; padding: 0.5rem 0.8rem; font-weight: 700; border-radius: 4px 4px 0 0; border-bottom: 1px solid var(--border-color); color: var(--accent-blue); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;"
                 onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
                 
@@ -116,7 +116,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
             </div>
 
             <!-- Category Content -->
-            <div class="category-content" style="display: none; padding: 0.6rem 0.8rem;">
+            <div class="category-content" data-id="cat-content-<?= $cat_id ?>" style="display: none; padding: 0.6rem 0.8rem;">
                 <?php
                 $stmt = $db->prepare("SELECT * FROM accreditation_requirement WHERE category_id = :cat_id");
                 $stmt->execute(['cat_id' => $cat['category_id']]);
@@ -129,7 +129,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                             <li style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
                                 <div style="display: flex; align-items: flex-start; gap: 8px;">
                                     <input type="checkbox" disabled style="width: 14px; height: 14px; margin-top: 2px;">
-                                    <div>
+                                    <div onclick="openUploadModal('<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>')" style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
                                         <?php if (!empty($req['codename'])): ?>
                                             <span style="font-weight: 700; color: var(--accent-blue);"><?= htmlspecialchars($req['codename']) ?>:</span>
                                         <?php endif; ?>
@@ -563,30 +563,45 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
     </div>
 </div>
 
-<!-- Edit Requirement Modal -->
-<div id="editRequirementModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
-    <div class="modal-content" style="max-width: 450px;">
+<!-- Requirement Upload Modal -->
+<div id="uploadRequirementModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 500px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 style="color: var(--accent-blue); margin: 0;">Edit Requirement</h2>
-            <button onclick="document.getElementById('editRequirementModal').style.display='none'" 
+            <h2 id="upload_req_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Upload File</h2>
+            <button onclick="document.getElementById('uploadRequirementModal').style.display='none'" 
                     style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
         
-        <form action="../api/accreditation.php?action=edit_requirement" method="POST">
-            <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
-            <input type="hidden" name="requirement_id" id="edit_req_id">
+        <form id="uploadForm" onsubmit="handleFileUpload(event)">
+            <input type="hidden" name="requirement_id" id="upload_req_id">
             
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Codename</label>
-                <input type="text" name="codename" id="edit_req_codename" class="form-control">
+            <div id="dropZone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; margin-bottom: 1.5rem; cursor: pointer; transition: all 0.3s;"
+                 onmouseover="this.style.borderColor='var(--accent-blue)'; this.style.background='#f8fafc'"
+                 onmouseout="this.style.borderColor='var(--border-color)'; this.style.background='transparent'"
+                 onclick="document.getElementById('fileInput').click()">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p style="margin: 0; font-weight: 500;">Click to select or drag and drop</p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">PDF files only (Multiple allowed)</p>
+                <input type="file" id="fileInput" name="files[]" multiple accept="application/pdf" style="display: none;" onchange="updateFileInfo(this)">
             </div>
             
-            <div style="margin-bottom: 2rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Requirement Name *</label>
-                <input type="text" name="name" id="edit_req_name" required class="form-control">
+            <div id="fileInfo" style="display: none; margin-bottom: 1.5rem; padding: 0.8rem; background: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 0.9rem; color: #1e40af;">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 5px; border-bottom: 1px solid #bfdbfe; padding-bottom: 5px;">
+                        <span>Selected Files:</span>
+                        <button type="button" onclick="clearFile()" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">&times;</button>
+                    </div>
+                    <div id="fileList"></div>
+                </div>
             </div>
             
-            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
+            <button type="submit" id="uploadBtn" class="btn btn-primary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <span>Start Upload</span>
+            </button>
         </form>
     </div>
 </div>
@@ -686,15 +701,34 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
     function toggleCategory(header) {
         const content = header.nextElementSibling;
         const chevron = header.querySelector('.chevron');
+        const catId = header.dataset.id;
 
         if (content.style.display === 'none') {
             content.style.display = 'block';
             chevron.style.transform = 'rotate(90deg)';
+            localStorage.setItem(catId, 'expanded');
         } else {
             content.style.display = 'none';
             chevron.style.transform = 'rotate(0deg)';
+            localStorage.setItem(catId, 'collapsed');
         }
     }
+
+    // Restore category states
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-id^="cat-header-"]').forEach(header => {
+            const catId = header.dataset.id;
+            const state = localStorage.getItem(catId);
+            if (state === 'expanded') {
+                const content = header.nextElementSibling;
+                const chevron = header.querySelector('.chevron');
+                if (content && chevron) {
+                    content.style.display = 'block';
+                    chevron.style.transform = 'rotate(90deg)';
+                }
+            }
+        });
+    });
 
     function toggleActionMenu(e) {
         e.stopPropagation();
@@ -807,6 +841,90 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
             document.getElementById('edit_req_name').value = name;
             document.getElementById('edit_req_codename').value = codename;
             openModal('editRequirementModal');
+        }
+    }
+
+    function openUploadModal(id, name, codename = '') {
+        document.getElementById('upload_req_id').value = id;
+        document.getElementById('upload_req_title').textContent = name;
+        document.getElementById('upload_req_title').dataset.codename = codename;
+        clearFile();
+        openModal('uploadRequirementModal');
+    }
+
+    function updateFileInfo(input) {
+        const info = document.getElementById('fileInfo');
+        const list = document.getElementById('fileList');
+        list.innerHTML = '';
+        
+        if (input.files && input.files.length > 0) {
+            for (let i = 0; i < input.files.length; i++) {
+                const file = input.files[i];
+                if (file.type !== 'application/pdf') {
+                    showConfirmation({ title: 'Invalid File', message: `"${file.name}" is not a PDF. Only PDF files are allowed.`, type: 'danger', actionLabel: 'OK' });
+                    clearFile();
+                    return;
+                }
+                const item = document.createElement('div');
+                item.style.fontSize = '0.8rem';
+                item.textContent = `• ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                list.appendChild(item);
+            }
+            info.style.display = 'block';
+        }
+    }
+
+    function clearFile() {
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileInfo').style.display = 'none';
+        document.getElementById('fileList').innerHTML = '';
+    }
+
+    async function handleFileUpload(e) {
+        e.preventDefault();
+        const btn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const reqId = document.getElementById('upload_req_id').value;
+        const codename = document.getElementById('upload_req_title').dataset.codename;
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showConfirmation({ title: 'Error', message: 'Please select at least one PDF file.', type: 'danger', actionLabel: 'OK' });
+            return;
+        }
+
+        const formData = new FormData();
+        for (let i = 0; i < fileInput.files.length; i++) {
+            formData.append('files[]', fileInput.files[i]);
+        }
+        formData.append('requirement_id', reqId);
+        formData.append('codename', codename);
+
+        btn.disabled = true;
+        btn.innerHTML = '<span>Uploading...</span>';
+
+        try {
+            const response = await fetch('../api/upload.php', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showConfirmation({
+                    title: 'Success',
+                    message: result.message || 'File(s) uploaded successfully!',
+                    type: 'success',
+                    onConfirm: () => document.getElementById('uploadRequirementModal').style.display = 'none'
+                });
+            } else {
+                showConfirmation({ title: 'Error', message: result.message || 'Upload failed.', type: 'danger', actionLabel: 'OK' });
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            showConfirmation({ title: 'Error', message: 'An unexpected error occurred. Please check your network connection.', type: 'danger', actionLabel: 'OK' });
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Start Upload</span>';
         }
     }
 
