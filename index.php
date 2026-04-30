@@ -51,8 +51,7 @@ $news_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <p class="hero-subtitle">Streamline your workflows, automate testing, and deliver flawless products with our
                 state-of-the-art Quality Assurance System.</p>
             <div class="hero-actions">
-                <a href="#get-started" class="btn btn-primary btn-large">Get Started Now</a>
-                <a href="#demo" class="btn btn-secondary btn-large">Watch Demo</a>
+                <a href="./views/feed.php" class="btn btn-primary btn-large">Get Started Now</a>
             </div>
         </div>
     </main>

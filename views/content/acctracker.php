@@ -31,6 +31,17 @@ if ($selected_id) {
     $stmt->execute();
     $direct_counts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
+    // Fetch approved requirement counts per category
+    $stmt = $db->prepare("
+        SELECT r.category_id, COUNT(*) as count 
+        FROM accreditation_requirement r
+        JOIN accreditation_requirement_submissions s ON r.requirement_id = s.requirement_id
+        WHERE s.status = 'Approved'
+        GROUP BY r.category_id
+    ");
+    $stmt->execute();
+    $direct_approved = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
     // Group categories by parent
     $categories_by_parent = [];
     foreach ($categories as $cat) {
@@ -69,37 +80,43 @@ if ($selected_id) {
     
     $is_qao = (stripos($user_office_name ?? '', 'Quality Assurance') !== false) || (($_SESSION['user_office_id'] ?? 0) == 4);
 
-    // Helper to calculate total requirements (including nested)
-    $total_counts = [];
-    function calculateTotalReqs($parent_id, $categories_by_parent, $direct_counts, &$total_counts)
+    // Helper to calculate total and approved requirements (including nested)
+    $category_stats = [];
+    function calculateStats($parent_id, $categories_by_parent, $direct_counts, $direct_approved, &$category_stats)
     {
         if (!isset($categories_by_parent[$parent_id]))
-            return 0;
+            return ['total' => 0, 'approved' => 0];
+
+        $sum_total = 0;
+        $sum_approved = 0;
 
         foreach ($categories_by_parent[$parent_id] as $cat) {
             $cat_id = $cat['category_id'];
-            $direct = $direct_counts[$cat_id] ?? 0;
-            $sub_total = calculateTotalReqs($cat_id, $categories_by_parent, $direct_counts, $total_counts);
-            $total_counts[$cat_id] = $direct + $sub_total;
+            $direct_t = $direct_counts[$cat_id] ?? 0;
+            $direct_a = $direct_approved[$cat_id] ?? 0;
+            
+            $sub_stats = calculateStats($cat_id, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
+            
+            $total = $direct_t + $sub_stats['total'];
+            $approved = $direct_a + $sub_stats['approved'];
+            
+            $category_stats[$cat_id] = ['total' => $total, 'approved' => $approved];
+            
+            $sum_total += $total;
+            $sum_approved += $approved;
         }
 
-        // Sum up all top-level for the parent
-        $sum = 0;
-        foreach ($categories_by_parent[$parent_id] as $cat) {
-            $sum += $total_counts[$cat['category_id']];
-        }
-        return $sum;
+        return ['total' => $sum_total, 'approved' => $sum_approved];
     }
-    calculateTotalReqs(0, $categories_by_parent, $direct_counts, $total_counts);
+    $overall_stats = calculateStats(0, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
 }
 
-function renderCategories($parent_id, $categories_by_parent, $db, $total_counts) {
+function renderCategories($parent_id, $categories_by_parent, $db, $category_stats) {
     global $submissions, $is_qao;
     if (!isset($categories_by_parent[$parent_id])) return;
 
     foreach ($categories_by_parent[$parent_id] as $cat) {
         $cat_id = $cat['category_id'];
-        $total_reqs = $total_counts[$cat_id] ?? 0;
         ?>
         <div style="border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.4rem; margin-left: <?= $parent_id == 0 ? '0' : '1rem' ?>; position: relative;">
             <!-- Category Header -->
@@ -115,7 +132,18 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <span style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary);"><?= $total_reqs ?> Requirements</span>
+                    <?php 
+                    $stats = $category_stats[$cat_id] ?? ['total' => 0, 'approved' => 0];
+                    $t = $stats['total'] ?: 1;
+                    $p = round(($stats['approved'] / $t) * 100);
+                    ?>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 80px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; border: 1px solid #f1f5f9;">
+                            <div style="width: <?= $p ?>%; height: 100%; background: var(--accent-blue); transition: width 0.5s;"></div>
+                        </div>
+                        <span style="font-weight: 700; font-size: 0.75rem; color: var(--accent-blue);"><?= $p ?>%</span>
+                        <span style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary);">(<?= $stats['approved'] ?>/<?= $stats['total'] ?>)</span>
+                    </div>
                     
                     <?php if ($is_qao): ?>
                     <!-- Category Triple Dot Menu -->
@@ -164,14 +192,21 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                                 <div style="display: flex; align-items: flex-start; gap: 8px;">
                                     <?php 
                                     $sub = $submissions[$req['requirement_id']] ?? null; 
+                                    $is_approved = ($sub && $sub['status'] === 'Approved');
                                     $cb_color = $sub ? ($sub['status'] === 'Approved' ? '#22c55e' : ($sub['status'] === 'Disapproved' ? '#ef4444' : '#3b82f6')) : '#e2e8f0';
                                     ?>
-                                    <input type="checkbox" <?= $sub ? 'checked' : '' ?> disabled style="width: 14px; height: 14px; margin-top: 2px; accent-color: <?= $cb_color ?>;">
+                                    <div style="width: 18px; height: 18px; border: 2px solid <?= $cb_color ?>; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: <?= $is_approved ? $cb_color : 'transparent' ?>; margin-top: 2px; flex-shrink: 0;">
+                                        <?php if ($sub): ?>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="<?= $is_approved ? 'white' : $cb_color ?>" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        <?php endif; ?>
+                                    </div>
                                     <div onclick="handleRequirementClick(<?= $req['requirement_id'] ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)" style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
                                         <?php if (!empty($req['codename'])): ?>
-                                            <span style="font-weight: 700; color: var(--accent-blue);"><?= htmlspecialchars($req['codename']) ?>:</span>
+                                            <span style="font-weight: 700; color: var(--accent-blue); <?= $is_approved ? 'text-decoration: line-through; opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['codename']) ?>:</span>
                                         <?php endif; ?>
-                                        <span><?= htmlspecialchars($req['name']) ?></span>
+                                        <span style="<?= $is_approved ? 'opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['name']) ?></span>
                                     </div>
                                 </div>
                                 <?php if ($is_qao): ?>
@@ -198,7 +233,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                     </ul>
                     <?php
                 }
-                renderCategories($cat['category_id'], $categories_by_parent, $db, $total_counts);
+                renderCategories($cat['category_id'], $categories_by_parent, $db, $category_stats);
                 ?>
             </div>
         </div>
@@ -379,13 +414,16 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
 
                     <div style="display: flex; gap: 2rem; align-items: center;">
                         <div style="flex: 1;">
-                            <div
-                                style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                            <?php 
+                            $total = $overall_stats['total'] ?: 1;
+                            $percent = round(($overall_stats['approved'] / $total) * 100);
+                            ?>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.5rem;">
                                 <span style="font-weight: 600;">Overall Progress</span>
-                                <span>0%</span>
+                                <span style="font-weight: 700; color: var(--accent-blue);"><?= $percent ?>%</span>
                             </div>
-                            <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-                                <div style="width: 0%; height: 100%; background: var(--accent-blue);"></div>
+                            <div style="height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
+                                <div style="width: <?= $percent ?>%; height: 100%; background: var(--accent-blue); transition: width 1s ease-in-out; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);"></div>
                             </div>
                         </div>
                         <?php if (!empty($current_acc['deadline'])): ?>
@@ -402,7 +440,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                         <p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No categories defined for
                             this accreditation.</p>
                     <?php else: ?>
-                        <?php renderCategories(0, $categories_by_parent, $db, $total_counts); ?>
+                        <?php renderCategories(0, $categories_by_parent, $db, $category_stats); ?>
                     <?php endif; ?>
                 </div>
 
@@ -1061,9 +1099,12 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         });
     });
 
-    function toggleActionMenu(e) {
+    function toggleActionMenu(e, menuId) {
         e.stopPropagation();
-        const menu = document.getElementById('accActionMenu');
+        const menu = document.getElementById(menuId);
+        if (!menu) return;
+
+        // Toggle the target menu
         menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
     }
 
