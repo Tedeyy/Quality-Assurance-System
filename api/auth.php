@@ -224,23 +224,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // Check if user exists by google_id or email
-            $stmt = $db->prepare("SELECT user_id, fname, position FROM users WHERE google_id = :gid OR email = :email LIMIT 1");
-            $stmt->execute(['gid' => $google_id, 'email' => $email]);
             $stmt = $db->prepare("SELECT user_id, fname, position, google_id FROM users WHERE google_id = :gid OR email = :email LIMIT 1");
-            $stmt->execute(['gid' => $google_user['id'], 'email' => $google_user['email']]);
+            $stmt->execute(['gid' => $google_id, 'email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($user) {
-                // Update google_id if it's missing (linked by email)
-                if (empty($user['google_id'])) {
-                    $update = $db->prepare("UPDATE users SET google_id = :gid, google_access_token = :at, google_refresh_token = :rt WHERE email = :email");
-                    $update->execute([
-                        'gid' => $google_user['id'],
-                        'at' => $tokens['access_token'],
-                        'rt' => $tokens['refresh_token'] ?? null,
-                        'email' => $google_user['email']
-                    ]);
-                }
+                // Update tokens and google_id
+                $update = $db->prepare("UPDATE users SET google_id = :gid, google_access_token = :at, google_refresh_token = :rt WHERE user_id = :uid");
+                $update->execute([
+                    'gid' => $google_id,
+                    'at' => $token_data['access_token'],
+                    'rt' => $token_data['refresh_token'] ?? null,
+                    'uid' => $user['user_id']
+                ]);
                 
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['user_fname'] = $user['fname'];
@@ -249,30 +245,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Create new user
                 $insert = $db->prepare("INSERT INTO users (google_id, email, fname, lname, password, position, google_access_token, google_refresh_token) VALUES (:gid, :email, :fname, :lname, :pass, :pos, :at, :rt)");
                 $insert->execute([
-                    'gid' => $google_user['id'],
-                    'email' => $google_user['email'],
-                    'fname' => $google_user['given_name'] ?? '',
-                    'lname' => $google_user['family_name'] ?? '',
+                    'gid' => $google_id,
+                    'email' => $email,
+                    'fname' => $fname,
+                    'lname' => $lname,
                     'pass' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
-                    'pos' => 'user',
-                    'at' => $tokens['access_token'],
-                    'rt' => $tokens['refresh_token'] ?? null
+                    'pos' => 'QA Officer',
+                    'at' => $token_data['access_token'],
+                    'rt' => $token_data['refresh_token'] ?? null
                 ]);
                 
                 $_SESSION['user_id'] = $db->lastInsertId();
-                $_SESSION['user_fname'] = $google_user['given_name'] ?? 'User';
-                $_SESSION['user_position'] = 'user';
+                $_SESSION['user_fname'] = $fname;
+                $_SESSION['user_position'] = 'QA Officer';
             }
 
-            $_SESSION['success'] = 'Logged in with Google successfully!';
-            logLogin($db, $_SESSION['user_id']);
-            logActivity($db, $_SESSION['user_id'], "Logged in via Google OAuth");
+            // Log the login
+            logLogin($db, $_SESSION['user_id'], 'Google');
 
             header('Location: ../views/feed.php');
             exit;
-
         } catch (PDOException $e) {
-            $_SESSION['error'] = 'System error during Google login: ' . $e->getMessage();
+            $_SESSION['error'] = 'Login failed due to a system error. ' . $e->getMessage();
             header('Location: ../views/feed.php?action=login');
             exit;
         }

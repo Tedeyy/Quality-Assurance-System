@@ -102,7 +102,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                                 Add Requirement
                             </button>
                             <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 0;">
-                            <button onclick="openEditModal('category', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <button onclick="openEditModal('category', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', '', '<?= $parent_id ?>', '<?= addslashes($categories_by_parent[$parent_id][0]['name'] ?? 'Top Level') ?>')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                 Edit Category
                             </button>
@@ -144,7 +144,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                                         </svg>
                                     </button>
                                     <div class="local-dropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
-                                        <button onclick="openEditModal('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                        <button onclick="openEditModal('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                             Edit
                                         </button>
@@ -553,9 +553,64 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
             <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
             <input type="hidden" name="category_id" id="edit_cat_id">
             
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Parent Category (Optional)</label>
+                <div id="edit_cat_parentSelectorsContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    <select class="form-control parent-cat-select" onchange="handleCascadingSelect(this, 'edit_cat_parentSelectorsContainer', 'edit_cat_final_parent_id')">
+                        <option value="">None (Top Level)</option>
+                        <?php foreach ($categories_by_parent[0] ?? [] as $cat): ?>
+                            <option value="<?= $cat['category_id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <input type="hidden" name="parent_category_id" id="edit_cat_final_parent_id" value="">
+            </div>
+
             <div style="margin-bottom: 2rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category Name *</label>
                 <input type="text" name="name" id="edit_cat_name" required class="form-control">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Requirement Modal -->
+<div id="editRequirementModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: var(--accent-blue); margin: 0;">Edit Requirement</h2>
+            <button onclick="document.getElementById('editRequirementModal').style.display='none'" 
+                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        
+        <form action="../api/accreditation.php?action=edit_requirement" method="POST">
+            <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
+            <input type="hidden" name="requirement_id" id="edit_req_id">
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category *</label>
+                <div id="edit_req_parentSelectorsContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    <select class="form-control parent-cat-select" onchange="handleCascadingSelect(this, 'edit_req_parentSelectorsContainer', 'edit_req_final_parent_id')">
+                        <option value="">Select Category...</option>
+                        <?php foreach ($categories_by_parent[0] ?? [] as $cat): ?>
+                            <option value="<?= $cat['category_id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <input type="hidden" name="category_id" id="edit_req_final_parent_id" required value="">
+            </div>
+
+            <div style="margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px dashed var(--border-color);">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Codename</label>
+                    <input type="text" name="codename" id="edit_req_codename" placeholder="1.1" class="form-control">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Requirement Name *</label>
+                    <input type="text" name="name" id="edit_req_name" required placeholder="Description..." class="form-control">
+                </div>
             </div>
             
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
@@ -831,17 +886,60 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
     }
 
-    function openEditModal(type, id, name, codename = '') {
-        if (type === 'category') {
-            document.getElementById('edit_cat_id').value = id;
-            document.getElementById('edit_cat_name').value = name;
-            openModal('editCategoryModal');
-        } else {
-            document.getElementById('edit_req_id').value = id;
-            document.getElementById('edit_req_name').value = name;
-            document.getElementById('edit_req_codename').value = codename;
-            openModal('editRequirementModal');
+    function openEditModal(type, id, name, codename = '', parentId = '', parentName = '') {
+        const modalId = type === 'category' ? 'editCategoryModal' : 'editRequirementModal';
+        const prefix = type === 'category' ? 'edit_cat' : 'edit_req';
+        const typeKey = type === 'category' ? 'cat' : 'req';
+        
+        document.getElementById(prefix + '_id').value = id;
+        document.getElementById(prefix + '_name').value = name;
+        if (type === 'requirement') document.getElementById('edit_req_codename').value = codename;
+        
+        openModal(modalId);
+
+        if (parentId) {
+            const containerId = type === 'category' ? 'edit_cat_parentSelectorsContainer' : 'edit_req_parentSelectorsContainer';
+            const inputId = type === 'category' ? 'edit_cat_final_parent_id' : 'edit_req_final_parent_id';
+            const container = document.getElementById(containerId);
+            const finalInput = document.getElementById(inputId);
+
+            // Re-use targeting indicator logic
+            finalInput.value = parentId;
+            
+            let indicator = document.getElementById(prefix + '_targeting_info');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = prefix + '_targeting_info';
+                indicator.style.background = '#f8fafc';
+                indicator.style.border = '1px solid var(--border-color)';
+                indicator.style.padding = '0.5rem 0.8rem';
+                indicator.style.borderRadius = '4px';
+                indicator.style.marginBottom = '1rem';
+                indicator.style.fontSize = '0.85rem';
+                indicator.style.color = 'var(--text-secondary)';
+                indicator.style.display = 'flex';
+                indicator.style.justifyContent = 'space-between';
+                indicator.style.alignItems = 'center';
+                container.parentNode.insertBefore(indicator, container);
+            }
+            indicator.innerHTML = `<span>Current Category: <strong>${parentName || 'Top Level'}</strong></span><button type="button" onclick="resetEditTarget('${type}')" style="background:transparent;border:none;color:var(--accent-blue);cursor:pointer;font-size:1.2rem;">&times;</button>`;
+            container.style.display = 'none';
         }
+    }
+
+    function resetEditTarget(type) {
+        const prefix = type === 'category' ? 'edit_cat' : 'edit_req';
+        const containerId = prefix + '_parentSelectorsContainer';
+        const inputId = prefix + '_final_parent_id';
+        const indicator = document.getElementById(prefix + '_targeting_info');
+        
+        if (indicator) indicator.remove();
+        document.getElementById(containerId).style.display = 'flex';
+        document.getElementById(inputId).value = "";
+        
+        const firstSelect = document.getElementById(containerId).querySelector('select');
+        firstSelect.value = "";
+        handleCascadingSelect(firstSelect, containerId, inputId);
     }
 
     function openUploadModal(id, name, codename = '') {

@@ -12,7 +12,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
 }
 
 $requirement_id = $_POST['requirement_id'] ?? null;
-$codename = $_POST['codename'] ?? '';
 $files = $_FILES['files'] ?? null;
 
 if (!$requirement_id || !$files || empty($files['name'][0])) {
@@ -21,6 +20,13 @@ if (!$requirement_id || !$files || empty($files['name'][0])) {
 }
 
 $db = (new Database())->getConnection();
+
+// Fetch Codename and Requirement Name directly from DB for reliability
+$stmt = $db->prepare("SELECT codename, name FROM accreditation_requirement WHERE requirement_id = :req_id");
+$stmt->execute(['req_id' => $requirement_id]);
+$req_data = $stmt->fetch(PDO::FETCH_ASSOC);
+$codename = trim($req_data['codename'] ?? '');
+$req_name = trim($req_data['name'] ?? 'Requirement');
 
 // 1. Get User's Google Token
 $stmt = $db->prepare("SELECT google_access_token, google_refresh_token FROM users WHERE user_id = :id");
@@ -92,14 +98,15 @@ foreach ($category_path as $folder_name) {
 }
 
 // If multiple files, create a requirement folder
-if (count($files['name']) > 1 && !empty($codename)) {
-    $query = "name = '" . str_replace("'", "\\'", $codename) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parent_id . "' in parents and trashed = false";
+if (count($files['name']) > 1) {
+    $folder_name = !empty($codename) ? $codename : $req_name;
+    $query = "name = '" . str_replace("'", "\\'", $folder_name) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parent_id . "' in parents and trashed = false";
     $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $access_token);
     if (!empty($search['data']['files'])) {
         $parent_id = $search['data']['files'][0]['id'];
     } else {
         $create = driveApiRequest("https://www.googleapis.com/drive/v3/files", 'POST', [
-            'name' => $codename,
+            'name' => $folder_name,
             'mimeType' => 'application/vnd.google-apps.folder',
             'parents' => [$parent_id]
         ], $access_token);
@@ -109,8 +116,16 @@ if (count($files['name']) > 1 && !empty($codename)) {
 
 // 3. Upload Files
 $success_count = 0;
-foreach ($files['name'] as $i => $name) {
-    $target_name = (count($files['name']) === 1 && !empty($codename)) ? $codename . ".pdf" : "file" . ($i + 1) . ".pdf";
+$file_count = count($files['name']);
+$clean_req_name = preg_replace('/[^A-Za-z0-9\- ]/', '', $req_name); // Sanitize for filename
+
+foreach ($files['name'] as $i => $original_name) {
+    if ($file_count === 1) {
+        $target_name = !empty($codename) ? $codename . ".pdf" : $clean_req_name . ".pdf";
+    } else {
+        $target_name = "file" . ($i + 1) . ".pdf";
+    }
+    
     $tmp_name = $files['tmp_name'][$i];
     
     $metadata = ['name' => $target_name, 'parents' => [$parent_id]];
@@ -142,7 +157,7 @@ foreach ($files['name'] as $i => $name) {
 }
 
 if ($success_count > 0) {
-    logActivity($db, $_SESSION['user_id'], "Directly uploaded $success_count PDF(s) as User to Drive for: $codename");
+    logActivity($db, $_SESSION['user_id'], "Directly uploaded $success_count PDF(s) as User to Drive for: $req_name");
     echo json_encode(['success' => true, 'message' => "Successfully uploaded $success_count file(s) as you!"]);
 } else {
     echo json_encode(['success' => false, 'message' => 'Upload failed. Check Drive permissions.']);

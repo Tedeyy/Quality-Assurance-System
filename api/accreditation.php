@@ -168,8 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("UPDATE accreditation_categories SET name = :name WHERE category_id = :id");
-            $stmt->execute(['name' => $name, 'id' => $cat_id]);
+            $parent_id = !empty($_POST['parent_category_id']) ? $_POST['parent_category_id'] : null;
+            $stmt = $db->prepare("UPDATE accreditation_categories SET name = :name, parent_category_id = :parent_id WHERE category_id = :id");
+            $stmt->execute(['name' => $name, 'parent_id' => $parent_id, 'id' => $cat_id]);
             $_SESSION['success'] = 'Category updated successfully!';
 
             // Log activity
@@ -189,10 +190,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $codename = trim($_POST['codename'] ?? '');
 
         try {
-            $stmt = $db->prepare("UPDATE accreditation_requirement SET name = :name, codename = :codename WHERE requirement_id = :id");
+            $cat_id = !empty($_POST['category_id']) ? $_POST['category_id'] : null;
+            $stmt = $db->prepare("UPDATE accreditation_requirement SET name = :name, codename = :codename, category_id = :cat_id WHERE requirement_id = :id");
             $stmt->execute([
                 'name' => $name,
                 'codename' => !empty($codename) ? $codename : null,
+                'cat_id' => $cat_id,
                 'id' => $req_id
             ]);
             $_SESSION['success'] = 'Requirement updated successfully!';
