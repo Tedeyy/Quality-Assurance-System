@@ -77,7 +77,7 @@ if ($selected_id) {
     ");
     $stmt->execute(['id' => $_SESSION['user_id']]);
     $user_office_name = $stmt->fetchColumn();
-    
+
     $is_qao = (stripos($user_office_name ?? '', 'Quality Assurance') !== false) || (($_SESSION['user_office_id'] ?? 0) == 4);
 
     // Helper to calculate total and approved requirements (including nested)
@@ -94,14 +94,14 @@ if ($selected_id) {
             $cat_id = $cat['category_id'];
             $direct_t = $direct_counts[$cat_id] ?? 0;
             $direct_a = $direct_approved[$cat_id] ?? 0;
-            
+
             $sub_stats = calculateStats($cat_id, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
-            
+
             $total = $direct_t + $sub_stats['total'];
             $approved = $direct_a + $sub_stats['approved'];
-            
+
             $category_stats[$cat_id] = ['total' => $total, 'approved' => $approved];
-            
+
             $sum_total += $total;
             $sum_approved += $approved;
         }
@@ -111,68 +111,113 @@ if ($selected_id) {
     $overall_stats = calculateStats(0, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
 }
 
-function renderCategories($parent_id, $categories_by_parent, $db, $category_stats) {
+function renderCategories($parent_id, $categories_by_parent, $db, $category_stats)
+{
     global $submissions, $is_qao;
-    if (!isset($categories_by_parent[$parent_id])) return;
+    if (!isset($categories_by_parent[$parent_id]))
+        return;
 
     foreach ($categories_by_parent[$parent_id] as $cat) {
         $cat_id = $cat['category_id'];
         ?>
-        <div style="border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.4rem; margin-left: <?= $parent_id == 0 ? '0' : '1rem' ?>; position: relative;">
+        <div
+            style="border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.4rem; margin-left: <?= $parent_id == 0 ? '0' : '1rem' ?>; position: relative;">
             <!-- Category Header -->
             <div onclick="toggleCategory(this)" data-id="cat-header-<?= $cat_id ?>"
                 style="background: #f8fafc; padding: 0.5rem 0.8rem; font-weight: 700; border-radius: 4px 4px 0 0; border-bottom: 1px solid var(--border-color); color: var(--accent-blue); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;"
                 onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
-                
+
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s; transform: rotate(0deg);">
+                    <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                        style="transition: transform 0.3s; transform: rotate(0deg);">
                         <polyline points="9 18 15 12 9 6"></polyline>
                     </svg>
-                    <span style="font-size: <?= $parent_id == 0 ? '0.95rem' : '0.85rem' ?>;"><?= htmlspecialchars($cat['name']) ?></span>
+                    <span
+                        style="font-size: <?= $parent_id == 0 ? '0.95rem' : '0.85rem' ?>;"><?= htmlspecialchars($cat['name']) ?></span>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <?php 
+                    <?php
                     $stats = $category_stats[$cat_id] ?? ['total' => 0, 'approved' => 0];
                     $t = $stats['total'] ?: 1;
                     $p = round(($stats['approved'] / $t) * 100);
                     ?>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 80px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; border: 1px solid #f1f5f9;">
-                            <div style="width: <?= $p ?>%; height: 100%; background: var(--accent-blue); transition: width 0.5s;"></div>
+                        <div
+                            style="width: 80px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; border: 1px solid #f1f5f9;">
+                            <div
+                                style="width: <?= $p ?>%; height: 100%; background: var(--accent-blue); transition: width 0.5s;">
+                            </div>
                         </div>
                         <span style="font-weight: 700; font-size: 0.75rem; color: var(--accent-blue);"><?= $p ?>%</span>
-                        <span style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary);">(<?= $stats['approved'] ?>/<?= $stats['total'] ?>)</span>
+                        <span
+                            style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary);">(<?= $stats['approved'] ?>/<?= $stats['total'] ?>)</span>
                     </div>
-                    
+
                     <?php if ($is_qao): ?>
-                    <!-- Category Triple Dot Menu -->
-                    <div style="position: relative;" onclick="event.stopPropagation()">
-                        <button onclick="toggleLocalMenu(this)" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
-                            </svg>
-                        </button>
-                        <div class="local-dropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 160px; z-index: 100; overflow: hidden;">
-                            <button onclick="openModalWithContext('addCategoryModal', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', 'cat')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                Add Sub-category
+                        <!-- Category Triple Dot Menu -->
+                        <div style="position: relative;" onclick="event.stopPropagation()">
+                            <button onclick="toggleLocalMenu(this)"
+                                style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="12" cy="5" r="1"></circle>
+                                    <circle cx="12" cy="19" r="1"></circle>
+                                </svg>
                             </button>
-                            <button onclick="openModalWithContext('addRequirementModal', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', 'req')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                                Add Requirement
-                            </button>
-                            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 0;">
-                            <button onclick="openEditModal('category', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', '', '<?= $parent_id ?>', '<?= addslashes($categories_by_parent[$parent_id][0]['name'] ?? 'Top Level') ?>')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                Edit Category
-                            </button>
-                            <button onclick="deleteItem('category', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; color: #ef4444; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                Delete
-                            </button>
+                            <div class="local-dropdown"
+                                style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 160px; z-index: 100; overflow: hidden;">
+                                <button
+                                    onclick="openModalWithContext('addCategoryModal', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', 'cat')"
+                                    style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;"
+                                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Add Sub-category
+                                </button>
+                                <button
+                                    onclick="openModalWithContext('addRequirementModal', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', 'req')"
+                                    style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;"
+                                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                                    </svg>
+                                    Add Requirement
+                                </button>
+                                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 0;">
+                                <button
+                                    onclick="openEditModal('category', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', '', '<?= $parent_id ?>', '<?= addslashes($categories_by_parent[$parent_id][0]['name'] ?? 'Top Level') ?>')"
+                                    style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;"
+                                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                    Edit Category
+                                </button>
+                                <button onclick="deleteItem('category', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')"
+                                    style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; color: #ef4444; display: flex; align-items: center; gap: 8px;"
+                                    onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                        </path>
+                                    </svg>
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-                    </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -188,45 +233,77 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     ?>
                     <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem;">
                         <?php foreach ($requirements as $req): ?>
-                            <li style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
+                            <li
+                                style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
                                 <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                    <?php 
-                                    $sub = $submissions[$req['requirement_id']] ?? null; 
+                                    <?php
+                                    $sub = $submissions[$req['requirement_id']] ?? null;
                                     $is_approved = ($sub && $sub['status'] === 'Approved');
                                     $cb_color = $sub ? ($sub['status'] === 'Approved' ? '#22c55e' : ($sub['status'] === 'Disapproved' ? '#ef4444' : '#3b82f6')) : '#e2e8f0';
                                     ?>
-                                    <div style="width: 18px; height: 18px; border: 2px solid <?= $cb_color ?>; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: <?= $is_approved ? $cb_color : 'transparent' ?>; margin-top: 2px; flex-shrink: 0;">
+                                    <div
+                                        style="width: 18px; height: 18px; border: 2px solid <?= $cb_color ?>; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: <?= $is_approved ? $cb_color : 'transparent' ?>; margin-top: 2px; flex-shrink: 0;">
                                         <?php if ($sub): ?>
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="<?= $is_approved ? 'white' : $cb_color ?>" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                                stroke="<?= $is_approved ? 'white' : $cb_color ?>" stroke-width="4" stroke-linecap="round"
+                                                stroke-linejoin="round">
                                                 <polyline points="20 6 9 17 4 12"></polyline>
                                             </svg>
                                         <?php endif; ?>
                                     </div>
-                                    <div onclick="handleRequirementClick(<?= $req['requirement_id'] ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)" style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                                    <div onclick="handleRequirementClick(<?= $req['requirement_id'] ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)"
+                                        style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'"
+                                        onmouseout="this.style.textDecoration='none'">
                                         <?php if (!empty($req['codename'])): ?>
-                                            <span style="font-weight: 700; color: var(--accent-blue); <?= $is_approved ? 'text-decoration: line-through; opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['codename']) ?>:</span>
+                                            <span
+                                                style="font-weight: 700; color: var(--accent-blue); <?= $is_approved ? 'text-decoration: line-through; opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['codename']) ?>:</span>
                                         <?php endif; ?>
-                                        <span style="<?= $is_approved ? 'opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['name']) ?></span>
+                                        <span
+                                            style="<?= $is_approved ? 'opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['name']) ?></span>
                                     </div>
                                 </div>
                                 <?php if ($is_qao): ?>
-                                <div style="position: relative;">
-                                    <button onclick="toggleActionMenu(event, 'req_menu_<?= $req['requirement_id'] ?>')" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
-                                        </svg>
-                                    </button>
-                                    <div id="req_menu_<?= $req['requirement_id'] ?>" class="local-dropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
-                                        <button onclick="openEditModal('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                            Edit
+                                    <div style="position: relative;">
+                                        <button onclick="toggleActionMenu(event, 'req_menu_<?= $req['requirement_id'] ?>')"
+                                            style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px;"
+                                            onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="1"></circle>
+                                                <circle cx="12" cy="5" r="1"></circle>
+                                                <circle cx="12" cy="19" r="1"></circle>
+                                            </svg>
                                         </button>
-                                        <button onclick="deleteItem('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: #ef4444;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                            Delete
-                                        </button>
+                                        <div id="req_menu_<?= $req['requirement_id'] ?>" class="local-dropdown"
+                                            style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
+                                            <button
+                                                onclick="openEditModal('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')"
+                                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;"
+                                                onmouseover="this.style.background='#f8fafc'"
+                                                onmouseout="this.style.background='transparent'">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                </svg>
+                                                Edit
+                                            </button>
+                                            <button
+                                                onclick="deleteItem('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>')"
+                                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: #ef4444;"
+                                                onmouseover="this.style.background='#fef2f2'"
+                                                onmouseout="this.style.background='transparent'">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                                    <path
+                                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                    </path>
+                                                </svg>
+                                                Delete
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
                                 <?php endif; ?>
                             </li>
                         <?php endforeach; ?>
@@ -251,18 +328,29 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 style="font-size: 1.2rem; color: var(--accent-blue); margin: 0;">Accreditations</h2>
-                    <?php if ($is_qao): ?>
-                    <button onclick="document.getElementById('addAccreditationModal').style.display='flex'"
-                        style="background: var(--accent-blue); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Add New Accreditation">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                    </button>
-                    <?php endif; ?>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button onclick="document.getElementById('importAccreditationModal').style.display='flex'"
+                            style="background: #10b981; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+                            onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
+                            title="Import from Excel">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                        </button>
+                        <button onclick="document.getElementById('addAccreditationModal').style.display='flex'"
+                            style="background: var(--accent-blue); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+                            onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
+                            title="Add New Accreditation">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <!-- Search Bar -->
                 <div style="position: relative;">
@@ -315,16 +403,16 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
                     <div style="position: relative;">
                         <?php if ($is_qao): ?>
-                        <button onclick="toggleActionMenu(event, 'accActionMenu')"
-                            style="background: white; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; color: var(--text-secondary);"
-                            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="1"></circle>
-                                <circle cx="12" cy="5" r="1"></circle>
-                                <circle cx="12" cy="19" r="1"></circle>
-                            </svg>
-                        </button>
+                            <button onclick="toggleActionMenu(event, 'accActionMenu')"
+                                style="background: white; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; color: var(--text-secondary);"
+                                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="12" cy="5" r="1"></circle>
+                                    <circle cx="12" cy="19" r="1"></circle>
+                                </svg>
+                            </button>
                         <?php endif; ?>
 
                         <div id="accActionMenu"
@@ -376,14 +464,17 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                                 Edit Accreditation
                             </button>
                             <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;">
-                            <button onclick="deleteItem('accreditation', '<?= $selected_id ?>', '<?= addslashes($current_acc['name']) ?>')"
+                            <button
+                                onclick="deleteItem('accreditation', '<?= $selected_id ?>', '<?= addslashes($current_acc['name']) ?>')"
                                 style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #ef4444;"
                                 onmouseover="this.style.background='#fef2f2'"
                                 onmouseout="this.style.background='transparent'">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <path
+                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                    </path>
                                 </svg>
                                 Delete Accreditation
                             </button>
@@ -409,21 +500,26 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                             </span>
                         </div>
                         <p style="color: var(--text-secondary); margin: 0;">
-                            <?= htmlspecialchars($current_acc['description']) ?></p>
+                            <?= htmlspecialchars($current_acc['description']) ?>
+                        </p>
                     </div>
 
                     <div style="display: flex; gap: 2rem; align-items: center;">
                         <div style="flex: 1;">
-                            <?php 
+                            <?php
                             $total = $overall_stats['total'] ?: 1;
                             $percent = round(($overall_stats['approved'] / $total) * 100);
                             ?>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.5rem;">
                                 <span style="font-weight: 600;">Overall Progress</span>
                                 <span style="font-weight: 700; color: var(--accent-blue);"><?= $percent ?>%</span>
                             </div>
-                            <div style="height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
-                                <div style="width: <?= $percent ?>%; height: 100%; background: var(--accent-blue); transition: width 1s ease-in-out; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);"></div>
+                            <div
+                                style="height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; border: 1px solid #f1f5f9;">
+                                <div
+                                    style="width: <?= $percent ?>%; height: 100%; background: var(--accent-blue); transition: width 1s ease-in-out; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);">
+                                </div>
                             </div>
                         </div>
                         <?php if (!empty($current_acc['deadline'])): ?>
@@ -521,20 +617,23 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
         <form action="../api/accreditation.php?action=edit" method="POST">
             <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
-            
+
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Code *</label>
-                <input type="text" name="code" value="<?= htmlspecialchars($current_acc['code'] ?? '') ?>" required class="form-control">
+                <input type="text" name="code" value="<?= htmlspecialchars($current_acc['code'] ?? '') ?>" required
+                    class="form-control">
             </div>
 
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Name *</label>
-                <input type="text" name="name" value="<?= htmlspecialchars($current_acc['name'] ?? '') ?>" required class="form-control">
+                <input type="text" name="name" value="<?= htmlspecialchars($current_acc['name'] ?? '') ?>" required
+                    class="form-control">
             </div>
 
             <div style="margin-bottom: 2rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description</label>
-                <textarea name="description" rows="3" class="form-control" style="resize: vertical;"><?= htmlspecialchars($current_acc['description'] ?? '') ?></textarea>
+                <textarea name="description" rows="3" class="form-control"
+                    style="resize: vertical;"><?= htmlspecialchars($current_acc['description'] ?? '') ?></textarea>
             </div>
 
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
@@ -555,9 +654,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
 
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Parent Category (Optional)</label>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Parent Category
+                    (Optional)</label>
                 <div id="cat_parentSelectorsContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                    <select class="form-control parent-cat-select" onchange="handleCascadingSelect(this, 'cat_parentSelectorsContainer', 'cat_final_parent_id')">
+                    <select class="form-control parent-cat-select"
+                        onchange="handleCascadingSelect(this, 'cat_parentSelectorsContainer', 'cat_final_parent_id')">
                         <option value="">None (Top Level)</option>
                         <?php foreach ($categories_by_parent[0] ?? [] as $cat): ?>
                             <option value="<?= $cat['category_id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
@@ -565,17 +666,20 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     </select>
                 </div>
                 <input type="hidden" name="parent_category_id" id="cat_final_parent_id" value="">
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Select the parent category if this is a sub-category.</p>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Select the parent
+                    category if this is a sub-category.</p>
             </div>
 
             <div id="cat_items_container">
                 <div class="item-row" style="margin-bottom: 1rem;">
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category Name *</label>
-                    <input type="text" name="name[]" required placeholder="e.g. Governance, Facilities..." class="form-control">
+                    <input type="text" name="name[]" required placeholder="e.g. Governance, Facilities..."
+                        class="form-control">
                 </div>
             </div>
-            
-            <button type="button" onclick="addItemRow('cat_items_container', 'category')" class="btn btn-secondary" style="width: 100%; margin-bottom: 1rem; padding: 0.6rem;">+ Add Another Category</button>
+
+            <button type="button" onclick="addItemRow('cat_items_container', 'category')" class="btn btn-secondary"
+                style="width: 100%; margin-bottom: 1rem; padding: 0.6rem;">+ Add Another Category</button>
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Add Categories</button>
         </form>
     </div>
@@ -597,7 +701,8 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category *</label>
                 <div id="req_parentSelectorsContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                    <select class="form-control parent-cat-select" onchange="handleCascadingSelect(this, 'req_parentSelectorsContainer', 'req_final_parent_id')">
+                    <select class="form-control parent-cat-select"
+                        onchange="handleCascadingSelect(this, 'req_parentSelectorsContainer', 'req_final_parent_id')">
                         <option value="">Select Category...</option>
                         <?php foreach ($categories_by_parent[0] ?? [] as $cat): ?>
                             <option value="<?= $cat['category_id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
@@ -605,23 +710,29 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     </select>
                 </div>
                 <input type="hidden" name="category_id" id="req_final_parent_id" required value="">
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Select which category these requirements belong to.</p>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Select which category
+                    these requirements belong to.</p>
             </div>
 
             <div id="req_items_container">
-                <div class="item-row" style="display: flex; gap: 1rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px dashed var(--border-color);">
+                <div class="item-row"
+                    style="display: flex; gap: 1rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px dashed var(--border-color);">
                     <div style="flex: 1;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Codename</label>
+                        <label
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Codename</label>
                         <input type="text" name="codename[]" placeholder="1.1" class="form-control">
                     </div>
                     <div style="flex: 2;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Requirement Name *</label>
+                        <label
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Requirement
+                            Name *</label>
                         <input type="text" name="name[]" required placeholder="Description..." class="form-control">
                     </div>
                 </div>
             </div>
-            
-            <button type="button" onclick="addItemRow('req_items_container', 'requirement')" class="btn btn-secondary" style="width: 100%; margin-bottom: 1rem; padding: 0.6rem;">+ Add Another Requirement</button>
+
+            <button type="button" onclick="addItemRow('req_items_container', 'requirement')" class="btn btn-secondary"
+                style="width: 100%; margin-bottom: 1rem; padding: 0.6rem;">+ Add Another Requirement</button>
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Add Requirements</button>
         </form>
     </div>
@@ -669,18 +780,20 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
     <div class="modal-content" style="max-width: 450px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <h2 style="color: var(--accent-blue); margin: 0;">Edit Category</h2>
-            <button onclick="document.getElementById('editCategoryModal').style.display='none'" 
-                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            <button onclick="document.getElementById('editCategoryModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
-        
+
         <form action="../api/accreditation.php?action=edit_category" method="POST">
             <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
             <input type="hidden" name="category_id" id="edit_cat_id">
-            
+
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Parent Category (Optional)</label>
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Parent Category
+                    (Optional)</label>
                 <div id="edit_cat_parentSelectorsContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                    <select class="form-control parent-cat-select" onchange="handleCascadingSelect(this, 'edit_cat_parentSelectorsContainer', 'edit_cat_final_parent_id')">
+                    <select class="form-control parent-cat-select"
+                        onchange="handleCascadingSelect(this, 'edit_cat_parentSelectorsContainer', 'edit_cat_final_parent_id')">
                         <option value="">None (Top Level)</option>
                         <?php foreach ($categories_by_parent[0] ?? [] as $cat): ?>
                             <option value="<?= $cat['category_id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
@@ -694,29 +807,31 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category Name *</label>
                 <input type="text" name="name" id="edit_cat_name" required class="form-control">
             </div>
-            
+
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
         </form>
     </div>
 </div>
 
 <!-- Edit Requirement Modal -->
-<div id="editRequirementModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+<div id="editRequirementModal" class="modal-overlay"
+    style="display: none; align-items: center; justify-content: center;">
     <div class="modal-content" style="max-width: 450px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <h2 style="color: var(--accent-blue); margin: 0;">Edit Requirement</h2>
-            <button onclick="document.getElementById('editRequirementModal').style.display='none'" 
-                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            <button onclick="document.getElementById('editRequirementModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
-        
+
         <form action="../api/accreditation.php?action=edit_requirement" method="POST">
             <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
             <input type="hidden" name="requirement_id" id="edit_req_id">
-            
+
             <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category *</label>
                 <div id="edit_req_parentSelectorsContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                    <select class="form-control parent-cat-select" onchange="handleCascadingSelect(this, 'edit_req_parentSelectorsContainer', 'edit_req_final_parent_id')">
+                    <select class="form-control parent-cat-select"
+                        onchange="handleCascadingSelect(this, 'edit_req_parentSelectorsContainer', 'edit_req_final_parent_id')">
                         <option value="">Select Category...</option>
                         <?php foreach ($categories_by_parent[0] ?? [] as $cat): ?>
                             <option value="<?= $cat['category_id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
@@ -726,59 +841,73 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 <input type="hidden" name="category_id" id="edit_req_final_parent_id" required value="">
             </div>
 
-            <div style="margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px dashed var(--border-color);">
+            <div
+                style="margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px dashed var(--border-color);">
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Codename</label>
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Codename</label>
                     <input type="text" name="codename" id="edit_req_codename" placeholder="1.1" class="form-control">
                 </div>
                 <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Requirement Name *</label>
-                    <input type="text" name="name" id="edit_req_name" required placeholder="Description..." class="form-control">
+                    <label
+                        style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Requirement
+                        Name *</label>
+                    <input type="text" name="name" id="edit_req_name" required placeholder="Description..."
+                        class="form-control">
                 </div>
             </div>
-            
+
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
         </form>
     </div>
 </div>
 
 <!-- Requirement Upload Modal -->
-<div id="uploadRequirementModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+<div id="uploadRequirementModal" class="modal-overlay"
+    style="display: none; align-items: center; justify-content: center;">
     <div class="modal-content" style="max-width: 500px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <h2 id="upload_req_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Upload File</h2>
-            <button onclick="document.getElementById('uploadRequirementModal').style.display='none'" 
-                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            <button onclick="document.getElementById('uploadRequirementModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
-        
+
         <form id="uploadForm" onsubmit="handleFileUpload(event)">
             <input type="hidden" name="requirement_id" id="upload_req_id">
-            
-            <div id="dropZone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; margin-bottom: 1.5rem; cursor: pointer; transition: all 0.3s;"
-                 onmouseover="this.style.borderColor='var(--accent-blue)'; this.style.background='#f8fafc'"
-                 onmouseout="this.style.borderColor='var(--border-color)'; this.style.background='transparent'"
-                 onclick="document.getElementById('fileInput').click()">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
+
+            <div id="dropZone"
+                style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; margin-bottom: 1.5rem; cursor: pointer; transition: all 0.3s;"
+                onmouseover="this.style.borderColor='var(--accent-blue)'; this.style.background='#f8fafc'"
+                onmouseout="this.style.borderColor='var(--border-color)'; this.style.background='transparent'"
+                onclick="document.getElementById('fileInput').click()">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="17 8 12 3 7 8"></polyline>
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
                 <p style="margin: 0; font-weight: 500;">Click to select or drag and drop</p>
-                <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">PDF files only (Multiple allowed)</p>
-                <input type="file" id="fileInput" name="files[]" multiple accept="application/pdf" style="display: none;" onchange="updateFileInfo(this)">
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">PDF files only
+                    (Multiple allowed)</p>
+                <input type="file" id="fileInput" name="files[]" multiple accept="application/pdf"
+                    style="display: none;" onchange="updateFileInfo(this)">
             </div>
-            
-            <div id="fileInfo" style="display: none; margin-bottom: 1.5rem; padding: 0.8rem; background: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 0.9rem; color: #1e40af;">
+
+            <div id="fileInfo"
+                style="display: none; margin-bottom: 1.5rem; padding: 0.8rem; background: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 0.9rem; color: #1e40af;">
                 <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 5px; border-bottom: 1px solid #bfdbfe; padding-bottom: 5px;">
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 5px; border-bottom: 1px solid #bfdbfe; padding-bottom: 5px;">
                         <span>Selected Files:</span>
-                        <button type="button" onclick="clearFile()" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">&times;</button>
+                        <button type="button" onclick="clearFile()"
+                            style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">&times;</button>
                     </div>
                     <div id="fileList"></div>
                 </div>
             </div>
-            
-            <button type="submit" id="uploadBtn" class="btn btn-primary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+
+            <button type="submit" id="uploadBtn" class="btn btn-primary"
+                style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
                 <span>Start Upload</span>
             </button>
         </form>
@@ -786,53 +915,70 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 </div>
 
 <!-- Review Submission Modal -->
-<div id="reviewSubmissionModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
-    <div class="modal-content" style="max-width: 900px; width: 90%; height: 80vh; display: flex; flex-direction: column;">
+<div id="reviewSubmissionModal" class="modal-overlay"
+    style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content"
+        style="max-width: 900px; width: 90%; height: 80vh; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 id="review_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Review Submission</h2>
-            <button onclick="document.getElementById('reviewSubmissionModal').style.display='none'" 
-                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            <h2 id="review_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Review Submission
+            </h2>
+            <button onclick="document.getElementById('reviewSubmissionModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
-        
+
         <div style="display: flex; gap: 2rem; flex: 1; overflow: hidden;">
             <!-- File Preview -->
             <div style="flex: 2; background: #f1f5f9; border-radius: 8px; overflow: hidden; position: relative;">
                 <iframe id="preview_frame" src="" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
-            
+
             <!-- Details and Actions -->
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; padding-right: 10px;">
-                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <h3 style="font-size: 0.9rem; margin: 0 0 1rem 0; color: var(--accent-blue);">Submission Details</h3>
+            <div
+                style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; padding-right: 10px;">
+                <div
+                    style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="font-size: 0.9rem; margin: 0 0 1rem 0; color: var(--accent-blue);">Submission Details
+                    </h3>
                     <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem;">
                         <div><strong>Uploaded by:</strong> <span id="rev_user"></span></div>
                         <div><strong>Division:</strong> <span id="rev_division"></span></div>
                         <div><strong>Office:</strong> <span id="rev_office"></span></div>
                         <div><strong>Date:</strong> <span id="rev_date"></span></div>
-                        <div><strong>Status:</strong> <span id="rev_status_badge" class="user-badge" style="padding: 2px 8px; font-size: 0.7rem;"></span></div>
-                        <div id="rev_marker_container" style="display: none; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e2e8f0;">
+                        <div><strong>Status:</strong> <span id="rev_status_badge" class="user-badge"
+                                style="padding: 2px 8px; font-size: 0.7rem;"></span></div>
+                        <div id="rev_marker_container"
+                            style="display: none; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e2e8f0;">
                             <strong>Marked by:</strong> <span id="rev_marker"></span>
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="remarks_container" style="display: none;">
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem;">Review Remarks</label>
-                    <div id="remarks_display" style="display: none; padding: 10px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;"></div>
-                    <textarea id="review_remarks" rows="5" class="form-control" placeholder="Add feedback or reasons for disapproval..." style="resize: none; font-size: 0.9rem;"></textarea>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem;">Review
+                        Remarks</label>
+                    <div id="remarks_display"
+                        style="display: none; padding: 10px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    </div>
+                    <textarea id="review_remarks" rows="5" class="form-control"
+                        placeholder="Add feedback or reasons for disapproval..."
+                        style="resize: none; font-size: 0.9rem;"></textarea>
                 </div>
-                
+
                 <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
                     <?php if ($is_qao): ?>
-                    <div id="review_actions" style="display: flex; gap: 10px;">
-                        <button onclick="submitReview('Approved')" class="btn btn-success" style="flex: 1; padding: 0.8rem; background: #22c55e;">Approve</button>
-                        <button onclick="submitReview('Disapproved')" class="btn btn-danger" style="flex: 1; padding: 0.8rem; background: #ef4444;">Disapprove</button>
-                    </div>
+                        <div id="review_actions" style="display: flex; gap: 10px;">
+                            <button onclick="submitReview('Approved')" class="btn btn-success"
+                                style="flex: 1; padding: 0.8rem; background: #22c55e;">Approve</button>
+                            <button onclick="submitReview('Disapproved')" class="btn btn-danger"
+                                style="flex: 1; padding: 0.8rem; background: #ef4444;">Disapprove</button>
+                        </div>
                     <?php endif; ?>
-                    
+
                     <div id="uploader_actions" style="display: none; gap: 10px;">
-                        <button onclick="reopenUpload()" class="btn btn-secondary" style="flex: 2; padding: 0.8rem;">Update / Replace Files</button>
-                        <button onclick="removeSubmission()" class="btn btn-danger" style="flex: 1; padding: 0.8rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Remove</button>
+                        <button onclick="reopenUpload()" class="btn btn-secondary"
+                            style="flex: 2; padding: 0.8rem;">Update / Replace Files</button>
+                        <button onclick="removeSubmission()" class="btn btn-danger"
+                            style="flex: 1; padding: 0.8rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Remove</button>
                     </div>
                 </div>
             </div>
@@ -855,7 +1001,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
     function openReviewModal(sub, name) {
         document.getElementById('review_title').textContent = name;
-        
+
         // Show uploader actions only if it's the user's own submission AND it's not already Approved
         const uploaderActions = document.getElementById('uploader_actions');
         if (sub.user_id == currentUserId && sub.status !== 'Approved') {
@@ -873,25 +1019,25 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 reviewActions.style.display = 'none';
             }
         }
-        
+
         // Preview logic: if it's a folder, we can't easily iframe it without auth issues in some browsers, 
         // but for files /view works well.
         const previewUrl = sub.google_drive_link.replace('/view', '/preview');
         document.getElementById('preview_frame').src = previewUrl;
-        
+
         document.getElementById('rev_user').textContent = sub.fname + ' ' + sub.lname;
         document.getElementById('rev_division').textContent = sub.division_name || 'N/A';
         document.getElementById('rev_office').textContent = sub.office_name || 'N/A';
-        
+
         // Format date: Date and hour:minute PM/AM
         const date = new Date(sub.created_at);
         const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
         document.getElementById('rev_date').textContent = date.toLocaleDateString('en-US', options);
-        
+
         const badge = document.getElementById('rev_status_badge');
         badge.textContent = sub.status;
         badge.style.background = sub.status === 'Approved' ? '#22c55e' : (sub.status === 'Disapproved' ? '#ef4444' : '#3b82f6');
-        
+
         const markerContainer = document.getElementById('rev_marker_container');
         if (sub.marked_by && sub.marker_fname) {
             markerContainer.style.display = 'block';
@@ -910,7 +1056,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             // Show remarks if user is QAO OR if they are the uploader
             if (isQAO || sub.user_id == currentUserId) {
                 remarksContainer.style.display = 'block';
-                
+
                 if (sub.status === 'Pending' && isQAO) {
                     remarksTextarea.style.display = 'block';
                     remarksDisplay.style.display = 'none';
@@ -924,13 +1070,13 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 remarksContainer.style.display = 'none';
             }
         }
-        
+
         openModal('reviewSubmissionModal');
     }
 
     async function removeSubmission() {
         if (!confirm('Are you sure you want to remove this submission? This will only remove the record from the tracker, not the files from Drive.')) return;
-        
+
         const reqId = currentRequirement.id;
         try {
             const response = await fetch(`../api/accreditation.php?action=delete_submission&requirement_id=${reqId}`);
@@ -948,7 +1094,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
     async function submitReview(status) {
         const remarks = document.getElementById('review_remarks').value;
         const reqId = currentRequirement.id;
-        
+
         try {
             const response = await fetch('../api/accreditation.php?action=review_submission', {
                 method: 'POST',
@@ -982,7 +1128,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const parentId = select.value;
         const container = document.getElementById(containerId);
         const finalInput = document.getElementById(inputId);
-        
+
         // Remove all following selects
         let next = select.nextElementSibling;
         while (next) {
@@ -998,8 +1144,8 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             const newSelect = document.createElement('select');
             newSelect.className = 'form-control parent-cat-select';
             newSelect.style.marginTop = '0.8rem';
-            newSelect.onchange = function() { handleCascadingSelect(this, containerId, inputId); };
-            
+            newSelect.onchange = function () { handleCascadingSelect(this, containerId, inputId); };
+
             let options = '<option value="">Select sub-category...</option>';
             categoriesByParent[parentId].forEach(cat => {
                 options += `<option value="${cat.category_id}">${cat.name}</option>`;
@@ -1014,7 +1160,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const div = document.createElement('div');
         div.className = 'item-row';
         div.style.marginBottom = '1rem';
-        
+
         if (type === 'category') {
             div.innerHTML = `
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.85rem;">Additional Category Name</label>
@@ -1110,7 +1256,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
     function openModalWithContext(modalId, categoryId, categoryName, type) {
         openModal(modalId);
-        
+
         const containerId = type === 'cat' ? 'cat_parentSelectorsContainer' : 'req_parentSelectorsContainer';
         const inputId = type === 'cat' ? 'cat_final_parent_id' : 'req_final_parent_id';
         const container = document.getElementById(containerId);
@@ -1124,7 +1270,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         // Set the value (this is a simplified pre-select, in a real cascading UI you'd want to rebuild the chain, 
         // but for now setting the hidden ID and showing the target name is effective)
         finalInput.value = categoryId;
-        
+
         // Add a "Targeting" indicator if it doesn't exist
         let indicator = document.getElementById(type + '_targeting_info');
         if (!indicator) {
@@ -1150,11 +1296,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const indicator = document.getElementById(type + '_targeting_info');
         const containerId = type === 'cat' ? 'cat_parentSelectorsContainer' : 'req_parentSelectorsContainer';
         const inputId = type === 'cat' ? 'cat_final_parent_id' : 'req_final_parent_id';
-        
+
         if (indicator) indicator.remove();
         document.getElementById(containerId).style.display = 'flex';
         document.getElementById(inputId).value = "";
-        
+
         const firstSelect = document.getElementById(containerId).querySelector('select');
         firstSelect.value = "";
         handleCascadingSelect(firstSelect, containerId, inputId);
@@ -1195,11 +1341,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
     function toggleLocalMenu(btn) {
         const menu = btn.nextElementSibling;
         const allMenus = document.querySelectorAll('.local-dropdown');
-        
+
         allMenus.forEach(m => {
             if (m !== menu) m.style.display = 'none';
         });
-        
+
         menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
     }
 
@@ -1207,11 +1353,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const modalId = type === 'category' ? 'editCategoryModal' : 'editRequirementModal';
         const prefix = type === 'category' ? 'edit_cat' : 'edit_req';
         const typeKey = type === 'category' ? 'cat' : 'req';
-        
+
         document.getElementById(prefix + '_id').value = id;
         document.getElementById(prefix + '_name').value = name;
         if (type === 'requirement') document.getElementById('edit_req_codename').value = codename;
-        
+
         openModal(modalId);
 
         if (parentId) {
@@ -1222,7 +1368,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
             // Re-use targeting indicator logic
             finalInput.value = parentId;
-            
+
             let indicator = document.getElementById(prefix + '_targeting_info');
             if (!indicator) {
                 indicator = document.createElement('div');
@@ -1249,11 +1395,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const containerId = prefix + '_parentSelectorsContainer';
         const inputId = prefix + '_final_parent_id';
         const indicator = document.getElementById(prefix + '_targeting_info');
-        
+
         if (indicator) indicator.remove();
         document.getElementById(containerId).style.display = 'flex';
         document.getElementById(inputId).value = "";
-        
+
         const firstSelect = document.getElementById(containerId).querySelector('select');
         firstSelect.value = "";
         handleCascadingSelect(firstSelect, containerId, inputId);
@@ -1271,7 +1417,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const info = document.getElementById('fileInfo');
         const list = document.getElementById('fileList');
         list.innerHTML = '';
-        
+
         if (input.files && input.files.length > 0) {
             for (let i = 0; i < input.files.length; i++) {
                 const file = input.files[i];
@@ -1354,7 +1500,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 try {
                     const response = await fetch(`../api/accreditation.php?action=delete_${type}&${type}_id=${id}`);
                     const text = await response.text();
-                    
+
                     let result;
                     try {
                         result = JSON.parse(text);
@@ -1363,7 +1509,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                         showConfirmation({ title: 'Error', message: 'Received invalid response from server.', type: 'danger' });
                         return;
                     }
-                    
+
                     if (result.success) {
                         showConfirmation({
                             title: 'Deleted',
@@ -1401,6 +1547,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const statusModal = document.getElementById('changeStatusModal');
         const editCatModal = document.getElementById('editCategoryModal');
         const editReqModal = document.getElementById('editRequirementModal');
+        const importModal = document.getElementById('importAccreditationModal');
         const actionMenu = document.getElementById('accActionMenu');
         const allLocalMenus = document.querySelectorAll('.local-dropdown');
 
@@ -1411,6 +1558,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         if (event.target == statusModal) statusModal.style.display = "none";
         if (event.target == editCatModal) editCatModal.style.display = "none";
         if (event.target == editReqModal) editReqModal.style.display = "none";
+        if (event.target == importModal) importModal.style.display = "none";
 
         if (actionMenu && !actionMenu.contains(event.target)) {
             actionMenu.style.display = 'none';
@@ -1421,4 +1569,216 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             allLocalMenus.forEach(m => m.style.display = 'none');
         }
     }
+
+    async function handleImportExcel(e, isFinal = false) {
+        if (e) e.preventDefault();
+        const form = document.getElementById('importExcelForm');
+        const formData = new FormData(form);
+
+        if (!isFinal) {
+            formData.append('dry_run', '1');
+        } else {
+            formData.append('dry_run', '0');
+            // Close summary modal
+            document.getElementById('importSummaryModal').style.display = 'none';
+        }
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerText;
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = isFinal ? 'Importing...' : 'Analyzing...';
+
+        try {
+            const response = await fetch('../api/import_excel.php', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                if (result.is_dry_run) {
+                    showImportSummary(result);
+                } else {
+                    showConfirmation({
+                        title: 'Success',
+                        message: result.message + ' ' + result.details,
+                        type: 'success',
+                        onConfirm: () => window.location.reload()
+                    });
+                }
+            } else {
+                showConfirmation({ title: 'Import Failed', message: result.message, type: 'danger' });
+            }
+        } catch (error) {
+            console.error('Import error:', error);
+            showConfirmation({ title: 'Error', message: 'An unexpected error occurred.', type: 'danger' });
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalText;
+        }
+    }
+
+    function showImportSummary(data) {
+        const modal = document.getElementById('importSummaryModal');
+        const content = document.getElementById('summaryContent');
+
+        let html = `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <p style="margin: 0; color: #166534; font-weight: 600;">Analysis Complete!</p>
+                <p style="margin: 5px 0 0; font-size: 0.9rem; color: #166534;">
+                    Found <b>${data.stats.categories}</b> categories and <b>${data.stats.requirements}</b> requirements.
+                </p>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafafa;">
+        `;
+
+        for (const areaId in data.preview) {
+            const area = data.preview[areaId];
+            html += `<div style="margin-bottom: 1rem;">
+                <div style="font-weight: 700; color: var(--accent-blue); font-size: 0.95rem;">${area.name}</div>`;
+
+            for (const paramId in area.items) {
+                const param = area.items[paramId];
+                html += `<div style="margin-left: 1rem; margin-top: 0.5rem; font-weight: 600; font-size: 0.9rem;">${param.name}</div>`;
+
+                for (const secId in param.items) {
+                    const sec = param.items[secId];
+                    html += `<div style="margin-left: 2rem; color: #64748b; font-size: 0.85rem; margin-top: 3px;">
+                        └ ${sec.name} (${sec.items.length} requirements)
+                    </div>`;
+                }
+            }
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+        content.innerHTML = html;
+        modal.style.display = 'flex';
+    }
+
+    function toggleNewAccFields(val) {
+        const container = document.getElementById('newAccFields');
+        const nameInput = container.querySelector('input[name="accreditation_name"]');
+        if (val === 'new') {
+            container.style.display = 'block';
+            nameInput.required = true;
+        } else {
+            container.style.display = 'none';
+            nameInput.required = false;
+        }
+    }
 </script>
+
+<!-- Import Accreditation Modal -->
+<div id="importAccreditationModal" class="modal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div
+        style="background: white; padding: 2rem; border-radius: 12px; width: 450px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="margin: 0; color: var(--accent-blue);">Bulk Import Accreditation</h2>
+            <button onclick="document.getElementById('importAccreditationModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <form id="importExcelForm" onsubmit="handleImportExcel(event)" enctype="multipart/form-data">
+            <div style="margin-bottom: 1.2rem;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Import
+                    Template</label>
+                <select name="template_type" required
+                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
+                    <option value="aaccup" selected>AACCUP Standard (Area -> Parameter -> Section)</option>
+                    <option value="ched" disabled>CHED Standard (Coming Soon)</option>
+                    <option value="iso" disabled>ISO Standard (Coming Soon)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1.2rem;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Target
+                    Accreditation</label>
+                <select name="accreditation_id" onchange="toggleNewAccFields(this.value)" required
+                    style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
+                    <option value="" disabled selected>Select an accreditation...</option>
+                    <option value="new" style="font-weight: 700; color: var(--accent-blue);">+ Create New Accreditation
+                    </option>
+                    <?php foreach ($accreditations as $acc): ?>
+                        <option value="<?= $acc['accreditation_id'] ?>"><?= htmlspecialchars($acc['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div id="newAccFields" style="display: none;">
+                <div style="margin-bottom: 1.2rem;">
+                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">New
+                        Accreditation Name</label>
+                    <input type="text" name="accreditation_name" placeholder="e.g., BSIT Accreditation 2024"
+                        style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                </div>
+                <div style="margin-bottom: 1.2rem;">
+                    <label
+                        style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Description</label>
+                    <textarea name="accreditation_desc" placeholder="Brief details about this import..."
+                        style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; height: 80px; resize: none;"></textarea>
+                </div>
+            </div>
+
+            <div
+                style="margin-bottom: 1rem; padding: 1.5rem; border: 2px dashed #e2e8f0; border-radius: 8px; text-align: center; background: #f8fafc;">
+                <label style="cursor: pointer;">
+                    <div style="margin-bottom: 0.5rem; color: #10b981;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                    </div>
+                    <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Click to upload
+                        XLSX</span>
+                    <input type="file" name="excel_file" accept=".xlsx" required style="display: none;">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;"></div>
+                </label>
+            </div>
+
+            <div style="margin-bottom: 1.5rem; text-align: center;">
+                <a href="../context/sample template.xlsx" download
+                    style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; color: var(--accent-blue); text-decoration: none; font-weight: 600;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download AACCUP Standard Template
+                </a>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="document.getElementById('importAccreditationModal').style.display='none'"
+                    style="padding: 0.7rem 1.2rem; border: 1px solid var(--border-color); background: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancel</button>
+                <button type="submit"
+                    style="padding: 0.7rem 1.5rem; border: none; background: #10b981; color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;">Analyze
+                    File</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Summary Modal -->
+<div id="importSummaryModal" class="modal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div
+        style="background: white; padding: 2rem; border-radius: 12px; width: 550px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        <h2 style="margin: 0 0 1.5rem; color: var(--accent-blue);">Import Summary Preview</h2>
+
+        <div id="summaryContent" style="margin-bottom: 2rem;">
+            <!-- Content populated by JS -->
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" onclick="document.getElementById('importSummaryModal').style.display='none'"
+                style="padding: 0.7rem 1.2rem; border: 1px solid var(--border-color); background: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Back</button>
+            <button type="button" onclick="handleImportExcel(null, true)"
+                style="padding: 0.7rem 1.5rem; border: none; background: var(--accent-blue); color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Finalize
+                Import</button>
+        </div>
+    </div>
+</div>
