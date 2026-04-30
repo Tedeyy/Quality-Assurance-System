@@ -2,8 +2,8 @@
 require_once __DIR__ . '/../../config/database.php';
 $db = (new Database())->getConnection();
 
-$stmt = $db->prepare("SELECT birthdate, gender, province, city, barangay, address, contact_number, division_id, office_id, position FROM users WHERE id = :id");
-$stmt->execute(['id' => $_SESSION['user_id']]);
+$stmt = $db->prepare("SELECT birthdate, gender, province, city, barangay, address, contact_number, division_id, office_id, position FROM users WHERE user_id = :user_id");
+$stmt->execute(['user_id' => $_SESSION['user_id']]);
 $userProfile = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $needsProfileCompletion = false;

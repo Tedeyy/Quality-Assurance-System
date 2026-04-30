@@ -68,7 +68,7 @@ CREATE TABLE users (
 
 CREATE TABLE accreditations(
     accreditation_id INT AUTO_INCREMENT PRIMARY KEY,
-    acronym TEXT NOT NULL,
+    code TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     deadline DATE,

@@ -35,7 +35,19 @@ if ($selected_id) {
         
         <!-- Sidebar: Accreditations List -->
         <aside style="width: 300px; background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content;">
-            <h2 style="font-size: 1.2rem; margin-bottom: 1.5rem; color: var(--accent-blue);">Accreditations</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="font-size: 1.2rem; color: var(--accent-blue); margin: 0;">Accreditations</h2>
+                <button onclick="document.getElementById('addAccreditationModal').style.display='flex'" 
+                        style="background: var(--accent-blue); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.1)'"
+                        onmouseout="this.style.transform='scale(1)'"
+                        title="Add New Accreditation">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 <?php if (empty($accreditations)): ?>
                     <p style="color: var(--text-secondary); font-size: 0.9rem;">No accreditations found.</p>
@@ -45,7 +57,7 @@ if ($selected_id) {
                            style="padding: 0.8rem; border-radius: 4px; text-decoration: none; color: <?= $selected_id == $acc['accreditation_id'] ? 'white' : 'var(--text-secondary)' ?>; background: <?= $selected_id == $acc['accreditation_id'] ? 'var(--accent-blue)' : 'transparent' ?>; border: 1px solid <?= $selected_id == $acc['accreditation_id'] ? 'var(--accent-blue)' : 'var(--border-color)' ?>; transition: all 0.3s;"
                            onmouseover="if(<?= $selected_id ?> != <?= $acc['accreditation_id'] ?>) this.style.backgroundColor='#f8fafc'"
                            onmouseout="if(<?= $selected_id ?> != <?= $acc['accreditation_id'] ?>) this.style.backgroundColor='transparent'">
-                            <div style="font-weight: 600; font-size: 0.95rem;"><?= htmlspecialchars($acc['acronym']) ?></div>
+                            <div style="font-weight: 600; font-size: 0.95rem;"><?= htmlspecialchars($acc['code']) ?></div>
                             <div style="font-size: 0.8rem; opacity: 0.8;"><?= htmlspecialchars($acc['name']) ?></div>
                         </a>
                     <?php endforeach; ?>
@@ -135,3 +147,69 @@ if ($selected_id) {
 
     </div>
 </main>
+
+<!-- Add Accreditation Modal -->
+<div id="addAccreditationModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: var(--accent-blue); margin: 0;">Add New Accreditation</h2>
+            <button onclick="document.getElementById('addAccreditationModal').style.display='none'" 
+                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        
+        <form action="../api/accreditation.php?action=add" method="POST">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Code *</label>
+                <input type="text" name="code" required placeholder="e.g. ISO 9001:2015" class="form-control">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Quality Management System" class="form-control">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description</label>
+                <textarea name="description" rows="3" placeholder="Brief overview..." class="form-control" style="resize: vertical;"></textarea>
+            </div>
+            
+            <div id="deadline_container" style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Deadline *</label>
+                <input type="date" id="acc_deadline" name="deadline" class="form-control">
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Initial Status *</label>
+                <select id="acc_status" name="status" required class="form-control" onchange="toggleDeadline(this.value)">
+                    <option value="In Progress">In Progress</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Create Accreditation</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleDeadline(status) {
+        const container = document.getElementById('deadline_container');
+        const input = document.getElementById('acc_deadline');
+        if (status === 'Inactive' || status === 'Completed') {
+            container.style.display = 'none';
+            input.required = false;
+        } else {
+            container.style.display = 'block';
+            input.required = true;
+        }
+    }
+
+    // Close modal on click outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('addAccreditationModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
