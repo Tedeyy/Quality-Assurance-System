@@ -4,6 +4,7 @@ session_start();
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/component/header.php';
 require_once __DIR__ . '/component/navbar.php';
+require_once __DIR__ . '/component/confirmationpane.php';
 
 // Display any session messages
 if (isset($_SESSION['error'])) {

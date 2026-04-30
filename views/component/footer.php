@@ -18,6 +18,5 @@
         </div>
     </footer>
     <script type="text/javascript" src="../assets/js/address-selector.js"></script>
-    <script type="text/javascript" src="../assets/js/index.js"></script>
 </body>
 </html>
