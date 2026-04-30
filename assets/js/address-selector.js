@@ -100,6 +100,49 @@ document.addEventListener('DOMContentLoaded', async () => {
             barangaySelect.disabled = false;
         });
 
+        // 4. Handle Institutional Hierarchy (Divisions -> Offices)
+        const divisionSelect = document.getElementById('division_id');
+        const officeSelect = document.getElementById('office_id');
+
+        if (divisionSelect && officeSelect) {
+            // Fetch Divisions
+            try {
+                const divResponse = await fetch('../api/institutional.php?type=divisions');
+                const divisions = await divResponse.json();
+
+                divisions.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.id;
+                    option.textContent = d.name + (d.acronym ? ` (${d.acronym})` : '');
+                    divisionSelect.appendChild(option);
+                });
+
+                divisionSelect.addEventListener('change', async function() {
+                    officeSelect.innerHTML = '<option value="">Loading...</option>';
+                    officeSelect.disabled = true;
+
+                    if (!this.value) {
+                        officeSelect.innerHTML = '<option value="">Select Office...</option>';
+                        return;
+                    }
+
+                    const offResponse = await fetch(`../api/institutional.php?type=offices&division_id=${this.value}`);
+                    const offices = await offResponse.json();
+
+                    officeSelect.innerHTML = '<option value="">Select Office...</option>';
+                    offices.forEach(o => {
+                        const option = document.createElement('option');
+                        option.value = o.id;
+                        option.textContent = o.name + (o.acronym ? ` (${o.acronym})` : '');
+                        officeSelect.appendChild(option);
+                    });
+                    officeSelect.disabled = false;
+                });
+            } catch (err) {
+                console.error("Error loading institutional data:", err);
+            }
+        }
+
     } catch (error) {
         console.error("Error loading PSGC data:", error);
         provinceSelect.innerHTML = '<option value="">Error loading locations. Please refresh.</option>';

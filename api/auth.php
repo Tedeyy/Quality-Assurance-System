@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_fname'] = $fname;
             $_SESSION['user_position'] = 'user'; // Default position
             $_SESSION['success'] = 'Account created successfully!';
-            
+
             // Redirect to feed/dashboard
             header('Location: ../views/feed.php');
             exit;
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_fname'] = $user['fname'];
                 $_SESSION['user_position'] = $user['position'] ?? 'user';
                 $_SESSION['success'] = 'Welcome back, ' . htmlspecialchars($user['fname']) . '!';
-                
+
                 header('Location: ../views/feed.php');
                 exit;
             } else {
@@ -106,17 +106,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $barangay = trim($_POST['barangay'] ?? '');
         $address = trim($_POST['address'] ?? '');
         $contact_number = trim($_POST['contact_number'] ?? '');
-        $office = trim($_POST['office'] ?? '');
+        $division_id = $_POST['division_id'] ?? null;
+        $office_id = $_POST['office_id'] ?? null;
         $position = trim($_POST['position'] ?? '');
 
-        if (empty($birthdate) || empty($gender) || empty($province) || empty($city) || empty($barangay) || empty($address) || empty($contact_number) || empty($office) || empty($position)) {
+        if (empty($birthdate) || empty($gender) || empty($province) || empty($city) || empty($barangay) || empty($address) || empty($contact_number) || empty($division_id) || empty($office_id) || empty($position)) {
             $_SESSION['error'] = 'All profile fields are required.';
             header('Location: ../views/feed.php');
             exit;
         }
 
         try {
-            $updateQuery = "UPDATE users SET birthdate = :birthdate, gender = :gender, province = :province, city = :city, barangay = :barangay, address = :address, contact_number = :contact_number, office = :office, position = :position WHERE id = :id";
+            $updateQuery = "UPDATE users SET birthdate = :birthdate, gender = :gender, province = :province, city = :city, barangay = :barangay, address = :address, contact_number = :contact_number, division_id = :division_id, office_id = :office_id, position = :position WHERE id = :id";
             $stmt = $db->prepare($updateQuery);
             $stmt->execute([
                 'birthdate' => $birthdate,
@@ -126,7 +127,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'barangay' => $barangay,
                 'address' => $address,
                 'contact_number' => $contact_number,
-                'office' => $office,
+                'division_id' => $division_id,
+                'office_id' => $office_id,
                 'position' => $position,
                 'id' => $_SESSION['user_id']
             ]);

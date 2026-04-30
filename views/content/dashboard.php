@@ -2,12 +2,12 @@
 require_once __DIR__ . '/../../config/database.php';
 $db = (new Database())->getConnection();
 
-$stmt = $db->prepare("SELECT birthdate, gender, province, city, barangay, address, contact_number, office, position FROM users WHERE id = :id");
+$stmt = $db->prepare("SELECT birthdate, gender, province, city, barangay, address, contact_number, division_id, office_id, position FROM users WHERE id = :id");
 $stmt->execute(['id' => $_SESSION['user_id']]);
 $userProfile = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $needsProfileCompletion = false;
-if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($userProfile['province']) || empty($userProfile['city']) || empty($userProfile['barangay']) || empty($userProfile['address']) || empty($userProfile['contact_number']) || empty($userProfile['office']) || empty($userProfile['position'])) {
+if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($userProfile['province']) || empty($userProfile['city']) || empty($userProfile['barangay']) || empty($userProfile['address']) || empty($userProfile['contact_number']) || empty($userProfile['division_id']) || empty($userProfile['office_id']) || empty($userProfile['position'])) {
     $needsProfileCompletion = true;
 }
 ?>
@@ -115,15 +115,13 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="birthdate"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Birthdate
                             *</label>
-                        <input type="date" id="birthdate" name="birthdate" required
-                            class="form-control">
+                        <input type="date" id="birthdate" name="birthdate" required class="form-control">
                     </div>
                     <div style="flex: 1;">
                         <label for="gender"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Gender
                             *</label>
-                        <select id="gender" name="gender" required
-                            class="form-control">
+                        <select id="gender" name="gender" required class="form-control">
                             <option value="">Select Gender</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
@@ -181,12 +179,23 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <input type="tel" id="contact_number" maxlength="11" name="contact_number" value="09" required
                             class="form-control">
                     </div>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
                     <div style="flex: 1;">
-                        <label for="office"
+                        <label for="division_id"
+                            style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Division
+                            *</label>
+                        <select id="division_id" name="division_id" required class="form-control">
+                            <option value="">Select Division...</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="office_id"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Office
                             *</label>
-                        <input type="text" id="office" name="office" required
-                            class="form-control">
+                        <select id="office_id" name="office_id" required disabled class="form-control">
+                            <option value="">Select Office...</option>
+                        </select>
                     </div>
                 </div>
 
@@ -194,10 +203,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     <label for="position"
                         style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Position
                         *</label>
-                    <input type="text" id="position" name="position" required
-                        style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;"
-                        onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';"
-                        onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
+                    <input type="text" id="position" name="position" required class="form-control">
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.05rem;">Save
