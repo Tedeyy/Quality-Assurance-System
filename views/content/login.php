@@ -30,10 +30,7 @@
         </div>
 
         <div style="text-align: center; margin-bottom: 1.5rem;">
-            <div id="g_id_onload" data-client_id="<?= htmlspecialchars($_ENV['GOOGLE_CLIENT_ID'] ?? '') ?>"
-                data-login_uri="YOUR_LOGIN_ENDPOINT" data-auto_prompt="false">
-            </div>
-            <button type="button" class="btn google-btn">
+            <a href="../api/auth.php?action=google_login" class="btn google-btn" style="text-decoration: none; width: 100%; box-sizing: border-box; justify-content: center;">
                 <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -49,7 +46,7 @@
                         fill="#EA4335" />
                 </svg>
                 Sign in with Google
-            </button>
+            </a>
         </div>
         <p class="auth-footer">
             Don't have an account? <a href="../views/feed.php?action=signup">Create Account</a>
