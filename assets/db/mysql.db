@@ -113,3 +113,18 @@ CREATE TABLE accreditation_requirement_submissions (
     FOREIGN KEY (office_id) REFERENCES divisions_offices(office_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
+
+CREATE TABLE user_login(
+    login_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    login_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE user_activity(
+    activity_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    activity_description TEXT,
+    activity_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);

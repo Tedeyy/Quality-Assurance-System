@@ -3,6 +3,7 @@ session_start();
 
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/utils/logger.php';
 
 $action = $_GET['action'] ?? '';
 $database = new Database();
@@ -23,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // Check if email already exists
-            $stmt = $db->prepare("SELECT id FROM users WHERE email = :email");
+            $stmt = $db->prepare("SELECT user_id FROM users WHERE email = :email");
             $stmt->execute(['email' => $email]);
             if ($stmt->fetch()) {
                 $_SESSION['error'] = 'Email is already registered.';
@@ -49,6 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_position'] = 'user'; // Default position
             $_SESSION['success'] = 'Account created successfully!';
 
+            // Log the login
+            logLogin($db, $_SESSION['user_id']);
+
             // Redirect to feed/dashboard
             header('Location: ../views/feed.php');
             exit;
@@ -70,16 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("SELECT id, fname, password, position FROM users WHERE email = :email LIMIT 1");
+            $stmt = $db->prepare("SELECT user_id, fname, password, position FROM users WHERE email = :email LIMIT 1");
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($user && password_verify($password, $user['password'])) {
                 // Successful login
-                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['user_fname'] = $user['fname'];
                 $_SESSION['user_position'] = $user['position'] ?? 'user';
                 $_SESSION['success'] = 'Welcome back, ' . htmlspecialchars($user['fname']) . '!';
+
+                // Log the login
+                logLogin($db, $user['user_id']);
 
                 header('Location: ../views/feed.php');
                 exit;
@@ -117,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $updateQuery = "UPDATE users SET birthdate = :birthdate, gender = :gender, province = :province, city = :city, barangay = :barangay, address = :address, contact_number = :contact_number, division_id = :division_id, office_id = :office_id, position = :position WHERE id = :id";
+            $updateQuery = "UPDATE users SET birthdate = :birthdate, gender = :gender, province = :province, city = :city, barangay = :barangay, address = :address, contact_number = :contact_number, division_id = :division_id, office_id = :office_id, position = :position WHERE user_id = :id";
             $stmt = $db->prepare($updateQuery);
             $stmt->execute([
                 'birthdate' => $birthdate,

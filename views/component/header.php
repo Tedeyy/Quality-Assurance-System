@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../assets/css/auth.css">
     <link rel="stylesheet" href="../assets/css/dashboard.css">
     <link rel="stylesheet" href="../assets/css/modules.css">
+    <link rel="icon" type="image/png" href="../assets/img/QAO_logo.png">
 </head>
 <body>
     <div class="background-accents">

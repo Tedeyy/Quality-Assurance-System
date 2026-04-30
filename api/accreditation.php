@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/utils/logger.php';
 
 $db = (new Database())->getConnection();
 $action = $_GET['action'] ?? '';
@@ -30,6 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             $_SESSION['success'] = 'Accreditation added successfully!';
+            
+            // Log activity
+            logActivity($db, $_SESSION['user_id'], "Added new accreditation: $name ($code)");
+
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $db->lastInsertId());
             exit;
         } catch (PDOException $e) {
@@ -60,6 +65,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $_SESSION['success'] = 'Categories added successfully!';
+
+            // Log activity
+            $cat_list = implode(', ', array_filter($names, function($n) { return !empty(trim($n)); }));
+            logActivity($db, $_SESSION['user_id'], "Added categories ($cat_list) to accreditation ID: $acc_id");
+
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
             exit;
         } catch (PDOException $e) {
@@ -92,6 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $_SESSION['success'] = 'Requirements added successfully!';
+
+            // Log activity
+            $req_list = implode(', ', array_filter($names, function($n) { return !empty(trim($n)); }));
+            logActivity($db, $_SESSION['user_id'], "Added requirements ($req_list) to category ID: $cat_id");
+
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
             exit;
         } catch (PDOException $e) {
@@ -130,6 +145,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute($params);
 
             $_SESSION['success'] = 'Status updated successfully!';
+
+            // Log activity
+            logActivity($db, $_SESSION['user_id'], "Updated status of accreditation ID: $acc_id to $status");
+
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
             exit;
         } catch (PDOException $e) {
@@ -152,6 +171,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("UPDATE accreditation_categories SET name = :name WHERE category_id = :id");
             $stmt->execute(['name' => $name, 'id' => $cat_id]);
             $_SESSION['success'] = 'Category updated successfully!';
+
+            // Log activity
+            logActivity($db, $_SESSION['user_id'], "Updated category ID: $cat_id to '$name'");
+
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
             exit;
         } catch (PDOException $e) {
@@ -173,6 +196,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $req_id
             ]);
             $_SESSION['success'] = 'Requirement updated successfully!';
+
+            // Log activity
+            logActivity($db, $_SESSION['user_id'], "Updated requirement ID: $req_id to '$name' ($codename)");
+
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
             exit;
         } catch (PDOException $e) {
@@ -204,6 +231,10 @@ if ($action === 'delete_category') {
     try {
         $stmt = $db->prepare("DELETE FROM accreditation_requirement WHERE requirement_id = :id");
         $stmt->execute(['id' => $req_id]);
+
+        // Log activity
+        logActivity($db, $_SESSION['user_id'] ?? 0, "Deleted requirement ID: $req_id");
+
         echo json_encode(['success' => true, 'message' => 'Requirement deleted successfully!']);
         exit;
     } catch (PDOException $e) {
@@ -219,6 +250,10 @@ if ($action === 'delete_category') {
         // For now, let's assume standard deletion.
         $stmt = $db->prepare("DELETE FROM accreditations WHERE accreditation_id = :id");
         $stmt->execute(['id' => $acc_id]);
+
+        // Log activity
+        logActivity($db, $_SESSION['user_id'] ?? 0, "Deleted accreditation ID: $acc_id");
+
         echo json_encode(['success' => true, 'message' => 'Accreditation deleted successfully!']);
         exit;
     } catch (PDOException $e) {
