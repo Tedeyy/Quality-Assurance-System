@@ -254,10 +254,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("UPDATE accreditation_requirement_submissions SET status = :status, remarks = :remarks WHERE requirement_id = :req_id");
+            $stmt = $db->prepare("UPDATE accreditation_requirement_submissions SET status = :status, remarks = :remarks, marked_by = :marked_by WHERE requirement_id = :req_id");
             $stmt->execute([
                 'status' => $status,
                 'remarks' => $remarks,
+                'marked_by' => $_SESSION['user_id'],
                 'req_id' => $req_id
             ]);
             
@@ -274,7 +275,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // GET ACTIONS (AJAX)
-if ($action === 'delete_category') {
+if ($action === 'delete_submission') {
+    header('Content-Type: application/json');
+    $req_id = $_GET['requirement_id'] ?? null;
+
+    try {
+        $stmt = $db->prepare("DELETE FROM accreditation_requirement_submissions WHERE requirement_id = :id");
+        $stmt->execute(['id' => $req_id]);
+        
+        // Log activity
+        logActivity($db, $_SESSION['user_id'] ?? 0, "Deleted submission for requirement ID: $req_id");
+
+        echo json_encode(['success' => true, 'message' => 'Submission removed successfully!']);
+        exit;
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'message' => 'Failed to remove submission: ' . $e->getMessage()]);
+        exit;
+    }
+} elseif ($action === 'delete_category') {
     header('Content-Type: application/json');
     $cat_id = $_GET['category_id'] ?? null;
 

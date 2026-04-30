@@ -224,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // Check if user exists by google_id or email
-            $stmt = $db->prepare("SELECT user_id, fname, position, google_id FROM users WHERE google_id = :gid OR email = :email LIMIT 1");
+            $stmt = $db->prepare("SELECT user_id, fname, position, google_id, office_id FROM users WHERE google_id = :gid OR email = :email LIMIT 1");
             $stmt->execute(['gid' => $google_id, 'email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -241,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['user_fname'] = $user['fname'];
                 $_SESSION['user_position'] = $user['position'] ?? 'user';
+                $_SESSION['user_office_id'] = $user['office_id'];
             } else {
                 // Create new user
                 $insert = $db->prepare("INSERT INTO users (google_id, email, fname, lname, password, position, google_access_token, google_refresh_token) VALUES (:gid, :email, :fname, :lname, :pass, :pos, :at, :rt)");

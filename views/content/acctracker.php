@@ -40,9 +40,11 @@ if ($selected_id) {
 
     // Fetch submissions for this accreditation
     $stmt = $db->prepare("
-        SELECT s.*, u.fname, u.lname, d.name as division_name, o.name as office_name 
+        SELECT s.*, u.fname, u.lname, d.name as division_name, o.name as office_name,
+               m.fname as marker_fname, m.lname as marker_lname
         FROM accreditation_requirement_submissions s
         LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN users m ON s.marked_by = m.user_id
         LEFT JOIN divisions d ON s.division_id = d.division_id
         LEFT JOIN divisions_offices o ON s.office_id = o.office_id
         JOIN accreditation_requirement r ON s.requirement_id = r.requirement_id
@@ -54,6 +56,18 @@ if ($selected_id) {
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $submissions[$row['requirement_id']] = $row;
     }
+
+    // Robust QAO check
+    $stmt = $db->prepare("
+        SELECT o.name 
+        FROM users u 
+        LEFT JOIN divisions_offices o ON u.office_id = o.office_id 
+        WHERE u.user_id = :id
+    ");
+    $stmt->execute(['id' => $_SESSION['user_id']]);
+    $user_office_name = $stmt->fetchColumn();
+    
+    $is_qao = (stripos($user_office_name ?? '', 'Quality Assurance') !== false) || (($_SESSION['user_office_id'] ?? 0) == 4);
 
     // Helper to calculate total requirements (including nested)
     $total_counts = [];
@@ -80,7 +94,7 @@ if ($selected_id) {
 }
 
 function renderCategories($parent_id, $categories_by_parent, $db, $total_counts) {
-    global $submissions;
+    global $submissions, $is_qao;
     if (!isset($categories_by_parent[$parent_id])) return;
 
     foreach ($categories_by_parent[$parent_id] as $cat) {
@@ -103,6 +117,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <span style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary);"><?= $total_reqs ?> Requirements</span>
                     
+                    <?php if ($is_qao): ?>
                     <!-- Category Triple Dot Menu -->
                     <div style="position: relative;" onclick="event.stopPropagation()">
                         <button onclick="toggleLocalMenu(this)" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
@@ -116,7 +131,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                                 Add Sub-category
                             </button>
                             <button onclick="openModalWithContext('addRequirementModal', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>', 'req')" style="width: 100%; padding: 0.6rem 0.8rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                                 Add Requirement
                             </button>
                             <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 0;">
@@ -130,6 +145,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                             </button>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -158,24 +174,25 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                                         <span><?= htmlspecialchars($req['name']) ?></span>
                                     </div>
                                 </div>
-                                
+                                <?php if ($is_qao): ?>
                                 <div style="position: relative;">
-                                    <button onclick="toggleLocalMenu(this)" style="background: transparent; border: none; padding: 2px; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <button onclick="toggleActionMenu(event, 'req_menu_<?= $req['requirement_id'] ?>')" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
                                         </svg>
                                     </button>
-                                    <div class="local-dropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
+                                    <div id="req_menu_<?= $req['requirement_id'] ?>" class="local-dropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
                                         <button onclick="openEditModal('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                             Edit
                                         </button>
-                                        <button onclick="deleteItem('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; color: #ef4444; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+                                        <button onclick="deleteItem('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>')" style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: #ef4444;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
                                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                             Delete
                                         </button>
                                     </div>
                                 </div>
+                                <?php endif; ?>
                             </li>
                         <?php endforeach; ?>
                     </ul>
@@ -199,6 +216,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
             <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 style="font-size: 1.2rem; color: var(--accent-blue); margin: 0;">Accreditations</h2>
+                    <?php if ($is_qao): ?>
                     <button onclick="document.getElementById('addAccreditationModal').style.display='flex'"
                         style="background: var(--accent-blue); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
                         onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
@@ -209,6 +227,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
                     </button>
+                    <?php endif; ?>
                 </div>
                 <!-- Search Bar -->
                 <div style="position: relative;">
@@ -243,7 +262,6 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         </aside>
 
         <!-- Main Content: Selected Accreditation Details -->
-        <!-- Main Content: Selected Accreditation Details -->
         <div id="accMainContent"
             style="flex: 1; background: white; padding: 2.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease; position: relative;">
             <?php if ($current_acc): ?>
@@ -261,16 +279,18 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                     </button>
 
                     <div style="position: relative;">
-                        <button onclick="toggleActionMenu(event)"
-                            style="background: transparent; border: none; padding: 5px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;"
-                            onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <?php if ($is_qao): ?>
+                        <button onclick="toggleActionMenu(event, 'accActionMenu')"
+                            style="background: white; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; color: var(--text-secondary);"
+                            onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="1"></circle>
                                 <circle cx="12" cy="5" r="1"></circle>
                                 <circle cx="12" cy="19" r="1"></circle>
                             </svg>
                         </button>
+                        <?php endif; ?>
 
                         <div id="accActionMenu"
                             style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 180px; z-index: 100; overflow: hidden; margin-top: 5px;">
@@ -752,20 +772,29 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                         <div><strong>Office:</strong> <span id="rev_office"></span></div>
                         <div><strong>Date:</strong> <span id="rev_date"></span></div>
                         <div><strong>Status:</strong> <span id="rev_status_badge" class="user-badge" style="padding: 2px 8px; font-size: 0.7rem;"></span></div>
+                        <div id="rev_marker_container" style="display: none; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e2e8f0;">
+                            <strong>Marked by:</strong> <span id="rev_marker"></span>
+                        </div>
                     </div>
                 </div>
                 
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem;">Review Remarks</label>
-                    <textarea id="review_remarks" rows="5" class="form-control" placeholder="Add feedback or reasons for disapproval..." style="resize: none; font-size: 0.9rem;"></textarea>
+                    <textarea id="review_remarks" rows="5" class="form-control" placeholder="Add feedback or reasons for disapproval..." style="resize: none; font-size: 0.9rem;" <?= !$is_qao ? 'readonly' : '' ?>></textarea>
                 </div>
                 
                 <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                    <?php if ($is_qao): ?>
                     <div style="display: flex; gap: 10px;">
                         <button onclick="submitReview('Approved')" class="btn btn-success" style="flex: 1; padding: 0.8rem; background: #22c55e;">Approve</button>
                         <button onclick="submitReview('Disapproved')" class="btn btn-danger" style="flex: 1; padding: 0.8rem; background: #ef4444;">Disapprove</button>
                     </div>
-                    <button onclick="reopenUpload()" class="btn btn-secondary" style="width: 100%; padding: 0.8rem;">Update / Replace Files</button>
+                    <?php endif; ?>
+                    
+                    <div id="uploader_actions" style="display: none; gap: 10px;">
+                        <button onclick="reopenUpload()" class="btn btn-secondary" style="flex: 2; padding: 0.8rem;">Update / Replace Files</button>
+                        <button onclick="removeSubmission()" class="btn btn-danger" style="flex: 1; padding: 0.8rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Remove</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -774,6 +803,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
 
 <script>
     let currentRequirement = null;
+    const currentUserId = <?= $_SESSION['user_id'] ?? 0 ?>;
 
     function handleRequirementClick(id, name, codename, sub) {
         currentRequirement = { id, name, codename, sub };
@@ -786,6 +816,14 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
 
     function openReviewModal(sub, name) {
         document.getElementById('review_title').textContent = name;
+        
+        // Show uploader actions only if it's the user's own submission
+        const uploaderActions = document.getElementById('uploader_actions');
+        if (sub.user_id == currentUserId) {
+            uploaderActions.style.display = 'flex';
+        } else {
+            uploaderActions.style.display = 'none';
+        }
         
         // Preview logic: if it's a folder, we can't easily iframe it without auth issues in some browsers, 
         // but for files /view works well.
@@ -805,9 +843,34 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         badge.textContent = sub.status;
         badge.style.background = sub.status === 'Approved' ? '#22c55e' : (sub.status === 'Disapproved' ? '#ef4444' : '#3b82f6');
         
+        const markerContainer = document.getElementById('rev_marker_container');
+        if (sub.marked_by && sub.marker_fname) {
+            markerContainer.style.display = 'block';
+            document.getElementById('rev_marker').textContent = sub.marker_fname + ' ' + sub.marker_lname;
+        } else {
+            markerContainer.style.display = 'none';
+        }
+
         document.getElementById('review_remarks').value = sub.remarks || '';
         
         openModal('reviewSubmissionModal');
+    }
+
+    async function removeSubmission() {
+        if (!confirm('Are you sure you want to remove this submission? This will only remove the record from the tracker, not the files from Drive.')) return;
+        
+        const reqId = currentRequirement.id;
+        try {
+            const response = await fetch(`../api/accreditation.php?action=delete_submission&requirement_id=${reqId}`);
+            const result = await response.json();
+            if (result.success) {
+                window.location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error('Remove error:', error);
+        }
     }
 
     async function submitReview(status) {
