@@ -1,33 +1,46 @@
 # Quality Assurance System
 
-A robust, web-based Quality Assurance Portal designed to manage institutional accreditation, document mapping, and activity evaluation.
+A high-fidelity, web-based Quality Assurance Portal designed for institutional excellence. This system manages accreditation tracking, document mapping, and activity evaluation with a focus on data integrity and professional aesthetics.
 
 ## 💻 Tech Stack
-- **Frontend**: HTML5, Vanilla CSS (Custom Theme: Dark Blue `#001C57` & Gold `#DFB641`), Vanilla JavaScript.
-- **Backend**: Native PHP 8+.
-- **Database**: MySQL (accessed securely via PDO).
-- **External APIs**: 
-  - Philippine Standard Geographic Code (PSGC) API for dynamic address selection.
-  - Google OAuth API (UI Integration).
+- **Frontend**: HTML5, Vanilla CSS3 (Custom Design System: Dark Blue `#001C57` & Gold `#DFB641`), Vanilla JavaScript (ES6+).
+- **Backend**: PHP 8.1+ (Native, PDO-driven).
+- **Database**: MySQL/MariaDB.
+
+## 🔌 External APIs
+The system integrates several external services to enhance functionality and data accuracy:
+
+- **Philippine Standard Geographic Code (PSGC) API**:
+  - **Base URL**: `https://psgc.gitlab.io/api/`
+  - **Purpose**: Provides real-time, standardized data for Philippine Provinces, Cities, and Barangays. This ensures that user demographic data aligns with official national standards.
+  - **Usage**: Implemented via asynchronous JavaScript fetch calls in the onboarding profile gate.
+
+## 🚀 Key Modules & Features
+
+### 1. Dynamic News Slideshow
+- **Auto-Advance Logic**: 10-second smart timer with manual navigation override.
+- **Responsive Hybrid Design**: Horizontal layout for desktop, vertical stack for mobile.
+- **Local Asset Management**: High-speed image loading from integrated `assets/img/news/` storage.
+
+### 2. Advanced Accreditation Tracker
+- **Hierarchical Progress Bars**: Real-time completion tracking for categories and sub-categories.
+- **Aggregate Completion Logic**: Overall accreditation progress calculated by summing all approved requirements across the entire hierarchy.
+- **Interactive Checklist**: Premium custom checkmarks and "Approved" state visual cues (strikethrough & fade).
+- **Dynamic Action Menus**: Context-aware dropdowns for managing requirements and categories.
+
+### 3. Institutional "About" Grid
+- **4-Pillar Layout**: Structured 2x2 grid for Mission, Vision, Objectives, and Services.
+- **Custom Iconography**: Hand-crafted SVG icons with interactive hover states and reveal-on-scroll animations.
+
+### 4. Robust Authentication & Onboarding
+- **Mandatory Profile Completion**: Cascading PSGC address selector forces data accuracy before dashboard access.
+- **Secure Session Management**: Server-side session validation and password hashing.
 
 ## 🔄 System Flow
-1. **Authentication & Routing**
-   - The application relies on a centralized router (`views/feed.php`).
-   - Unauthenticated users are strictly routed to the Login or Sign-up pages.
-   - Successful authentication establishes a secure server-side session and redirects the user to the Dashboard.
-2. **Profile Validation Gate**
-   - Upon loading the Dashboard, the system queries the database to check the user's demographic and geographic completion status.
-   - If required fields (e.g., Position, Office, Province, City, Barangay) are missing, an unavoidable modal intercepts the user, requiring them to complete their profile before accessing the portal.
-3. **Dashboard & Modules**
-   - Once validated, users interact with the main Dashboard containing module shortcuts.
-   - Clicking a module directs the router to load specific sub-systems:
-     - `?action=accreditation` -> Accreditation Tracker
-     - `?action=activity` -> Activity Monitoring & Evaluation
-     - `?action=document` -> Document Mapping
+1. **Landing & Discovery**: Users interact with the dynamic news feed and institutional pillars.
+2. **Authentication**: Secure login gates access to the internal portal.
+3. **Onboarding Gate**: System validates profile completeness; missing data triggers a mandatory cascading address selector.
+4. **Module Interaction**: Centralized routing through `feed.php` handles module switching (`accreditation`, `activity`, `document`).
 
-## ✨ Added Features
-- **Dynamic Address Selector**: Integrated the official PSGC API to provide a live, cascading dropdown for Philippine Provinces, Cities/Municipalities, and Barangays.
-- **Mandatory Onboarding Modal**: A UI-blocking blur overlay that forces new users to complete their demographics before interacting with the system.
-- **Secure Authentication**: Password hashing and verification using native PHP security functions.
-- **Relational Schema Structure**: Mapped users precisely to nested institutional structures (`divisions` -> `offices` -> `sections` -> `programs`).
-- **Dynamic Routing Engine**: Single-entry-point routing through `feed.php` to prevent direct access to isolated UI components.
+---
+*Developed for Northern Bukidnon State College (NBSC) Quality Assurance Office.*
