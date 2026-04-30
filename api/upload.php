@@ -61,41 +61,70 @@ function driveApiRequest($url, $method = 'GET', $body = null, $token) {
     return ['status' => $status, 'data' => json_decode($response, true), 'raw' => $response];
 }
 
-// 2. Resolve Folder Hierarchy
-$category_path = [];
-$stmt = $db->prepare("SELECT category_id FROM accreditation_requirement WHERE requirement_id = :req_id");
-$stmt->execute(['req_id' => $requirement_id]);
-$current_cat_id = $stmt->fetchColumn();
+// Helper to find or create a folder
+function getOrCreateFolder($name, $parentId, $token) {
+    $name = trim($name);
+    $query = "name = '" . str_replace("'", "\\'", $name) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parentId . "' in parents and trashed = false";
+    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $token);
+    
+    if (!empty($search['data']['files'])) {
+        return $search['data']['files'][0]['id'];
+    }
+    
+    $create = driveApiRequest("https://www.googleapis.com/drive/v3/files", 'POST', [
+        'name' => $name,
+        'mimeType' => 'application/vnd.google-apps.folder',
+        'parents' => [$parentId]
+    ], $token);
+    
+    return $create['data']['id'] ?? null;
+}
 
+// 2. Resolve Folder Hierarchy (Accreditation > Categories)
+$category_path = [];
+$stmt = $db->prepare("
+    SELECT r.category_id, a.name as acc_name 
+    FROM accreditation_requirement r 
+    JOIN accreditation_categories c ON r.category_id = c.category_id
+    JOIN accreditations a ON c.accreditation_id = a.accreditation_id
+    WHERE r.requirement_id = :req_id
+");
+$stmt->execute(['req_id' => $requirement_id]);
+$initial_data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$current_cat_id = $initial_data['category_id'] ?? null;
+if (!empty($initial_data['acc_name'])) {
+    $category_path[] = $initial_data['acc_name']; // Top level is accreditation
+}
+
+$temp_cats = [];
 while ($current_cat_id) {
     $stmt = $db->prepare("SELECT name, parent_category_id FROM accreditation_categories WHERE category_id = :cat_id");
     $stmt->execute(['cat_id' => $current_cat_id]);
     $cat = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($cat) {
-        array_unshift($category_path, $cat['name']);
+        array_unshift($temp_cats, $cat['name']);
         $current_cat_id = $cat['parent_category_id'];
     } else break;
 }
+$category_path = array_merge($category_path, $temp_cats);
 
 // Get Root Folder from .env
 $root_url = $_ENV['GOOGLE_DRIVE_URL'] ?? '';
 preg_match('/folders\/([a-zA-Z0-9_-]+)/', $root_url, $matches);
-$parent_id = $matches[1] ?? 'root';
+$parent_id = $matches[1] ?? null;
 
-// Create/Navigate Folders
+if (!$parent_id) {
+    echo json_encode(['success' => false, 'message' => 'Google Drive Root Folder not configured in .env.']);
+    exit;
+}
+
+// Create/Navigate Category Folders
 foreach ($category_path as $folder_name) {
-    $query = "name = '" . str_replace("'", "\\'", $folder_name) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parent_id . "' in parents and trashed = false";
-    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $access_token);
-    
-    if (!empty($search['data']['files'])) {
-        $parent_id = $search['data']['files'][0]['id'];
-    } else {
-        $create = driveApiRequest("https://www.googleapis.com/drive/v3/files", 'POST', [
-            'name' => $folder_name,
-            'mimeType' => 'application/vnd.google-apps.folder',
-            'parents' => [$parent_id]
-        ], $access_token);
-        $parent_id = $create['data']['id'] ?? $parent_id;
+    $parent_id = getOrCreateFolder($folder_name, $parent_id, $access_token);
+    if (!$parent_id) {
+        echo json_encode(['success' => false, 'message' => "Failed to resolve folder: $folder_name"]);
+        exit;
     }
 }
 
@@ -104,18 +133,11 @@ $is_multiple = count($files['name']) > 1;
 $submission_file_id = null;
 
 if ($is_multiple) {
-    $folder_name = !empty($codename) ? $codename : $req_name;
-    $query = "name = '" . str_replace("'", "\\'", $folder_name) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parent_id . "' in parents and trashed = false";
-    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $access_token);
-    if (!empty($search['data']['files'])) {
-        $parent_id = $search['data']['files'][0]['id'];
-    } else {
-        $create = driveApiRequest("https://www.googleapis.com/drive/v3/files", 'POST', [
-            'name' => $folder_name,
-            'mimeType' => 'application/vnd.google-apps.folder',
-            'parents' => [$parent_id]
-        ], $access_token);
-        $parent_id = $create['data']['id'] ?? $parent_id;
+    $req_folder_name = !empty($codename) ? $codename : $req_name;
+    $parent_id = getOrCreateFolder($req_folder_name, $parent_id, $access_token);
+    if (!$parent_id) {
+        echo json_encode(['success' => false, 'message' => "Failed to resolve requirement folder: $req_folder_name"]);
+        exit;
     }
     $submission_file_id = $parent_id;
 }
@@ -131,12 +153,19 @@ foreach ($files['name'] as $i => $original_name) {
     } else {
         $target_name = "file" . ($i + 1) . ".pdf";
     }
+
+    // Check if file already exists to update instead of duplicate
+    $query = "name = '" . str_replace("'", "\\'", $target_name) . "' and '" . $parent_id . "' in parents and trashed = false";
+    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $access_token);
+    $existing_file_id = !empty($search['data']['files']) ? $search['data']['files'][0]['id'] : null;
     
     $tmp_name = $files['tmp_name'][$i];
-    
-    $metadata = ['name' => $target_name, 'parents' => [$parent_id]];
+    $metadata = ['name' => $target_name];
+    if (!$existing_file_id) {
+        $metadata['parents'] = [$parent_id];
+    }
+
     $multipart_boundary = '-------' . md5(time());
-    
     $post_data = "--$multipart_boundary\r\n" .
                  "Content-Type: application/json; charset=UTF-8\r\n\r\n" .
                  json_encode($metadata) . "\r\n" .
@@ -145,9 +174,19 @@ foreach ($files['name'] as $i => $original_name) {
                  file_get_contents($tmp_name) . "\r\n" .
                  "--$multipart_boundary--";
 
-    $ch = curl_init("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart");
+    if ($existing_file_id) {
+        // UPDATE existing file
+        $url = "https://www.googleapis.com/upload/drive/v3/files/" . $existing_file_id . "?uploadType=multipart";
+        $method = 'PATCH';
+    } else {
+        // CREATE new file
+        $url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+        $method = 'POST';
+    }
+
+    $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $access_token,
@@ -159,12 +198,10 @@ foreach ($files['name'] as $i => $original_name) {
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    if ($status >= 200 && $status < 300) {
+    $res_data = json_decode($response, true);
+    if ($status == 200) {
         $success_count++;
-        $resp_data = json_decode($response, true);
-        if (!$is_multiple) {
-            $submission_file_id = $resp_data['id'] ?? null;
-        }
+        if ($file_count === 1) $submission_file_id = $res_data['id'];
     }
 }
 

@@ -778,14 +778,15 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                     </div>
                 </div>
                 
-                <div>
+                <div id="remarks_container" style="display: none;">
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem;">Review Remarks</label>
-                    <textarea id="review_remarks" rows="5" class="form-control" placeholder="Add feedback or reasons for disapproval..." style="resize: none; font-size: 0.9rem;" <?= !$is_qao ? 'readonly' : '' ?>></textarea>
+                    <div id="remarks_display" style="display: none; padding: 10px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;"></div>
+                    <textarea id="review_remarks" rows="5" class="form-control" placeholder="Add feedback or reasons for disapproval..." style="resize: none; font-size: 0.9rem;"></textarea>
                 </div>
                 
                 <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
                     <?php if ($is_qao): ?>
-                    <div style="display: flex; gap: 10px;">
+                    <div id="review_actions" style="display: flex; gap: 10px;">
                         <button onclick="submitReview('Approved')" class="btn btn-success" style="flex: 1; padding: 0.8rem; background: #22c55e;">Approve</button>
                         <button onclick="submitReview('Disapproved')" class="btn btn-danger" style="flex: 1; padding: 0.8rem; background: #ef4444;">Disapprove</button>
                     </div>
@@ -817,12 +818,22 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
     function openReviewModal(sub, name) {
         document.getElementById('review_title').textContent = name;
         
-        // Show uploader actions only if it's the user's own submission
+        // Show uploader actions only if it's the user's own submission AND it's not already Approved
         const uploaderActions = document.getElementById('uploader_actions');
-        if (sub.user_id == currentUserId) {
+        if (sub.user_id == currentUserId && sub.status !== 'Approved') {
             uploaderActions.style.display = 'flex';
         } else {
             uploaderActions.style.display = 'none';
+        }
+
+        // Show review buttons only if status is Pending (and user is QAO)
+        const reviewActions = document.getElementById('review_actions');
+        if (reviewActions) {
+            if (sub.status === 'Pending') {
+                reviewActions.style.display = 'flex';
+            } else {
+                reviewActions.style.display = 'none';
+            }
         }
         
         // Preview logic: if it's a folder, we can't easily iframe it without auth issues in some browsers, 
@@ -851,7 +862,30 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
             markerContainer.style.display = 'none';
         }
 
-        document.getElementById('review_remarks').value = sub.remarks || '';
+        // Remarks handling
+        const remarksContainer = document.getElementById('remarks_container');
+        const remarksDisplay = document.getElementById('remarks_display');
+        const remarksTextarea = document.getElementById('review_remarks');
+        const isQAO = <?= json_encode($is_qao) ?>;
+
+        if (remarksContainer) {
+            // Show remarks if user is QAO OR if they are the uploader
+            if (isQAO || sub.user_id == currentUserId) {
+                remarksContainer.style.display = 'block';
+                
+                if (sub.status === 'Pending' && isQAO) {
+                    remarksTextarea.style.display = 'block';
+                    remarksDisplay.style.display = 'none';
+                    remarksTextarea.value = sub.remarks || '';
+                } else {
+                    remarksTextarea.style.display = 'none';
+                    remarksDisplay.style.display = 'block';
+                    remarksDisplay.textContent = sub.remarks || 'No remarks provided.';
+                }
+            } else {
+                remarksContainer.style.display = 'none';
+            }
+        }
         
         openModal('reviewSubmissionModal');
     }
@@ -1254,7 +1288,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                     title: 'Success',
                     message: result.message || 'File(s) uploaded successfully!',
                     type: 'success',
-                    onConfirm: () => document.getElementById('uploadRequirementModal').style.display = 'none'
+                    onConfirm: () => window.location.reload()
                 });
             } else {
                 showConfirmation({ title: 'Error', message: result.message || 'Upload failed.', type: 'danger', actionLabel: 'OK' });
