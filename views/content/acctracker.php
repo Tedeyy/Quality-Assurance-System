@@ -38,6 +38,23 @@ if ($selected_id) {
         $categories_by_parent[$parent_id][] = $cat;
     }
 
+    // Fetch submissions for this accreditation
+    $stmt = $db->prepare("
+        SELECT s.*, u.fname, u.lname, d.name as division_name, o.name as office_name 
+        FROM accreditation_requirement_submissions s
+        LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN divisions d ON s.division_id = d.division_id
+        LEFT JOIN divisions_offices o ON s.office_id = o.office_id
+        JOIN accreditation_requirement r ON s.requirement_id = r.requirement_id
+        JOIN accreditation_categories c ON r.category_id = c.category_id
+        WHERE c.accreditation_id = :acc_id
+    ");
+    $stmt->execute(['acc_id' => $selected_id]);
+    $submissions = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $submissions[$row['requirement_id']] = $row;
+    }
+
     // Helper to calculate total requirements (including nested)
     $total_counts = [];
     function calculateTotalReqs($parent_id, $categories_by_parent, $direct_counts, &$total_counts)
@@ -63,6 +80,7 @@ if ($selected_id) {
 }
 
 function renderCategories($parent_id, $categories_by_parent, $db, $total_counts) {
+    global $submissions;
     if (!isset($categories_by_parent[$parent_id])) return;
 
     foreach ($categories_by_parent[$parent_id] as $cat) {
@@ -128,8 +146,12 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                         <?php foreach ($requirements as $req): ?>
                             <li style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
                                 <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                    <input type="checkbox" disabled style="width: 14px; height: 14px; margin-top: 2px;">
-                                    <div onclick="openUploadModal('<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>')" style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                                    <?php 
+                                    $sub = $submissions[$req['requirement_id']] ?? null; 
+                                    $cb_color = $sub ? ($sub['status'] === 'Approved' ? '#22c55e' : ($sub['status'] === 'Disapproved' ? '#ef4444' : '#3b82f6')) : '#e2e8f0';
+                                    ?>
+                                    <input type="checkbox" <?= $sub ? 'checked' : '' ?> disabled style="width: 14px; height: 14px; margin-top: 2px; accent-color: <?= $cb_color ?>;">
+                                    <div onclick="handleRequirementClick(<?= $req['requirement_id'] ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)" style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
                                         <?php if (!empty($req['codename'])): ?>
                                             <span style="font-weight: 700; color: var(--accent-blue);"><?= htmlspecialchars($req['codename']) ?>:</span>
                                         <?php endif; ?>
@@ -287,6 +309,17 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
                                 </svg>
                                 Add Requirement
                             </button>
+                            <button onclick="openEditAccModal()"
+                                style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-primary);"
+                                onmouseover="this.style.background='#f8fafc'"
+                                onmouseout="this.style.background='transparent'">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                Edit Accreditation
+                            </button>
                             <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0;">
                             <button onclick="deleteItem('accreditation', '<?= $selected_id ?>', '<?= addslashes($current_acc['name']) ?>')"
                                 style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #ef4444;"
@@ -414,6 +447,39 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
 
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Create
                 Accreditation</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Accreditation Modal -->
+<div id="editAccreditationModal" class="modal-overlay"
+    style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: var(--accent-blue); margin: 0;">Edit Accreditation</h2>
+            <button onclick="document.getElementById('editAccreditationModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+
+        <form action="../api/accreditation.php?action=edit" method="POST">
+            <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Code *</label>
+                <input type="text" name="code" value="<?= htmlspecialchars($current_acc['code'] ?? '') ?>" required class="form-control">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Name *</label>
+                <input type="text" name="name" value="<?= htmlspecialchars($current_acc['name'] ?? '') ?>" required class="form-control">
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description</label>
+                <textarea name="description" rows="3" class="form-control" style="resize: vertical;"><?= htmlspecialchars($current_acc['description'] ?? '') ?></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Save Changes</button>
         </form>
     </div>
 </div>
@@ -661,7 +727,120 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
     </div>
 </div>
 
+<!-- Review Submission Modal -->
+<div id="reviewSubmissionModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 900px; width: 90%; height: 80vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 id="review_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Review Submission</h2>
+            <button onclick="document.getElementById('reviewSubmissionModal').style.display='none'" 
+                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        
+        <div style="display: flex; gap: 2rem; flex: 1; overflow: hidden;">
+            <!-- File Preview -->
+            <div style="flex: 2; background: #f1f5f9; border-radius: 8px; overflow: hidden; position: relative;">
+                <iframe id="preview_frame" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            
+            <!-- Details and Actions -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; padding-right: 10px;">
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="font-size: 0.9rem; margin: 0 0 1rem 0; color: var(--accent-blue);">Submission Details</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem;">
+                        <div><strong>Uploaded by:</strong> <span id="rev_user"></span></div>
+                        <div><strong>Division:</strong> <span id="rev_division"></span></div>
+                        <div><strong>Office:</strong> <span id="rev_office"></span></div>
+                        <div><strong>Date:</strong> <span id="rev_date"></span></div>
+                        <div><strong>Status:</strong> <span id="rev_status_badge" class="user-badge" style="padding: 2px 8px; font-size: 0.7rem;"></span></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem;">Review Remarks</label>
+                    <textarea id="review_remarks" rows="5" class="form-control" placeholder="Add feedback or reasons for disapproval..." style="resize: none; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="submitReview('Approved')" class="btn btn-success" style="flex: 1; padding: 0.8rem; background: #22c55e;">Approve</button>
+                        <button onclick="submitReview('Disapproved')" class="btn btn-danger" style="flex: 1; padding: 0.8rem; background: #ef4444;">Disapprove</button>
+                    </div>
+                    <button onclick="reopenUpload()" class="btn btn-secondary" style="width: 100%; padding: 0.8rem;">Update / Replace Files</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let currentRequirement = null;
+
+    function handleRequirementClick(id, name, codename, sub) {
+        currentRequirement = { id, name, codename, sub };
+        if (sub) {
+            openReviewModal(sub, name);
+        } else {
+            openUploadModal(id, name, codename);
+        }
+    }
+
+    function openReviewModal(sub, name) {
+        document.getElementById('review_title').textContent = name;
+        
+        // Preview logic: if it's a folder, we can't easily iframe it without auth issues in some browsers, 
+        // but for files /view works well.
+        const previewUrl = sub.google_drive_link.replace('/view', '/preview');
+        document.getElementById('preview_frame').src = previewUrl;
+        
+        document.getElementById('rev_user').textContent = sub.fname + ' ' + sub.lname;
+        document.getElementById('rev_division').textContent = sub.division_name || 'N/A';
+        document.getElementById('rev_office').textContent = sub.office_name || 'N/A';
+        
+        // Format date: Date and hour:minute PM/AM
+        const date = new Date(sub.created_at);
+        const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+        document.getElementById('rev_date').textContent = date.toLocaleDateString('en-US', options);
+        
+        const badge = document.getElementById('rev_status_badge');
+        badge.textContent = sub.status;
+        badge.style.background = sub.status === 'Approved' ? '#22c55e' : (sub.status === 'Disapproved' ? '#ef4444' : '#3b82f6');
+        
+        document.getElementById('review_remarks').value = sub.remarks || '';
+        
+        openModal('reviewSubmissionModal');
+    }
+
+    async function submitReview(status) {
+        const remarks = document.getElementById('review_remarks').value;
+        const reqId = currentRequirement.id;
+        
+        try {
+            const response = await fetch('../api/accreditation.php?action=review_submission', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `requirement_id=${reqId}&status=${status}&remarks=${encodeURIComponent(remarks)}`
+            });
+            const result = await response.json();
+            if (result.success) {
+                showConfirmation({
+                    title: 'Review Saved',
+                    message: `Requirement has been marked as ${status}.`,
+                    type: 'success',
+                    onConfirm: () => window.location.reload()
+                });
+            } else {
+                showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
+            }
+        } catch (error) {
+            console.error('Review error:', error);
+            showConfirmation({ title: 'Error', message: 'Failed to save review.', type: 'danger' });
+        }
+    }
+
+    function reopenUpload() {
+        document.getElementById('reviewSubmissionModal').style.display = 'none';
+        openUploadModal(currentRequirement.id, currentRequirement.name, currentRequirement.codename);
+    }
     const categoriesByParent = <?= json_encode($categories_by_parent) ?>;
 
     function handleCascadingSelect(select, containerId, inputId) {
@@ -1071,9 +1250,14 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         });
     }
 
+    function openEditAccModal() {
+        openModal('editAccreditationModal');
+    }
+
     // Close modals and menus on click outside
     window.onclick = function (event) {
         const accModal = document.getElementById('addAccreditationModal');
+        const editAccModal = document.getElementById('editAccreditationModal');
         const catModal = document.getElementById('addCategoryModal');
         const reqModal = document.getElementById('addRequirementModal');
         const statusModal = document.getElementById('changeStatusModal');
@@ -1083,6 +1267,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $total_counts)
         const allLocalMenus = document.querySelectorAll('.local-dropdown');
 
         if (event.target == accModal) accModal.style.display = "none";
+        if (event.target == editAccModal) editAccModal.style.display = "none";
         if (event.target == catModal) catModal.style.display = "none";
         if (event.target == reqModal) reqModal.style.display = "none";
         if (event.target == statusModal) statusModal.style.display = "none";

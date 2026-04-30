@@ -42,6 +42,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ../views/feed.php?action=accreditation');
             exit;
         }
+    } elseif ($action === 'edit') {
+        $acc_id = $_POST['accreditation_id'] ?? null;
+        $code = trim($_POST['code'] ?? '');
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+
+        if (empty($acc_id) || empty($code) || empty($name)) {
+            $_SESSION['error'] = 'ID, Code, and Name are required.';
+            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare("UPDATE accreditations SET code = :code, name = :name, description = :description WHERE accreditation_id = :id");
+            $stmt->execute([
+                'code' => $code,
+                'name' => $name,
+                'description' => $description,
+                'id' => $acc_id
+            ]);
+
+            $_SESSION['success'] = 'Accreditation updated successfully!';
+            
+            // Log activity
+            logActivity($db, $_SESSION['user_id'], "Updated accreditation: $name ($code)");
+
+            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Failed to update accreditation: ' . $e->getMessage();
+            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        }
     } elseif ($action === 'add_category') {
         $acc_id = $_POST['accreditation_id'] ?? null;
         $parent_id = !empty($_POST['parent_category_id']) ? $_POST['parent_category_id'] : null;
@@ -208,6 +241,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException $e) {
             $_SESSION['error'] = 'Failed to update requirement: ' . $e->getMessage();
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        }
+    } elseif ($action === 'review_submission') {
+        $req_id = $_POST['requirement_id'] ?? null;
+        $status = $_POST['status'] ?? 'Pending';
+        $remarks = trim($_POST['remarks'] ?? '');
+
+        if (empty($req_id)) {
+            echo json_encode(['success' => false, 'message' => 'Requirement ID is required.']);
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare("UPDATE accreditation_requirement_submissions SET status = :status, remarks = :remarks WHERE requirement_id = :req_id");
+            $stmt->execute([
+                'status' => $status,
+                'remarks' => $remarks,
+                'req_id' => $req_id
+            ]);
+            
+            // Log activity
+            logActivity($db, $_SESSION['user_id'], "Marked submission for requirement ID: $req_id as $status");
+
+            echo json_encode(['success' => true, 'message' => 'Review saved successfully!']);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Failed to save review: ' . $e->getMessage()]);
             exit;
         }
     }

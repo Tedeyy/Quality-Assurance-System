@@ -28,8 +28,8 @@ $req_data = $stmt->fetch(PDO::FETCH_ASSOC);
 $codename = trim($req_data['codename'] ?? '');
 $req_name = trim($req_data['name'] ?? 'Requirement');
 
-// 1. Get User's Google Token
-$stmt = $db->prepare("SELECT google_access_token, google_refresh_token FROM users WHERE user_id = :id");
+// 1. Get User's Google Token and Metadata
+$stmt = $db->prepare("SELECT google_access_token, google_refresh_token, division_id, office_id FROM users WHERE user_id = :id");
 $stmt->execute(['id' => $_SESSION['user_id']]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -39,6 +39,8 @@ if (!$user || empty($user['google_access_token'])) {
 }
 
 $access_token = $user['google_access_token'];
+$division_id = $user['division_id'] ?? null;
+$office_id = $user['office_id'] ?? null;
 
 // Helper for Google API Calls
 function driveApiRequest($url, $method = 'GET', $body = null, $token) {
@@ -98,7 +100,10 @@ foreach ($category_path as $folder_name) {
 }
 
 // If multiple files, create a requirement folder
-if (count($files['name']) > 1) {
+$is_multiple = count($files['name']) > 1;
+$submission_file_id = null;
+
+if ($is_multiple) {
     $folder_name = !empty($codename) ? $codename : $req_name;
     $query = "name = '" . str_replace("'", "\\'", $folder_name) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parent_id . "' in parents and trashed = false";
     $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $access_token);
@@ -112,6 +117,7 @@ if (count($files['name']) > 1) {
         ], $access_token);
         $parent_id = $create['data']['id'] ?? $parent_id;
     }
+    $submission_file_id = $parent_id;
 }
 
 // 3. Upload Files
@@ -153,12 +159,38 @@ foreach ($files['name'] as $i => $original_name) {
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    if ($status >= 200 && $status < 300) $success_count++;
+    if ($status >= 200 && $status < 300) {
+        $success_count++;
+        $resp_data = json_decode($response, true);
+        if (!$is_multiple) {
+            $submission_file_id = $resp_data['id'] ?? null;
+        }
+    }
 }
 
 if ($success_count > 0) {
+    // Save to Submissions Table
+    $drive_link = $is_multiple 
+        ? "https://drive.google.com/drive/folders/" . $submission_file_id
+        : "https://drive.google.com/file/d/" . $submission_file_id . "/view";
+
+    $stmt = $db->prepare("INSERT INTO accreditation_requirement_submissions 
+        (requirement_id, user_id, google_drive_file_id, google_drive_link, division_id, office_id, status) 
+        VALUES (:req_id, :user_id, :file_id, :link, :division_id, :office_id, 'Pending')
+        ON DUPLICATE KEY UPDATE 
+        google_drive_file_id = :file_id, google_drive_link = :link, division_id = :division_id, office_id = :office_id, status = 'Pending', updated_at = NOW()");
+    
+    $stmt->execute([
+        'req_id' => $requirement_id,
+        'user_id' => $_SESSION['user_id'],
+        'file_id' => $submission_file_id,
+        'link' => $drive_link,
+        'division_id' => $division_id,
+        'office_id' => $office_id
+    ]);
+
     logActivity($db, $_SESSION['user_id'], "Directly uploaded $success_count PDF(s) as User to Drive for: $req_name");
-    echo json_encode(['success' => true, 'message' => "Successfully uploaded $success_count file(s) as you!"]);
+    echo json_encode(['success' => true, 'message' => "Successfully uploaded $success_count file(s) and tracked your submission!"]);
 } else {
     echo json_encode(['success' => false, 'message' => 'Upload failed. Check Drive permissions.']);
 }

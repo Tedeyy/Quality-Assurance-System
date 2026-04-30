@@ -104,7 +104,7 @@ CREATE TABLE accreditation_requirement_submissions (
     division_id INT NOT NULL,
     office_id INT NOT NULL,
     user_id INT NOT NULL,
-    status ENUM('Pending', 'Uploaded', 'Approved', 'Returned') DEFAULT 'Pending',
+    status ENUM('Pending', 'Disapproved', 'Approved') DEFAULT 'Pending',
     file_path TEXT,
     remarks TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
