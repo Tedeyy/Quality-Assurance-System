@@ -17,36 +17,73 @@ if ($selected_id) {
     $stmt->execute(['id' => $selected_id]);
     $current_acc = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Fetch categories and their requirements
-    $stmt = $db->prepare("
-        SELECT c.*, 
-               (SELECT COUNT(*) FROM accreditation_requirement r WHERE r.category_id = c.category_id) as req_count
-        FROM accreditation_categories c 
-        WHERE c.accreditation_id = :acc_id 
-        ORDER BY c.name ASC
-    ");
+    // Fetch categories
+    $stmt = $db->prepare("SELECT * FROM accreditation_categories WHERE accreditation_id = :acc_id ORDER BY name ASC");
     $stmt->execute(['acc_id' => $selected_id]);
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group categories by parent for recursive rendering
+    // Fetch requirement counts per category
+    $stmt = $db->prepare("
+        SELECT category_id, COUNT(*) as count 
+        FROM accreditation_requirement 
+        GROUP BY category_id
+    ");
+    $stmt->execute();
+    $direct_counts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // Group categories by parent
     $categories_by_parent = [];
     foreach ($categories as $cat) {
         $parent_id = $cat['parent_category_id'] ?: 0;
         $categories_by_parent[$parent_id][] = $cat;
     }
+
+    // Helper to calculate total requirements (including nested)
+    $total_counts = [];
+    function calculateTotalReqs($parent_id, $categories_by_parent, $direct_counts, &$total_counts) {
+        if (!isset($categories_by_parent[$parent_id])) return 0;
+        
+        foreach ($categories_by_parent[$parent_id] as $cat) {
+            $cat_id = $cat['category_id'];
+            $direct = $direct_counts[$cat_id] ?? 0;
+            $sub_total = calculateTotalReqs($cat_id, $categories_by_parent, $direct_counts, $total_counts);
+            $total_counts[$cat_id] = $direct + $sub_total;
+        }
+        
+        // Sum up all top-level for the parent
+        $sum = 0;
+        foreach ($categories_by_parent[$parent_id] as $cat) {
+            $sum += $total_counts[$cat['category_id']];
+        }
+        return $sum;
+    }
+    calculateTotalReqs(0, $categories_by_parent, $direct_counts, $total_counts);
 }
 
-function renderCategories($parent_id, $categories_by_parent, $db) {
+function renderCategories($parent_id, $categories_by_parent, $db, $total_counts) {
     if (!isset($categories_by_parent[$parent_id])) return;
 
     foreach ($categories_by_parent[$parent_id] as $cat) {
+        $cat_id = $cat['category_id'];
+        $total_reqs = $total_counts[$cat_id] ?? 0;
         ?>
-        <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; margin-left: <?= $parent_id == 0 ? '0' : '1.5rem' ?>;">
-            <div style="background: #f8fafc; padding: 0.8rem 1.2rem; font-weight: 700; border-bottom: 1px solid var(--border-color); color: var(--accent-blue); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: <?= $parent_id == 0 ? '1rem' : '0.9rem' ?>;"><?= htmlspecialchars($cat['name']) ?></span>
-                <span style="font-weight: normal; font-size: 0.8rem; color: var(--text-secondary);"><?= $cat['req_count'] ?> Requirements</span>
+        <div style="border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 0.4rem; margin-left: <?= $parent_id == 0 ? '0' : '1rem' ?>;">
+            <!-- Category Header (Toggle) -->
+            <div onclick="toggleCategory(this)" 
+                 style="background: #f8fafc; padding: 0.5rem 0.8rem; font-weight: 700; border-bottom: 1px solid var(--border-color); color: var(--accent-blue); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;"
+                 onmouseover="this.style.background='#f1f5f9'"
+                 onmouseout="this.style.background='#f8fafc'">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s; transform: rotate(0deg);">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                    <span style="font-size: <?= $parent_id == 0 ? '0.95rem' : '0.85rem' ?>;"><?= htmlspecialchars($cat['name']) ?></span>
+                </div>
+                <span style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary);"><?= $total_reqs ?> Requirements</span>
             </div>
-            <div style="padding: 1rem 1.2rem;">
+
+            <!-- Category Content (Hidden by default) -->
+            <div class="category-content" style="display: none; padding: 0.6rem 0.8rem;">
                 <?php
                 // Render Requirements
                 $stmt = $db->prepare("SELECT * FROM accreditation_requirement WHERE category_id = :cat_id");
@@ -55,11 +92,16 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
 
                 if (!empty($requirements)) {
                     ?>
-                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem;">
+                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem;">
                         <?php foreach ($requirements as $req): ?>
-                            <li style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
-                                <input type="checkbox" disabled style="width: 16px; height: 16px;">
-                                <span><?= htmlspecialchars($req['name']) ?></span>
+                            <li style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem;">
+                                <input type="checkbox" disabled style="width: 14px; height: 14px; margin-top: 2px;">
+                                <div>
+                                    <?php if (!empty($req['codename'])): ?>
+                                        <span style="font-weight: 700; color: var(--accent-blue);"><?= htmlspecialchars($req['codename']) ?>:</span>
+                                    <?php endif; ?>
+                                    <span><?= htmlspecialchars($req['name']) ?></span>
+                                </div>
                             </li>
                         <?php endforeach; ?>
                     </ul>
@@ -67,7 +109,7 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
                 }
 
                 // Render Sub-categories
-                renderCategories($cat['category_id'], $categories_by_parent, $db);
+                renderCategories($cat['category_id'], $categories_by_parent, $db, $total_counts);
                 ?>
             </div>
         </div>
@@ -80,7 +122,7 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
     <div style="display: flex; gap: 2rem; width: 100%; max-width: 1200px; margin: 0 auto;">
         
         <!-- Sidebar: Accreditations List -->
-        <aside style="width: 300px; background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content;">
+        <aside id="accSidebar" style="width: 300px; background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; transition: all 0.3s ease;">
             <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 style="font-size: 1.2rem; color: var(--accent-blue); margin: 0;">Accreditations</h2>
@@ -127,44 +169,65 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
         </aside>
 
         <!-- Main Content: Selected Accreditation Details -->
-        <div style="flex: 1; background: white; padding: 2.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <!-- Main Content: Selected Accreditation Details -->
+        <div id="accMainContent" style="flex: 1; background: white; padding: 2.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s ease; position: relative;">
             <?php if ($current_acc): ?>
-                <div style="margin-bottom: 2rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-                        <div>
-                            <h1 style="color: var(--accent-blue); margin-bottom: 0.5rem;"><?= htmlspecialchars($current_acc['name']) ?></h1>
-                            <p style="color: var(--text-secondary);"><?= htmlspecialchars($current_acc['description']) ?></p>
+                <!-- Top Right Action Buttons -->
+                <div style="position: absolute; top: 1.5rem; right: 1.5rem; display: flex; gap: 8px; align-items: center; z-index: 10;">
+                    <button onclick="toggleMaximize()" 
+                            id="maximizeBtn"
+                            style="background: transparent; border: none; padding: 5px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;"
+                            onmouseover="this.style.background='#f1f5f9'"
+                            onmouseout="this.style.background='transparent'"
+                            title="Toggle Maximize">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                        </svg>
+                    </button>
+
+                    <div style="position: relative;">
+                        <button onclick="toggleActionMenu(event)" 
+                                style="background: transparent; border: none; padding: 5px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;"
+                                onmouseover="this.style.background='#f1f5f9'"
+                                onmouseout="this.style.background='transparent'">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <circle cx="12" cy="5" r="1"></circle>
+                                <circle cx="12" cy="19" r="1"></circle>
+                            </svg>
+                        </button>
+                    
+                        <div id="accActionMenu" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 180px; z-index: 100; overflow: hidden; margin-top: 5px;">
+                            <button onclick="openModal('changeStatusModal')" style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-primary);" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
+                                Change Status
+                            </button>
+                            <button onclick="openModal('addCategoryModal')" style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-primary);" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                Add Category
+                            </button>
+                            <button onclick="openModal('addRequirementModal')" style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-primary);" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                                Add Requirement
+                            </button>
                         </div>
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                            <span class="user-badge" style="background: <?= $current_acc['status'] === 'Completed' ? '#22c55e' : 'var(--accent-gold)' ?>">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 2rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 1.5rem;">
+                    <div style="margin-bottom: 1rem; padding-right: 60px;">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 0.5rem;">
+                            <h1 style="color: var(--accent-blue); margin: 0;"><?= htmlspecialchars($current_acc['name']) ?></h1>
+                            <?php
+                                $status_color = '#94a3b8'; // Default Gray
+                                if ($current_acc['status'] === 'In Progress') $status_color = '#3b82f6'; // Blue
+                                if ($current_acc['status'] === 'Completed') $status_color = '#22c55e'; // Green
+                            ?>
+                            <span class="user-badge" style="background: <?= $status_color ?>; font-size: 0.75rem; padding: 4px 12px; color: white;">
                                 <?= htmlspecialchars($current_acc['status']) ?>
                             </span>
-                            
-                            <!-- Action Menu -->
-                            <div style="position: relative;">
-                                <button onclick="toggleActionMenu(event)" 
-                                        style="background: transparent; border: none; padding: 5px; cursor: pointer; color: var(--text-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;"
-                                        onmouseover="this.style.background='#f1f5f9'"
-                                        onmouseout="this.style.background='transparent'">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1"></circle>
-                                        <circle cx="12" cy="5" r="1"></circle>
-                                        <circle cx="12" cy="19" r="1"></circle>
-                                    </svg>
-                                </button>
-                                
-                                <div id="accActionMenu" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 180px; z-index: 100; overflow: hidden; margin-top: 5px;">
-                                    <button onclick="openModal('addCategoryModal')" style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-primary);" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                        Add Category
-                                    </button>
-                                    <button onclick="openModal('addRequirementModal')" style="width: 100%; padding: 0.8rem 1rem; border: none; background: transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-primary);" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                                        Add Requirement
-                                    </button>
-                                </div>
-                            </div>
                         </div>
+                        <p style="color: var(--text-secondary); margin: 0;"><?= htmlspecialchars($current_acc['description']) ?></p>
                     </div>
                     
                     <div style="display: flex; gap: 2rem; align-items: center;">
@@ -190,7 +253,7 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
                     <?php if (empty($categories)): ?>
                         <p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No categories defined for this accreditation.</p>
                     <?php else: ?>
-                        <?php renderCategories(0, $categories_by_parent, $db); ?>
+                        <?php renderCategories(0, $categories_by_parent, $db, $total_counts); ?>
                     <?php endif; ?>
                 </div>
 
@@ -298,9 +361,15 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
         <form action="../api/accreditation.php?action=add_requirement" method="POST">
             <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
             
-            <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Requirement Name *</label>
-                <input type="text" name="name" required placeholder="e.g. Certificate of Compliance..." class="form-control">
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Codename</label>
+                    <input type="text" name="codename" placeholder="e.g. 1.1, A.1..." class="form-control">
+                </div>
+                <div style="flex: 2;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Requirement Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Certificate of Compliance..." class="form-control">
+                </div>
             </div>
             
             <div style="margin-bottom: 2rem;">
@@ -319,7 +388,78 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
     </div>
 </div>
 
+<!-- Change Status Modal -->
+<div id="changeStatusModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: var(--accent-blue); margin: 0;">Change Status</h2>
+            <button onclick="document.getElementById('changeStatusModal').style.display='none'" 
+                    style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        
+        <form action="../api/accreditation.php?action=update_status" method="POST">
+            <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Status *</label>
+                <select name="status" required class="form-control" onchange="toggleStatusDeadline(this.value)">
+                    <option value="In Progress" <?= $current_acc['status'] === 'In Progress' ? 'selected' : '' ?>>In Progress</option>
+                    <option value="Inactive" <?= $current_acc['status'] === 'Inactive' ? 'selected' : '' ?>>Inactive</option>
+                    <option value="Completed" <?= $current_acc['status'] === 'Completed' ? 'selected' : '' ?>>Completed</option>
+                </select>
+            </div>
+            
+            <div id="status_deadline_container" style="margin-bottom: 2rem; display: <?= $current_acc['status'] === 'In Progress' ? 'block' : 'none' ?>;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">New Deadline</label>
+                <input type="date" name="deadline" value="<?= $current_acc['deadline'] ?>" class="form-control">
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Set a target completion date.</p>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">Update Status</button>
+        </form>
+    </div>
+</div>
+
 <script>
+    function toggleStatusDeadline(status) {
+        const container = document.getElementById('status_deadline_container');
+        container.style.display = status === 'In Progress' ? 'block' : 'none';
+    }
+
+    let isMaximized = false;
+    function toggleMaximize() {
+        const sidebar = document.getElementById('accSidebar');
+        const mainContent = document.getElementById('accMainContent');
+        const btn = document.getElementById('maximizeBtn');
+        
+        isMaximized = !isMaximized;
+        
+        if (isMaximized) {
+            sidebar.style.display = 'none';
+            mainContent.style.maxWidth = '100%';
+            btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v5H3M21 8h-5V3M3 16h5v5M16 21v-5h5"/></svg>`;
+            btn.title = "Restore View";
+        } else {
+            sidebar.style.display = 'block';
+            mainContent.style.maxWidth = '';
+            btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+            btn.title = "Maximize View";
+        }
+    }
+
+    function toggleCategory(header) {
+        const content = header.nextElementSibling;
+        const chevron = header.querySelector('.chevron');
+        
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            chevron.style.transform = 'rotate(90deg)';
+        } else {
+            content.style.display = 'none';
+            chevron.style.transform = 'rotate(0deg)';
+        }
+    }
+
     function toggleActionMenu(e) {
         e.stopPropagation();
         const menu = document.getElementById('accActionMenu');
@@ -363,11 +503,13 @@ function renderCategories($parent_id, $categories_by_parent, $db) {
         const accModal = document.getElementById('addAccreditationModal');
         const catModal = document.getElementById('addCategoryModal');
         const reqModal = document.getElementById('addRequirementModal');
+        const statusModal = document.getElementById('changeStatusModal');
         const actionMenu = document.getElementById('accActionMenu');
         
         if (event.target == accModal) accModal.style.display = "none";
         if (event.target == catModal) catModal.style.display = "none";
         if (event.target == reqModal) reqModal.style.display = "none";
+        if (event.target == statusModal) statusModal.style.display = "none";
         
         if (actionMenu && !actionMenu.contains(event.target)) {
             actionMenu.style.display = 'none';

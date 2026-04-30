@@ -68,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $acc_id = $_POST['accreditation_id'] ?? null;
         $cat_id = $_POST['category_id'] ?? null;
         $name = trim($_POST['name'] ?? '');
+        $codename = trim($_POST['codename'] ?? '');
 
         if (empty($cat_id) || empty($name)) {
             $_SESSION['error'] = 'Category and Requirement Name are required.';
@@ -76,10 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("INSERT INTO accreditation_requirement (category_id, name) VALUES (:cat_id, :name)");
+            $stmt = $db->prepare("INSERT INTO accreditation_requirement (category_id, name, codename) VALUES (:cat_id, :name, :codename)");
             $stmt->execute([
                 'cat_id' => $cat_id,
-                'name' => $name
+                'name' => $name,
+                'codename' => !empty($codename) ? $codename : null
             ]);
 
             $_SESSION['success'] = 'Requirement added successfully!';
@@ -87,6 +89,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         } catch (PDOException $e) {
             $_SESSION['error'] = 'Failed to add requirement: ' . $e->getMessage();
+            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        }
+    } elseif ($action === 'update_status') {
+        $acc_id = $_POST['accreditation_id'] ?? null;
+        $status = $_POST['status'] ?? null;
+        $deadline = $_POST['deadline'] ?? null;
+
+        if (empty($acc_id) || empty($status)) {
+            $_SESSION['error'] = 'Accreditation ID and Status are required.';
+            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        }
+
+        try {
+            $sql = "UPDATE accreditations SET status = :status";
+            $params = [
+                'status' => $status,
+                'id' => $acc_id
+            ];
+
+            if ($status === 'In Progress' && !empty($deadline)) {
+                $sql .= ", deadline = :deadline";
+                $params['deadline'] = $deadline;
+            } elseif ($status === 'Inactive' || $status === 'Completed') {
+                $sql .= ", deadline = NULL";
+            }
+
+            $sql .= " WHERE accreditation_id = :id";
+            
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+
+            $_SESSION['success'] = 'Status updated successfully!';
+            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            exit;
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Failed to update status: ' . $e->getMessage();
             header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
             exit;
         }
