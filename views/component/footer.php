@@ -17,6 +17,6 @@
             <p>&copy; 2026 Quality Assurance System. All rights reserved.</p>
         </div>
     </footer>
-    <script type="text/javascript" src="../assets/js/index.js"></script>
+    <script type="text/javascript" src="../assets/js/address-selector.js"></script>
 </body>
 </html>

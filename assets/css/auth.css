@@ -1,0 +1,102 @@
+/**
+ * Authentication Styles (Login/Signup)
+ */
+
+.auth-container {
+    max-width: 450px;
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.auth-form {
+    text-align: left;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group-row > div {
+    flex: 1;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-control:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(0, 28, 87, 0.1);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+}
+
+.divider-line {
+    flex: 1;
+    height: 1px;
+    background-color: var(--border-color);
+}
+
+.divider-text {
+    padding: 0 10px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.google-btn {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1.05rem;
+    background-color: #ffffff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    font-weight: 500;
+}
+
+.google-btn:hover {
+    background-color: #f8f9fa;
+    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+
+.auth-footer {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.auth-footer a {
+    color: var(--accent-blue);
+    font-weight: 600;
+}

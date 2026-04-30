@@ -1,6 +1,6 @@
-    <main class="hero" style="min-height: calc(100vh - 350px); padding: 4rem 5%;">
-        <div class="feature-card" style="max-width: 450px; width: 100%; margin: 0 auto; text-align: center;">
-            <div class="feature-icon" style="margin-bottom: 1rem;">
+    <main class="hero" style="min-height: calc(100vh - 350px);">
+        <div class="feature-card auth-container">
+            <div class="feature-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                     <circle cx="8.5" cy="7" r="4"></circle>
@@ -8,8 +8,8 @@
                     <line x1="23" y1="11" x2="17" y2="11"></line>
                 </svg>
             </div>
-            <h2 style="margin-bottom: 0.5rem; color: var(--accent-blue);">Create Account</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 2.5rem;">Join the QA System platform</p>
+            <h2 style="margin-bottom: 0.5rem;">Create Account</h2>
+            <p class="auth-footer" style="margin-top: 0; margin-bottom: 2.5rem;">Join the QA System platform</p>
             
             <div style="text-align: center; margin-top: 1.5rem; margin-bottom: 1.5rem;">
                 <div id="g_id_onload"
@@ -17,7 +17,7 @@
                      data-login_uri="YOUR_LOGIN_ENDPOINT"
                      data-auto_prompt="false">
                 </div>
-                <button type="button" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.05rem; background-color: #ffffff; color: #3c4043; border: 1px solid #dadce0; border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background-color 0.3s, box-shadow 0.3s; font-weight: 500;" onmouseover="this.style.backgroundColor='#f8f9fa'; this.style.boxShadow='0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15)';" onmouseout="this.style.backgroundColor='#ffffff'; this.style.boxShadow='none';">
+                <button type="button" class="btn google-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -28,43 +28,40 @@
                 </button>
             </div>
             
-            <div style="display: flex; align-items: center; margin: 1.5rem 0;">
-                <div style="flex: 1; height: 1px; background-color: var(--border-color);"></div>
-                <span style="padding: 0 10px; color: var(--text-secondary); font-size: 0.85rem;">OR</span>
-                <div style="flex: 1; height: 1px; background-color: var(--border-color);"></div>
+            <div class="auth-divider">
+                <div class="divider-line"></div>
+                <span class="divider-text">OR</span>
+                <div class="divider-line"></div>
             </div>
 
-            <form action="../api/auth.php?action=signup" method="POST" style="text-align: left;">
-                <!-- Row 1: Name -->
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <div style="flex: 1;">
-                        <label for="fname" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">First Name *</label>
-                        <input type="text" id="fname" name="fname" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
+            <form action="../api/auth.php?action=signup" method="POST" class="auth-form">
+                <div class="form-group-row">
+                    <div>
+                        <label for="fname" class="form-label">First Name *</label>
+                        <input type="text" id="fname" name="fname" required class="form-control">
                     </div>
-                    <div style="flex: 1;">
-                        <label for="lname" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Last Name *</label>
-                        <input type="text" id="lname" name="lname" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
-                    </div>
-                </div>
-
-                <!-- Row 2: Account details -->
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <div style="flex: 1;">
-                        <label for="email" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Email Address *</label>
-                        <input type="email" id="email" name="email" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
-                    </div>
-                    <div style="flex: 1;">
-                        <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Password *</label>
-                        <input type="password" id="password" name="password" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
+                    <div>
+                        <label for="lname" class="form-label">Last Name *</label>
+                        <input type="text" id="lname" name="lname" required class="form-control">
                     </div>
                 </div>
 
+                <div class="form-group-row">
+                    <div>
+                        <label for="email" class="form-label">Email Address *</label>
+                        <input type="email" id="email" name="email" required class="form-control">
+                    </div>
+                    <div>
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" id="password" name="password" required class="form-control">
+                    </div>
+                </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.05rem;">Create Account</button>
             </form>
 
-            <p style="margin-top: 2rem; font-size: 0.9rem; color: var(--text-secondary);">
-                Already have an account? <a href="feed.php?action=login" style="color: var(--accent-blue); font-weight: 600;">Sign In</a>
+            <p class="auth-footer">
+                Already have an account? <a href="feed.php?action=login">Sign In</a>
             </p>
         </div>
     </main>

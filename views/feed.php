@@ -4,6 +4,7 @@ session_start();
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/component/header.php';
 require_once __DIR__ . '/component/navbar.php';
+require_once __DIR__ . '/component/confirmationpane.php';
 
 // Display any session messages
 if (isset($_SESSION['error'])) {
@@ -22,7 +23,7 @@ if (isset($_SESSION['user_id'])) {
     if ($action === 'dashboard' || $action === '' || $action === 'login' || $action === 'signup') {
         require_once __DIR__ . '/content/dashboard.php';
     } elseif ($action === 'accreditation') {
-        require_once __DIR__ . '/content/addtracker.php';
+        require_once __DIR__ . '/content/acctracker.php';
     } elseif ($action === 'activity') {
         require_once __DIR__ . '/content/ame.php';
     } elseif ($action === 'document') {

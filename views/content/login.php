@@ -1,6 +1,6 @@
-<main class="hero" style="min-height: calc(100vh - 350px); padding: 4rem 5%;">
-    <div class="feature-card" style="max-width: 450px; width: 100%; margin: 0 auto; text-align: center;">
-        <div class="feature-icon" style="margin-bottom: 1rem;">
+<main class="hero" style="min-height: calc(100vh - 350px);">
+    <div class="feature-card auth-container">
+        <div class="feature-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
@@ -8,35 +8,29 @@
                 <line x1="15" y1="12" x2="3" y2="12"></line>
             </svg>
         </div>
-        <h2 style="margin-bottom: 0.5rem; color: var(--accent-blue);">Welcome Back</h2>
-        <p style="color: var(--text-secondary); margin-bottom: 2.5rem;">Sign in to your QA System account</p>
+        <h2 style="margin-bottom: 0.5rem;">Welcome Back</h2>
+        <p class="auth-footer" style="margin-top: 0; margin-bottom: 2.5rem;">Sign in to your QA System account</p>
 
-        <form action="../api/auth.php?action=login" method="POST" style="text-align: left;">
-            <div style="margin-bottom: 1.5rem;">
-                <label for="email" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Email Address</label>
-                <input type="email" id="email" name="email" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
+        <form action="../api/auth.php?action=login" method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="email" class="form-label">Email Address</label>
+                <input type="email" id="email" name="email" required class="form-control">
             </div>
-            <div style="margin-bottom: 2rem;">
-                <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Password</label>
-                <input type="password" id="password" name="password" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';" onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" id="password" name="password" required class="form-control">
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.05rem;">Sign In</button>
         </form>
 
-        <div style="display: flex; align-items: center; margin: 1.5rem 0;">
-            <div style="flex: 1; height: 1px; background-color: var(--border-color);"></div>
-            <span style="padding: 0 10px; color: var(--text-secondary); font-size: 0.85rem;">OR</span>
-            <div style="flex: 1; height: 1px; background-color: var(--border-color);"></div>
+        <div class="auth-divider">
+            <div class="divider-line"></div>
+            <span class="divider-text">OR</span>
+            <div class="divider-line"></div>
         </div>
 
         <div style="text-align: center; margin-bottom: 1.5rem;">
-            <div id="g_id_onload" data-client_id="<?= htmlspecialchars($_ENV['GOOGLE_CLIENT_ID'] ?? '') ?>"
-                data-login_uri="YOUR_LOGIN_ENDPOINT" data-auto_prompt="false">
-            </div>
-            <button type="button" class="btn"
-                style="width: 100%; padding: 0.8rem; font-size: 1.05rem; background-color: #ffffff; color: #3c4043; border: 1px solid #dadce0; border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background-color 0.3s, box-shadow 0.3s; font-weight: 500;"
-                onmouseover="this.style.backgroundColor='#f8f9fa'; this.style.boxShadow='0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15)';"
-                onmouseout="this.style.backgroundColor='#ffffff'; this.style.boxShadow='none';">
+            <a href="../api/auth.php?action=google_login" class="btn google-btn" style="text-decoration: none; width: 100%; box-sizing: border-box; justify-content: center;">
                 <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -52,11 +46,10 @@
                         fill="#EA4335" />
                 </svg>
                 Sign in with Google
-            </button>
+            </a>
         </div>
-        <p style="margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-secondary);">
-            Don't have an account? <a href="../views/feed.php?action=signup"
-                style="color: var(--accent-blue); font-weight: 600;">Create Account</a>
+        <p class="auth-footer">
+            Don't have an account? <a href="../views/feed.php?action=signup">Create Account</a>
         </p>
     </div>
 </main>
