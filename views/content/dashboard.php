@@ -115,7 +115,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="birthdate"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Birthdate
                             *</label>
-                        <input type="date" id="birthdate" name="birthdate" required class="form-control">
+                        <input type="date" id="birthdate" name="birthdate" value="<?= htmlspecialchars($userProfile['birthdate'] ?? '') ?>" required class="form-control">
                     </div>
                     <div style="flex: 1;">
                         <label for="gender"
@@ -123,9 +123,9 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                             *</label>
                         <select id="gender" name="gender" required class="form-control">
                             <option value="">Select Gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Others">Others</option>
+                            <option value="Male" <?= ($userProfile['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                            <option value="Female" <?= ($userProfile['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                            <option value="Others" <?= ($userProfile['gender'] ?? '') === 'Others' ? 'selected' : '' ?>>Others</option>
                         </select>
                     </div>
                 </div>
@@ -136,7 +136,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="province"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Province
                             *</label>
-                        <select id="province" name="province" required
+                        <select id="province" name="province" required data-selected="<?= htmlspecialchars($userProfile['province'] ?? '') ?>"
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; background-color: white;">
                             <option value="">Select Province...</option>
                         </select>
@@ -145,7 +145,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="city"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">City
                             / Municipality *</label>
-                        <select id="city" name="city" required disabled
+                        <select id="city" name="city" required disabled data-selected="<?= htmlspecialchars($userProfile['city'] ?? '') ?>"
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; background-color: white;">
                             <option value="">Select City...</option>
                         </select>
@@ -154,7 +154,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="barangay"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Barangay
                             *</label>
-                        <select id="barangay" name="barangay" required disabled
+                        <select id="barangay" name="barangay" required disabled data-selected="<?= htmlspecialchars($userProfile['barangay'] ?? '') ?>"
                             style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; background-color: white;">
                             <option value="">Select Barangay...</option>
                         </select>
@@ -168,7 +168,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     <textarea id="address" name="address" rows="2" required placeholder="123 Example Street, Apt 4B..."
                         style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s; resize: vertical;"
                         onfocus="this.style.borderColor='var(--accent-blue)'; this.style.boxShadow='0 0 0 3px rgba(0,28,87,0.1)';"
-                        onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';"></textarea>
+                        onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';"><?= htmlspecialchars($userProfile['address'] ?? '') ?></textarea>
                 </div>
 
                 <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
@@ -176,7 +176,8 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="contact_number"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Contact
                             Number *</label>
-                        <input type="tel" id="contact_number" maxlength="11" name="contact_number" value="09" required
+                        <input type="tel" id="contact_number" maxlength="11" name="contact_number" 
+                            value="<?= !empty($userProfile['contact_number']) ? htmlspecialchars($userProfile['contact_number']) : '09' ?>" required
                             class="form-control">
                     </div>
                 </div>
@@ -185,7 +186,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="division_id"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Division
                             *</label>
-                        <select id="division_id" name="division_id" required class="form-control">
+                        <select id="division_id" name="division_id" required class="form-control" data-selected="<?= htmlspecialchars($userProfile['division_id'] ?? '') ?>">
                             <option value="">Select Division...</option>
                         </select>
                     </div>
@@ -193,7 +194,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                         <label for="office_id"
                             style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Office
                             *</label>
-                        <select id="office_id" name="office_id" required disabled class="form-control">
+                        <select id="office_id" name="office_id" required disabled class="form-control" data-selected="<?= htmlspecialchars($userProfile['office_id'] ?? '') ?>">
                             <option value="">Select Office...</option>
                         </select>
                     </div>
@@ -203,7 +204,7 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
                     <label for="position"
                         style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); font-size: 0.95rem;">Position
                         *</label>
-                    <input type="text" id="position" name="position" required class="form-control">
+                    <input type="text" id="position" name="position" value="<?= htmlspecialchars($userProfile['position'] ?? '') ?>" required class="form-control">
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.05rem;">Save

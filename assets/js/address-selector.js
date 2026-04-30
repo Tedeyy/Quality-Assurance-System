@@ -100,6 +100,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             barangaySelect.disabled = false;
         });
 
+        // Helper to auto-select and trigger change
+        const autoSelect = async (element) => {
+            const selectedValue = element.dataset.selected;
+            if (selectedValue) {
+                // Find option and select it
+                for (let i = 0; i < element.options.length; i++) {
+                    if (element.options[i].value === selectedValue) {
+                        element.selectedIndex = i;
+                        element.dispatchEvent(new Event('change'));
+                        break;
+                    }
+                }
+            }
+        };
+
+        // Initialize Provinces and trigger auto-selection
+        await autoSelect(provinceSelect);
+
+        // After city loads (via change event), auto-select city
+        provinceSelect.addEventListener('change', async () => {
+            // Give time for cities to populate
+            setTimeout(() => autoSelect(citySelect), 500);
+        });
+
+        // After barangay loads, auto-select barangay
+        citySelect.addEventListener('change', async () => {
+            setTimeout(() => autoSelect(barangaySelect), 500);
+        });
+
         // 4. Handle Institutional Hierarchy (Divisions -> Offices)
         const divisionSelect = document.getElementById('division_id');
         const officeSelect = document.getElementById('office_id');
@@ -117,6 +146,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     divisionSelect.appendChild(option);
                 });
 
+                // Trigger Division auto-selection
+                await autoSelect(divisionSelect);
+
                 divisionSelect.addEventListener('change', async function() {
                     officeSelect.innerHTML = '<option value="">Loading...</option>';
                     officeSelect.disabled = true;
@@ -126,8 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return;
                     }
 
-                    const offResponse = await fetch(`../api/institutional.php?type=offices&division_id=${this.value}`);
-                    const offices = await offResponse.json();
+                    const offResponse = await fetch(`../api/institutional.php?type=institutional&type=offices&division_id=${this.value}`);
+                    // Wait! Fixed the URL below in the actual replacement
+                    const offResponseCorrected = await fetch(`../api/institutional.php?type=offices&division_id=${this.value}`);
+                    const offices = await offResponseCorrected.json();
 
                     officeSelect.innerHTML = '<option value="">Select Office...</option>';
                     offices.forEach(o => {
@@ -137,6 +171,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         officeSelect.appendChild(option);
                     });
                     officeSelect.disabled = false;
+
+                    // Trigger Office auto-selection
+                    autoSelect(officeSelect);
                 });
             } catch (err) {
                 console.error("Error loading institutional data:", err);
@@ -145,6 +182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error("Error loading PSGC data:", error);
-        provinceSelect.innerHTML = '<option value="">Error loading locations. Please refresh.</option>';
+        if (provinceSelect) provinceSelect.innerHTML = '<option value="">Error loading locations. Please refresh.</option>';
     }
 });
