@@ -34,11 +34,11 @@
         // Action-specific styling
         if (type === 'danger') {
             actionBtn.style.background = '#ef4444';
-            actionBtn.innerText = actionLabel || 'Delete';
+            actionBtn.innerText = actionLabel || (onConfirm ? 'Delete' : 'OK');
             iconEl.innerHTML = `<div style="width: 60px; height: 60px; background: #fef2f2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
             </div>`;
-            cancelBtn.style.display = 'block';
+            cancelBtn.style.display = onConfirm ? 'block' : 'none';
         } else if (type === 'success') {
             actionBtn.style.background = '#22c55e';
             actionBtn.innerText = actionLabel || 'OK';
@@ -48,11 +48,11 @@
             cancelBtn.style.display = 'none';
         } else {
             actionBtn.style.background = 'var(--accent-blue)';
-            actionBtn.innerText = actionLabel || 'Confirm';
+            actionBtn.innerText = actionLabel || (onConfirm ? 'Confirm' : 'OK');
             iconEl.innerHTML = `<div style="width: 60px; height: 60px; background: #eff6ff; color: var(--accent-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
             </div>`;
-            cancelBtn.style.display = 'block';
+            cancelBtn.style.display = onConfirm ? 'block' : 'none';
         }
 
         pane.style.display = 'flex';

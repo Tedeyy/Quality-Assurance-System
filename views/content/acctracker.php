@@ -1609,6 +1609,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 return;
             }
             formData.append('selected_sheets', JSON.stringify(selectedSheets));
+            console.log('[Import Finalize] selected_sheets being sent:', selectedSheets);
             document.getElementById('importSummaryModal').style.display = 'none';
         }
 
@@ -1653,29 +1654,19 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const content = document.getElementById('summaryContent');
 
         let html = `
-            <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem;">
-                <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px;">
-                    <p style="margin: 0; color: #166534; font-weight: 600;">Analysis Complete!</p>
-                    <p style="margin: 5px 0 0; font-size: 0.9rem; color: #166534;">
-                        Found <b>${data.stats.categories}</b> categories across <b>${Object.keys(data.preview).length}</b> sheets.
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.7rem; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <p style="margin: 0; color: #166534; font-weight: 600; font-size: 0.95rem;">Analysis Complete!</p>
+                    <p style="margin: 2px 0 0; font-size: 0.8rem; color: #166534;">
+                        Found <b>${data.stats.categories}</b> categories and <b>${data.stats.requirements}</b> requirements across <b>${Object.keys(data.preview).length}</b> sheets.
                     </p>
-                    <p style="margin: 5px 0 0; font-size: 0.8rem; color: #166534;">Select the worksheets you want to import below.</p>
                 </div>
-                
-                <div style="flex: 1.2; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 8px; padding: 1rem; position: relative;">
-                    <h3 style="font-size: 0.85rem; color: #0369a1; margin: 0 0 0.5rem; display: flex; align-items: center; gap: 6px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                        </svg>
-                        AI Assistant Analysis
-                    </h3>
-                    <div style="font-size: 0.8rem; color: #0c4a6e; line-height: 1.4;">
-                        ${data.ai_insights || 'No analysis available.'}
-                    </div>
-                </div>
+                <div style="font-size: 0.75rem; color: #15803d; background: #dcfce7; padding: 6px 14px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"> Ready to Import </div>
             </div>
 
-            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafafa;">
+            <div style="display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem;">
+                <!-- Left: Preview List -->
+                <div style="flex: 1.6; max-height: 50vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; background: #fafafa; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
         `;
 
         const countRequirements = (item) => {
@@ -1692,52 +1683,109 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             return total;
         };
 
-        for (const rootId in data.preview) {
-            const sheet = data.preview[rootId];
-            const actualSheetName = sheet.name.replace('Worksheet: ', '').replace('Program/Sheet: ', '');
-            const sheetReqCount = countRequirements(sheet);
-
-            html += `<div style="margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
-                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 0.8rem;">
-                    <input type="checkbox" value="${actualSheetName}" checked class="sheet-selector" style="width: 18px; height: 18px; accent-color: var(--accent-blue);">
-                    <div style="display: flex; flex-direction: column;">
-                        <span style="font-weight: 700; color: var(--accent-blue); font-size: 1rem;">${sheet.name}</span>
-                        <span style="font-size: 0.75rem; color: #64748b;">${sheetReqCount} total requirements</span>
-                    </div>
-                </label>`;
-
-            for (const areaId in sheet.items) {
-                const area = sheet.items[areaId];
-                const areaReqCount = countRequirements(area);
-                html += `<div style="margin-left: 2rem; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 5px;">
-                    └ ${area.name} <span style="font-weight: 400; color: #94a3b8; font-size: 0.8rem;">(${areaReqCount} reqs)</span>
-                </div>`;
-
-                for (const paramId in area.items) {
-                    const param = area.items[paramId];
-                    const paramReqCount = countRequirements(param);
-                    html += `<div style="margin-left: 3.5rem; color: #475569; font-size: 0.85rem; margin-top: 4px; font-weight: 500;">
-                        • ${param.name} <span style="font-weight: 400; color: #94a3b8; font-size: 0.75rem;">(${paramReqCount})</span>
+        const renderPreviewItems = (items, depth = 0) => {
+            let innerHtml = '';
+            if (!items) return '';
+            
+            if (Array.isArray(items)) {
+                // Requirements
+                items.forEach(req => {
+                    innerHtml += `<div style="margin-left: ${depth * 1.5}rem; color: #475569; font-size: 0.85rem; margin-top: 4px;">
+                        • ${req.code} ${req.name}
                     </div>`;
-
-                    // Show Sections/Sub-categories if they exist
-                    if (param.items && typeof param.items === 'object' && !Array.isArray(param.items)) {
-                        for (const secId in param.items) {
-                            const section = param.items[secId];
-                            const secReqCount = countRequirements(section);
-                            html += `<div style="margin-left: 5rem; color: #64748b; font-size: 0.8rem; margin-top: 2px; font-style: italic;">
-                                ── ${section.name} (${secReqCount})
-                            </div>`;
-                        }
+                });
+            } else {
+                // Categories
+                for (const key in items) {
+                    const item = items[key];
+                    const count = countRequirements(item);
+                    
+                    if (depth === 0) { // Area level
+                         innerHtml += `<div style="margin-left: 1.5rem; font-weight: 600; font-size: 0.95rem; color: #1e293b; margin-top: 1rem; border-left: 3px solid #cbd5e1; padding-left: 10px;">
+                            ${item.name} <span style="font-weight: 400; color: #94a3b8; font-size: 0.8rem;">(${count} reqs)</span>
+                        </div>`;
+                    } else { // Parameter or deeper
+                        innerHtml += `<div style="margin-left: ${depth * 1.5}rem; color: ${depth === 1 ? '#334155' : '#64748b'}; font-size: ${depth === 1 ? '0.9rem' : '0.8rem'}; margin-top: 5px; font-weight: ${depth === 1 ? '600' : 'normal'}; font-style: ${depth > 2 ? 'italic' : 'normal'};">
+                            ${depth > 1 ? '── ' : '└ '}${item.name} <span style="font-weight: 400; color: #94a3b8; font-size: 0.75rem;">(${count})</span>
+                        </div>`;
+                    }
+                    
+                    if (item.items) {
+                        innerHtml += renderPreviewItems(item.items, depth + 1);
                     }
                 }
             }
+            return innerHtml;
+        };
+
+        for (const rootId in data.preview) {
+            const workbook = data.preview[rootId];
+            const workbookReqCount = countRequirements(workbook);
+
+            html += `<div style="margin-bottom: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.5rem;">
+                <div style="background: #f8fafc; padding: 0.8rem; border-radius: 8px; margin-bottom: 0.8rem;">
+                    <span style="font-weight: 800; color: var(--accent-blue); font-size: 1.1rem;">${workbook.name}</span>
+                    <span style="display: block; font-size: 0.8rem; color: #64748b;">${workbookReqCount} total requirements detected</span>
+                </div>`;
+
+            // Iterate nested worksheets inside the workbook
+            if (workbook.items && !Array.isArray(workbook.items)) {
+                for (const sheetKey in workbook.items) {
+                    const sheet = workbook.items[sheetKey];
+                    // The real sheet name sent to PHP — MUST match raw_sheet_name
+                    const realSheetName = sheet.raw_sheet_name || sheet.name.replace(/^Worksheet:\s*/i, '').replace(/^Program\/Sheet:\s*/i, '');
+                    const sheetReqCount = countRequirements(sheet);
+                    
+                    html += `<div style="margin-left: 1rem; margin-bottom: 0.5rem; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.7rem;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" value="${realSheetName}" checked class="sheet-selector" style="width: 18px; height: 18px; accent-color: var(--accent-blue);">
+                            <div>
+                                <span style="font-weight: 700; color: #334155; font-size: 0.95rem;">${sheet.name}</span>
+                                <span style="display: block; font-size: 0.75rem; color: #64748b;">${sheetReqCount} requirements</span>
+                            </div>
+                        </label>`;
+                    html += renderPreviewItems(sheet.items, 0);
+                    html += `</div>`;
+                }
+            }
+
             html += `</div>`;
         }
 
-        html += `</div>`;
+            html += `</div>
+                
+                <!-- Right: AI Analysis -->
+                <div style="flex: 1; max-height: 50vh; overflow-y: auto; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 10px; padding: 1rem; position: sticky; top: 0;">
+                    <h3 style="font-size: 0.9rem; color: #0369a1; margin: 0 0 1rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(3, 105, 161, 0.1); padding-bottom: 0.8rem;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                        </svg>
+                        AI Assistant Analysis
+                    </h3>
+                    <div style="font-size: 0.85rem; color: #0c4a6e; line-height: 1.6;">
+                        ${data.ai_insights || 'No analysis available.'}
+                    </div>
+                </div>
+            </div>`;
         content.innerHTML = html;
         modal.style.display = 'flex';
+    }
+
+    function previewImportFile(input) {
+        const file = input.files[0];
+        const info = document.getElementById('importFileInfo');
+        const text = document.getElementById('importUploadText');
+        const icon = document.getElementById('importUploadIcon');
+        const zone = document.getElementById('importDropZone');
+
+        if (file) {
+            info.innerText = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            info.style.display = 'block';
+            text.innerText = 'File selected and ready!';
+            icon.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>`;
+            zone.style.borderColor = '#10b981';
+            zone.style.background = '#f0fdf4';
+        }
     }
 
     function toggleNewAccFields(val) {
@@ -1769,7 +1817,8 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     Template</label>
                 <select name="template_type" required
                     style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
-                    <option value="aaccup" selected>AACCUP Standard (Area -> Parameter -> Section)</option>
+                    <option value="aaccup_program" selected>AACCUP Program Standard (Area -> Parameter -> Section)</option>
+                    <option value="aaccup_institution">AACCUP Institution Standard (Area -> Parameter -> Section)</option>
                     <option value="ched" disabled>CHED Standard (Coming Soon)</option>
                     <option value="iso" disabled>ISO Standard (Coming Soon)</option>
                 </select>
@@ -1804,10 +1853,10 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 </div>
             </div>
 
-            <div
-                style="margin-bottom: 1rem; padding: 1.5rem; border: 2px dashed #e2e8f0; border-radius: 8px; text-align: center; background: #f8fafc;">
-                <label style="cursor: pointer;">
-                    <div style="margin-bottom: 0.5rem; color: #10b981;">
+            <div id="importDropZone"
+                style="margin-bottom: 1rem; padding: 1.5rem; border: 2px dashed #e2e8f0; border-radius: 8px; text-align: center; background: #f8fafc; transition: all 0.3s ease;">
+                <label style="cursor: pointer; display: block;">
+                    <div id="importUploadIcon" style="margin-bottom: 0.5rem; color: #10b981;">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1815,22 +1864,22 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                             <line x1="12" y1="3" x2="12" y2="15" />
                         </svg>
                     </div>
-                    <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Click to upload
+                    <span id="importUploadText" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Click to upload
                         XLSX</span>
-                    <input type="file" name="excel_file" accept=".xlsx" required style="display: none;">
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;"></div>
+                    <input type="file" name="excel_file" accept=".xlsx" required style="display: none;" onchange="previewImportFile(this)">
+                    <div id="importFileInfo" style="font-size: 0.75rem; color: #10b981; margin-top: 0.5rem; display: none; font-weight: 600;"></div>
                 </label>
             </div>
 
             <div style="margin-bottom: 1.5rem; text-align: center;">
-                <a href="../context/sample template.xlsx" download
+                <a href="../context/aaccuptemplate.xlsx" download
                     style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; color: var(--accent-blue); text-decoration: none; font-weight: 600;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="7 10 12 15 17 10" />
                         <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    Download AACCUP Standard Template
+                    Download AACCUP Program Standard Template
                 </a>
             </div>
 
@@ -1847,9 +1896,9 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
 <!-- Import Summary Modal -->
 <div id="importSummaryModal" class="modal"
-    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: flex-start; justify-content: center; backdrop-filter: blur(4px); overflow-y: auto; padding: 2rem 0;">
     <div
-        style="background: white; padding: 2rem; border-radius: 12px; width: 550px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        style="background: white; padding: 1.5rem; border-radius: 16px; width: 950px; max-width: 95vw; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; margin: auto;">
         <h2 style="margin: 0 0 1.5rem; color: var(--accent-blue);">Import Summary Preview</h2>
 
         <div id="summaryContent" style="margin-bottom: 2rem;">

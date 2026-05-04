@@ -1,4 +1,4 @@
 .env
 scratch/
-context/
 vendor/
+tools/

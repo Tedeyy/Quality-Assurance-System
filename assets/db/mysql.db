@@ -84,8 +84,8 @@ CREATE TABLE accreditation_categories(
     accreditation_id INT,
     parent_category_id INT DEFAULT NULL,
     name TEXT NOT NULL,
-    FOREIGN KEY (accreditation_id) REFERENCES accreditations(accreditation_id),
-    FOREIGN KEY (parent_category_id) REFERENCES accreditation_categories(category_id),
+    FOREIGN KEY (accreditation_id) REFERENCES accreditations(accreditation_id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_category_id) REFERENCES accreditation_categories(category_id) ON DELETE CASCADE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -98,8 +98,8 @@ CREATE TABLE accreditation_requirement(
     parent_requirement_id INT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES accreditation_categories(category_id),
-    FOREIGN KEY (parent_requirement_id) REFERENCES accreditation_requirement(requirement_id)
+    FOREIGN KEY (category_id) REFERENCES accreditation_categories(category_id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_requirement_id) REFERENCES accreditation_requirement(requirement_id) ON DELETE CASCADE
 );
 
 CREATE TABLE accreditation_requirement_submissions (
