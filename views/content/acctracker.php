@@ -1732,8 +1732,10 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             if (workbook.items && !Array.isArray(workbook.items)) {
                 for (const sheetKey in workbook.items) {
                     const sheet = workbook.items[sheetKey];
+                    if (!sheet) continue;
                     // The real sheet name sent to PHP — MUST match raw_sheet_name
-                    const realSheetName = sheet.raw_sheet_name || sheet.name.replace(/^Worksheet:\s*/i, '').replace(/^Program\/Sheet:\s*/i, '');
+                    const sheetName = sheet.name || 'Untitled Section';
+                    const realSheetName = sheet.raw_sheet_name || sheetName.replace(/^Worksheet:\s*/i, '').replace(/^Program\/Sheet:\s*/i, '');
                     const sheetReqCount = countRequirements(sheet);
                     
                     html += `<div style="margin-left: 1rem; margin-bottom: 0.5rem; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.7rem;">
@@ -1819,6 +1821,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
                     <option value="aaccup_institution">AACCUP Institution Standard (Area -> Parameter -> Section)</option>
                     <option value="aaccup_program" selected>AACCUP Program Standard (Area -> Parameter -> Section)</option>
+                    <option value="copc">COPC Standard (Category -> Requirement)</option>
                     <option value="ched" disabled>CHED Standard (Coming Soon)</option>
                     <option value="iso" disabled>ISO Standard (Coming Soon)</option>
                 </select>

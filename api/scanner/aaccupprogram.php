@@ -64,18 +64,6 @@ if ($xlsx = SimpleXLSX::parse($file)) {
         $stats = ['categories' => 0, 'requirements' => 0, 'skipped_requirements' => 0];
         $preview_data = [];
 
-        // Helper function for "Get or Create" category
-        $getOrCreateCat = function($db, $acc_id, $name, $parent_id) {
-            $stmt = $db->prepare("SELECT category_id FROM accreditation_categories WHERE accreditation_id = ? AND name = ? AND (parent_category_id = ? OR (parent_category_id IS NULL AND ? IS NULL)) LIMIT 1");
-            $stmt->execute([$acc_id, $name, $parent_id, $parent_id]);
-            $res = $stmt->fetch();
-            if ($res) return $res['category_id'];
-
-            $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
-            $stmt->execute([$acc_id, $name, $parent_id]);
-            return $db->lastInsertId();
-        };
-
         // Create/Get Workbook Root Category
         $workbook_root_id = null;
         if (!$is_dry_run) {

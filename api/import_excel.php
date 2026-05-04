@@ -21,6 +21,22 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 $template_type = $_POST['template_type'] ?? 'aaccup';
 
+$normalizeSectionLabel = function($text) {
+    $text = trim($text);
+    $text = preg_replace('/\s+/', ' ', $text);
+    return strtoupper($text);
+};
+
+$getOrCreateCat = function($db, $acc_id, $name, $parent_id) {
+    $stmt = $db->prepare("SELECT category_id FROM accreditation_categories WHERE accreditation_id = ? AND name = ? AND (parent_category_id = ? OR (parent_category_id IS NULL AND ? IS NULL)) LIMIT 1");
+    $stmt->execute([$acc_id, $name, $parent_id, $parent_id]);
+    $res = $stmt->fetch();
+    if ($res) return $res['category_id'];
+    $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
+    $stmt->execute([$acc_id, $name, $parent_id]);
+    return $db->lastInsertId();
+};
+
 switch ($template_type) {
     case 'aaccup':
     case 'aaccup_program':
@@ -29,6 +45,10 @@ switch ($template_type) {
     case 'aaccup_institution':
         require_once __DIR__ . '/scanner/aaccupinstitution.php';
         break;
+    case 'copc':
+        require_once __DIR__ . '/scanner/copc.php';
+        break;
+    case 'ched':
         echo json_encode(['success' => false, 'message' => 'CHED template is not yet implemented.']);
         break;
     case 'iso':
