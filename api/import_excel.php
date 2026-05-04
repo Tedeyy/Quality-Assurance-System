@@ -25,6 +25,7 @@ $acc_name = $_POST['accreditation_name'] ?? 'Imported Accreditation';
 $acc_desc = $_POST['accreditation_desc'] ?? 'Bulk imported via Excel';
 $is_dry_run = ($_POST['dry_run'] ?? '0') === '1';
 $template_type = $_POST['template_type'] ?? 'aaccup';
+$selected_sheets = isset($_POST['selected_sheets']) ? json_decode($_POST['selected_sheets'], true) : null;
 
 $file = $_FILES['excel_file']['tmp_name'];
 
@@ -53,137 +54,184 @@ if ($xlsx = SimpleXLSX::parse($file)) {
             }
         }
 
-        $rows = $xlsx->rows();
-        
-        $current_area_id = null;
-        $current_param_id = null;
-        $current_section_id = null;
-        $pending_new_category = false;
-
+        $sheetNames = $xlsx->sheetNames();
         $stats = ['categories' => 0, 'requirements' => 0];
         $preview_data = [];
 
-        // Specific handling for Area headers at the top
-        $area_number = '';
-        $area_title = '';
+        foreach ($sheetNames as $sheetIndex => $sheetName) {
+            // IF selected_sheets is provided, only process those
+            if (!$is_dry_run && $selected_sheets !== null && !in_array($sheetName, $selected_sheets)) {
+                continue;
+            }
 
-        foreach ($rows as $index => $row) {
-            $row_raw = array_map('trim', $row);
-            $is_empty = empty(implode('', $row_raw));
+            $rows = $xlsx->rows($sheetIndex);
             
-            if ($is_empty) {
-                $pending_new_category = true;
-                continue;
-            }
-
-            $col0 = $row_raw[0] ?? '';
-            $col1 = $row_raw[1] ?? '';
-            $col2 = $row_raw[2] ?? '';
-            $col3 = $row_raw[3] ?? '';
-            $col4 = $row_raw[4] ?? '';
-
-            // 1. Detect Area at top (Rows 1-2 in template)
-            if ($index == 1 && !empty($col4)) $area_number = $col4;
-            if ($index == 2 && !empty($col4)) {
-                $area_title = trim($area_number . " " . $col4);
-                if (!$is_dry_run) {
-                    $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, null)");
-                    $stmt->execute([$accreditation_id, $area_title]);
-                    $current_area_id = $db->lastInsertId();
-                } else {
-                    $current_area_id = "temp_area_" . $index;
-                    $preview_data[$current_area_id] = ['name' => $area_title, 'items' => []];
-                }
-                $stats['categories']++;
-                $pending_new_category = false;
-                continue;
-            }
-
-            // 2. Detect Parameter Section (e.g. PARAMETER A: ...)
-            if (!empty($col0) && $col0 === $col1 && stripos($col0, 'PARAMETER') !== false) {
-                if (!$is_dry_run) {
-                    $parent = $current_area_id ?: null;
-                    $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
-                    $stmt->execute([$accreditation_id, $col0, $parent]);
-                    $current_param_id = $db->lastInsertId();
-                } else {
-                    $current_param_id = "temp_param_" . $index;
-                    $preview_data[$current_area_id]['items'][$current_param_id] = ['name' => $col0, 'items' => []];
-                }
-                $current_section_id = null;
-                $stats['categories']++;
-                $pending_new_category = false;
-                continue;
-            }
-
-            // 3. Detect Sub-Section (SYSTEM - INPUTS, IMPLEMENTATION, OUTCOME or triggered by space)
-            $is_section = false;
-            $section_name = '';
+            $current_root_id = null; // Sheet-level category
+            $current_area_id = null;
+            $current_param_id = null;
+            $current_section_id = null;
+            $pending_new_category = false;
             
-            // Look for keywords in either col0 or col1
-            if (!empty($col0) || !empty($col1)) {
-                $search_text = $col0 . " " . $col1;
-                if (stripos($search_text, 'SYSTEM') !== false && (stripos($search_text, 'INPUT') !== false || stripos($search_text, 'PROCESS') !== false)) { 
-                    $is_section = true; $section_name = "SYSTEM - INPUTS AND PROCESSES"; 
-                }
-                elseif (stripos($search_text, 'IMPLEMENTATION') !== false) { 
-                    $is_section = true; $section_name = "IMPLEMENTATION"; 
-                }
-                elseif (stripos($search_text, 'OUTCOME') !== false) { 
-                    $is_section = true; $section_name = "OUTCOME/S"; 
-                }
-                elseif ($pending_new_category && empty($col1)) { 
-                    // If we had a space, and col0 has text but col1 doesn't (typical for headers)
-                    $is_section = true; $section_name = $col0; 
-                }
-                elseif ($pending_new_category && $col0 === $col1) {
-                    // Typical for full-row headers
-                    $is_section = true; $section_name = $col0;
-                }
-            }
+            // Track requirements at different indentation levels
+            $last_req_at_level = []; 
 
-            if ($is_section) {
-                if (!$is_dry_run) {
-                    $parent = $current_param_id ?: ($current_area_id ?: null);
-                    $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
-                    $stmt->execute([$accreditation_id, $section_name, $parent]);
-                    $current_section_id = $db->lastInsertId();
-                } else {
-                    $current_section_id = "temp_sec_" . $index;
-                    $preview_data[$current_area_id]['items'][$current_param_id]['items'][$current_section_id] = ['name' => $section_name, 'items' => []];
-                }
-                $stats['categories']++;
-                $pending_new_category = false;
-                continue;
+            // 0. Create Primary Parent (Worksheet Name)
+            if (!$is_dry_run) {
+                $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, null)");
+                $stmt->execute([$accreditation_id, $sheetName]);
+                $current_root_id = $db->lastInsertId();
+            } else {
+                $current_root_id = "root_" . $sheetIndex;
+                $preview_data[$current_root_id] = ['name' => "Worksheet: " . $sheetName, 'items' => []];
             }
+            $stats['categories']++;
 
-            // 4. Detect Requirement
-            if (!empty($col0) && $col0 !== $col1) {
-                // SKIP if we haven't found a Parameter yet (prevents reading the summary at the top)
-                if ($current_param_id === null) {
+            // Specific handling for Area headers at the top
+            $area_number = '';
+            $area_title = '';
+
+            foreach ($rows as $rowIndex => $row) {
+                $row_raw = array_map('trim', $row);
+                if (empty(implode('', $row_raw))) {
+                    $pending_new_category = true;
+                    continue;
+                }
+
+                $col0 = $row_raw[0] ?? '';
+                $col1 = $row_raw[1] ?? '';
+                $col2 = $row_raw[2] ?? '';
+                $col3 = $row_raw[3] ?? '';
+                $col4 = $row_raw[4] ?? '';
+
+                // 1. Detect Area at top (Rows 1-2 in template)
+                if ($rowIndex == 1 && !empty($col4)) $area_number = $col4;
+                if ($rowIndex == 2 && !empty($col4)) {
+                    $area_title = trim($area_number . " " . $col4);
+                    if (!$is_dry_run) {
+                        $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
+                        $stmt->execute([$accreditation_id, $area_title, $current_root_id]);
+                        $current_area_id = $db->lastInsertId();
+                    } else {
+                        $current_area_id = "temp_area_" . $sheetIndex . "_" . $rowIndex;
+                        $preview_data[$current_root_id]['items'][$current_area_id] = ['name' => $area_title, 'items' => []];
+                    }
+                    $stats['categories']++;
                     $pending_new_category = false;
                     continue;
                 }
 
-                $code = ''; $name = ''; $found_code = false;
-                for ($i = 1; $i < count($row_raw); $i++) {
-                    if (!empty($row_raw[$i])) {
-                        if (!$found_code) { $code = $row_raw[$i]; $found_code = true; }
-                        else { $name = $row_raw[$i]; break; }
+                // 2. Detect Parameter Section (e.g. PARAMETER A: ...)
+                if (!empty($col0) && $col0 === $col1 && stripos($col0, 'PARAMETER') !== false) {
+                    if (!$is_dry_run) {
+                        $parent = $current_area_id ?: $current_root_id;
+                        $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
+                        $stmt->execute([$accreditation_id, $col0, $parent]);
+                        $current_param_id = $db->lastInsertId();
+                    } else {
+                        $current_param_id = "temp_param_" . $sheetIndex . "_" . $rowIndex;
+                        $parent_key = $current_area_id ?: $current_root_id;
+                        if ($parent_key === $current_root_id) {
+                            $preview_data[$current_root_id]['items'][$current_param_id] = ['name' => $col0, 'items' => []];
+                        } else {
+                            $preview_data[$current_root_id]['items'][$current_area_id]['items'][$current_param_id] = ['name' => $col0, 'items' => []];
+                        }
+                    }
+                    $current_section_id = null;
+                    $stats['categories']++;
+                    $pending_new_category = false;
+                    $last_req_at_level = []; // Reset nesting on new param
+                    continue;
+                }
+
+                // 3. Detect Sub-Section (SYSTEM, IMPLEMENTATION, OUTCOME or Space-triggered or Empty-A/Has-B)
+                $is_section = false; $section_label = '';
+                if (!empty($col0) || !empty($col1)) {
+                    $search = $col0 . " " . $col1;
+                    if (stripos($search, 'SYSTEM') !== false && (stripos($search, 'INPUT') !== false || stripos($search, 'PROCESS') !== false)) { 
+                        $is_section = true; $section_label = "SYSTEM - INPUTS AND PROCESSES"; 
+                    }
+                    elseif (stripos($search, 'IMPLEMENTATION') !== false) { 
+                        $is_section = true; $section_label = "IMPLEMENTATION"; 
+                    }
+                    elseif (stripos($search, 'OUTCOME') !== false) { 
+                        $is_section = true; $section_label = "OUTCOME/S"; 
+                    }
+                    elseif ($pending_new_category && empty($col1) && !empty($col0)) { 
+                        $is_section = true; $section_label = $col0; 
+                    }
+                    elseif (empty($col0) && !empty($col1)) {
+                        $is_section = true; $section_label = $col1 . ($col2 ? " " . $col2 : "");
                     }
                 }
 
-                if (!empty($name)) {
+                if ($is_section) {
                     if (!$is_dry_run) {
-                        $cat_id = $current_section_id ?: $current_param_id;
-                        $stmt = $db->prepare("INSERT INTO accreditation_requirement (category_id, codename, name) VALUES (?, ?, ?)");
-                        $stmt->execute([$cat_id, $col0, $name]);
+                        $parent = $current_param_id ?: ($current_area_id ?: $current_root_id);
+                        $stmt = $db->prepare("INSERT INTO accreditation_categories (accreditation_id, name, parent_category_id) VALUES (?, ?, ?)");
+                        $stmt->execute([$accreditation_id, $section_label, $parent]);
+                        $current_section_id = $db->lastInsertId();
                     } else {
-                        $preview_data[$current_area_id]['items'][$current_param_id]['items'][$current_section_id ?? 'root']['items'][] = ['code' => $col0, 'name' => $name];
+                        $current_section_id = "temp_sec_" . $sheetIndex . "_" . $rowIndex;
+                        if ($current_param_id) {
+                            $preview_data[$current_root_id]['items'][$current_area_id]['items'][$current_param_id]['items'][$current_section_id] = ['name' => $section_label, 'items' => []];
+                        } else {
+                            $target = $current_area_id ?: $current_root_id;
+                            $preview_data[$current_root_id]['items'][$target]['items'][$current_section_id] = ['name' => $section_label, 'items' => []];
+                        }
                     }
-                    $stats['requirements']++;
+                    $stats['categories']++;
+                    $pending_new_category = false;
+                    $last_req_at_level = []; // Reset nesting on new section
+                    continue;
                 }
-                $pending_new_category = false;
+
+                // 4. Detect Requirement
+                if (!empty($col0) && $col0 !== $col1) {
+                    if ($current_param_id === null && $current_area_id === null) {
+                        $pending_new_category = false;
+                        continue;
+                    }
+                    $code = ''; $name = ''; $found_code = false;
+                    $level = 0;
+                    for ($i = 1; $i < count($row_raw); $i++) {
+                        if (!empty($row_raw[$i])) {
+                            if (!$found_code) { 
+                                $code = $row_raw[$i]; 
+                                $found_code = true; 
+                                $level = $i; // Use column index as level
+                            } else { 
+                                $name = $row_raw[$i]; 
+                                break; 
+                            }
+                        }
+                    }
+
+                    if (!empty($name)) {
+                        $parent_req_id = null;
+                        if ($level > 1 && isset($last_req_at_level[$level - 1])) {
+                            $parent_req_id = $last_req_at_level[$level - 1];
+                        }
+
+                        if (!$is_dry_run) {
+                            $cat_id = $current_section_id ?: ($current_param_id ?: $current_area_id);
+                            $stmt = $db->prepare("INSERT INTO accreditation_requirement (category_id, codename, name, parent_requirement_id) VALUES (?, ?, ?, ?)");
+                            $stmt->execute([$cat_id, $col0, $name, $parent_req_id]);
+                            $last_req_id = $db->lastInsertId();
+                            $last_req_at_level[$level] = $last_req_id;
+                        } else {
+                            // Find where to put it in preview
+                            if ($current_param_id) {
+                                if ($current_section_id) {
+                                    $indent = str_repeat("&nbsp;", ($level - 1) * 4);
+                                    $preview_data[$current_root_id]['items'][$current_area_id]['items'][$current_param_id]['items'][$current_section_id]['items'][] = ['code' => $col0, 'name' => $indent . ($parent_req_id ? "└ " : "") . $name];
+                                }
+                            }
+                            $last_req_at_level[$level] = "temp_req_" . $rowIndex;
+                        }
+                        $stats['requirements']++;
+                    }
+                    $pending_new_category = false;
+                }
             }
         }
 
@@ -192,14 +240,25 @@ if ($xlsx = SimpleXLSX::parse($file)) {
             echo json_encode([
                 'success' => true, 
                 'message' => "Successfully imported '{$acc_name}'.",
-                'details' => "Added {$stats['categories']} categories and {$stats['requirements']} requirements."
+                'details' => "Added {$stats['categories']} categories and {$stats['requirements']} requirements across " . count($sheetNames) . " sheets."
             ]);
         } else {
+            // Add AI Analysis
+            require_once __DIR__ . '/ai_service.php';
+            $ai = new AIService();
+            
+            $ai_summary = [];
+            foreach($preview_data as $root) {
+                $ai_summary[$root['name']] = array_keys($root['items']);
+            }
+            $ai_insights = $ai->analyzeStructure($ai_summary);
+
             echo json_encode([
                 'success' => true,
                 'is_dry_run' => true,
                 'stats' => $stats,
-                'preview' => $preview_data
+                'preview' => $preview_data,
+                'ai_insights' => $ai_insights
             ]);
         }
 

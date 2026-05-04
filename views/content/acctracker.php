@@ -45,7 +45,7 @@ if ($selected_id) {
     // Group categories by parent
     $categories_by_parent = [];
     foreach ($categories as $cat) {
-        $parent_id = $cat['parent_category_id'] ?: 0;
+        $parent_id = $cat['parent_category_id'] ?? 0;
         $categories_by_parent[$parent_id][] = $cat;
     }
 
@@ -109,6 +109,97 @@ if ($selected_id) {
         return ['total' => $sum_total, 'approved' => $sum_approved];
     }
     $overall_stats = calculateStats(0, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
+}
+
+function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, $cat_id, $cat_name, $depth = 0)
+{
+    if (!isset($reqs_by_parent[$parent_id])) return;
+
+    foreach ($reqs_by_parent[$parent_id] as $req) {
+        $req_id = $req['requirement_id'];
+        $sub = $submissions[$req_id] ?? null;
+        $is_approved = ($sub && $sub['status'] === 'Approved');
+        $cb_color = $sub ? ($sub['status'] === 'Approved' ? '#22c55e' : ($sub['status'] === 'Disapproved' ? '#ef4444' : '#3b82f6')) : '#e2e8f0';
+        ?>
+        <div style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <?php if ($depth > 0): ?>
+                        <span style="color: #cbd5e1; font-family: monospace; font-size: 1.2rem; line-height: 1; margin-top: -2px;">└</span>
+                    <?php endif; ?>
+
+                    <div
+                        style="width: 18px; height: 18px; border: 2px solid <?= $cb_color ?>; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: <?= $is_approved ? $cb_color : 'transparent' ?>; margin-top: 2px; flex-shrink: 0;">
+                        <?php if ($sub): ?>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                stroke="<?= $is_approved ? 'white' : $cb_color ?>" stroke-width="4" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        <?php endif; ?>
+                    </div>
+                    <div onclick="handleRequirementClick(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)"
+                        style="cursor: pointer; display: flex; flex-direction: column;" onmouseover="this.style.textDecoration='underline'"
+                        onmouseout="this.style.textDecoration='none'">
+                        <div>
+                            <?php if (!empty($req['codename'])): ?>
+                                <span
+                                    style="font-weight: 700; color: var(--accent-blue); <?= $is_approved ? 'text-decoration: line-through; opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['codename']) ?>:</span>
+                            <?php endif; ?>
+                            <span
+                                style="<?= $is_approved ? 'opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['name']) ?></span>
+                        </div>
+                    </div>
+                </div>
+                <?php if ($is_qao): ?>
+                    <div style="position: relative;">
+                        <button onclick="toggleActionMenu(event, 'req_menu_<?= $req_id ?>')"
+                            style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px;"
+                            onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <circle cx="12" cy="5" r="1"></circle>
+                                <circle cx="12" cy="19" r="1"></circle>
+                            </svg>
+                        </button>
+                        <div id="req_menu_<?= $req_id ?>" class="local-dropdown"
+                            style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
+                            <button
+                                onclick="openEditModal('requirement', '<?= $req_id ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>', '<?= $cat_id ?>', '<?= addslashes($cat_name) ?>')"
+                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;"
+                                onmouseover="this.style.background='#f8fafc'"
+                                onmouseout="this.style.background='transparent'">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                Edit
+                            </button>
+                            <button
+                                onclick="deleteItem('requirement', '<?= $req_id ?>', '<?= addslashes($req['name']) ?>')"
+                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: #ef4444;"
+                                onmouseover="this.style.background='#fef2f2'"
+                                onmouseout="this.style.background='transparent'">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path
+                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                    </path>
+                                </svg>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <!-- Recursive call for children -->
+            <?php renderRequirements($req_id, $reqs_by_parent, $submissions, $is_qao, $cat_id, $cat_name, $depth + 1); ?>
+        </div>
+        <?php
+    }
 }
 
 function renderCategories($parent_id, $categories_by_parent, $db, $category_stats)
@@ -227,87 +318,19 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 <?php
                 $stmt = $db->prepare("SELECT * FROM accreditation_requirement WHERE category_id = :cat_id");
                 $stmt->execute(['cat_id' => $cat['category_id']]);
-                $requirements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $all_reqs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                if (!empty($requirements)) {
+                if (!empty($all_reqs)) {
+                    // Group requirements by parent for this category
+                    $reqs_by_parent = [];
+                    foreach ($all_reqs as $r) {
+                        $pid = $r['parent_requirement_id'] ?? 0;
+                        $reqs_by_parent[$pid][] = $r;
+                    }
                     ?>
-                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem;">
-                        <?php foreach ($requirements as $req): ?>
-                            <li
-                                style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
-                                <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                    <?php
-                                    $sub = $submissions[$req['requirement_id']] ?? null;
-                                    $is_approved = ($sub && $sub['status'] === 'Approved');
-                                    $cb_color = $sub ? ($sub['status'] === 'Approved' ? '#22c55e' : ($sub['status'] === 'Disapproved' ? '#ef4444' : '#3b82f6')) : '#e2e8f0';
-                                    ?>
-                                    <div
-                                        style="width: 18px; height: 18px; border: 2px solid <?= $cb_color ?>; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: <?= $is_approved ? $cb_color : 'transparent' ?>; margin-top: 2px; flex-shrink: 0;">
-                                        <?php if ($sub): ?>
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                                stroke="<?= $is_approved ? 'white' : $cb_color ?>" stroke-width="4" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <polyline points="20 6 9 17 4 12"></polyline>
-                                            </svg>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div onclick="handleRequirementClick(<?= $req['requirement_id'] ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)"
-                                        style="cursor: pointer;" onmouseover="this.style.textDecoration='underline'"
-                                        onmouseout="this.style.textDecoration='none'">
-                                        <?php if (!empty($req['codename'])): ?>
-                                            <span
-                                                style="font-weight: 700; color: var(--accent-blue); <?= $is_approved ? 'text-decoration: line-through; opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['codename']) ?>:</span>
-                                        <?php endif; ?>
-                                        <span
-                                            style="<?= $is_approved ? 'opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['name']) ?></span>
-                                    </div>
-                                </div>
-                                <?php if ($is_qao): ?>
-                                    <div style="position: relative;">
-                                        <button onclick="toggleActionMenu(event, 'req_menu_<?= $req['requirement_id'] ?>')"
-                                            style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 4px;"
-                                            onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="1"></circle>
-                                                <circle cx="12" cy="5" r="1"></circle>
-                                                <circle cx="12" cy="19" r="1"></circle>
-                                            </svg>
-                                        </button>
-                                        <div id="req_menu_<?= $req['requirement_id'] ?>" class="local-dropdown"
-                                            style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 140px; z-index: 100; overflow: hidden;">
-                                            <button
-                                                onclick="openEditModal('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename']) ?>', '<?= $cat_id ?>', '<?= addslashes($cat['name']) ?>')"
-                                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;"
-                                                onmouseover="this.style.background='#f8fafc'"
-                                                onmouseout="this.style.background='transparent'">
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                                </svg>
-                                                Edit
-                                            </button>
-                                            <button
-                                                onclick="deleteItem('requirement', '<?= $req['requirement_id'] ?>', '<?= addslashes($req['name']) ?>')"
-                                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: #ef4444;"
-                                                onmouseover="this.style.background='#fef2f2'"
-                                                onmouseout="this.style.background='transparent'">
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                                    <path
-                                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                                    </path>
-                                                </svg>
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
+                    <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.5rem;">
+                        <?php renderRequirements(0, $reqs_by_parent, $submissions, $is_qao, $cat_id, $cat['name']); ?>
+                    </div>
                     <?php
                 }
                 renderCategories($cat['category_id'], $categories_by_parent, $db, $category_stats);
@@ -1579,7 +1602,13 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             formData.append('dry_run', '1');
         } else {
             formData.append('dry_run', '0');
-            // Close summary modal
+            // Get selected sheets
+            const selectedSheets = Array.from(document.querySelectorAll('.sheet-selector:checked')).map(cb => cb.value);
+            if (selectedSheets.length === 0) {
+                showConfirmation({ title: 'No Selection', message: 'Please select at least one worksheet to import.', type: 'danger' });
+                return;
+            }
+            formData.append('selected_sheets', JSON.stringify(selectedSheets));
             document.getElementById('importSummaryModal').style.display = 'none';
         }
 
@@ -1624,29 +1653,83 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         const content = document.getElementById('summaryContent');
 
         let html = `
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                <p style="margin: 0; color: #166534; font-weight: 600;">Analysis Complete!</p>
-                <p style="margin: 5px 0 0; font-size: 0.9rem; color: #166534;">
-                    Found <b>${data.stats.categories}</b> categories and <b>${data.stats.requirements}</b> requirements.
-                </p>
+            <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px;">
+                    <p style="margin: 0; color: #166534; font-weight: 600;">Analysis Complete!</p>
+                    <p style="margin: 5px 0 0; font-size: 0.9rem; color: #166534;">
+                        Found <b>${data.stats.categories}</b> categories across <b>${Object.keys(data.preview).length}</b> sheets.
+                    </p>
+                    <p style="margin: 5px 0 0; font-size: 0.8rem; color: #166534;">Select the worksheets you want to import below.</p>
+                </div>
+                
+                <div style="flex: 1.2; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 8px; padding: 1rem; position: relative;">
+                    <h3 style="font-size: 0.85rem; color: #0369a1; margin: 0 0 0.5rem; display: flex; align-items: center; gap: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                        </svg>
+                        AI Assistant Analysis
+                    </h3>
+                    <div style="font-size: 0.8rem; color: #0c4a6e; line-height: 1.4;">
+                        ${data.ai_insights || 'No analysis available.'}
+                    </div>
+                </div>
             </div>
-            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafafa;">
+
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafafa;">
         `;
 
-        for (const areaId in data.preview) {
-            const area = data.preview[areaId];
-            html += `<div style="margin-bottom: 1rem;">
-                <div style="font-weight: 700; color: var(--accent-blue); font-size: 0.95rem;">${area.name}</div>`;
+        const countRequirements = (item) => {
+            let total = 0;
+            if (item.items) {
+                if (Array.isArray(item.items)) {
+                    total += item.items.length;
+                } else {
+                    for (const key in item.items) {
+                        total += countRequirements(item.items[key]);
+                    }
+                }
+            }
+            return total;
+        };
 
-            for (const paramId in area.items) {
-                const param = area.items[paramId];
-                html += `<div style="margin-left: 1rem; margin-top: 0.5rem; font-weight: 600; font-size: 0.9rem;">${param.name}</div>`;
+        for (const rootId in data.preview) {
+            const sheet = data.preview[rootId];
+            const actualSheetName = sheet.name.replace('Worksheet: ', '').replace('Program/Sheet: ', '');
+            const sheetReqCount = countRequirements(sheet);
 
-                for (const secId in param.items) {
-                    const sec = param.items[secId];
-                    html += `<div style="margin-left: 2rem; color: #64748b; font-size: 0.85rem; margin-top: 3px;">
-                        └ ${sec.name} (${sec.items.length} requirements)
+            html += `<div style="margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 0.8rem;">
+                    <input type="checkbox" value="${actualSheetName}" checked class="sheet-selector" style="width: 18px; height: 18px; accent-color: var(--accent-blue);">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 700; color: var(--accent-blue); font-size: 1rem;">${sheet.name}</span>
+                        <span style="font-size: 0.75rem; color: #64748b;">${sheetReqCount} total requirements</span>
+                    </div>
+                </label>`;
+
+            for (const areaId in sheet.items) {
+                const area = sheet.items[areaId];
+                const areaReqCount = countRequirements(area);
+                html += `<div style="margin-left: 2rem; font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 5px;">
+                    └ ${area.name} <span style="font-weight: 400; color: #94a3b8; font-size: 0.8rem;">(${areaReqCount} reqs)</span>
+                </div>`;
+
+                for (const paramId in area.items) {
+                    const param = area.items[paramId];
+                    const paramReqCount = countRequirements(param);
+                    html += `<div style="margin-left: 3.5rem; color: #475569; font-size: 0.85rem; margin-top: 4px; font-weight: 500;">
+                        • ${param.name} <span style="font-weight: 400; color: #94a3b8; font-size: 0.75rem;">(${paramReqCount})</span>
                     </div>`;
+
+                    // Show Sections/Sub-categories if they exist
+                    if (param.items && typeof param.items === 'object' && !Array.isArray(param.items)) {
+                        for (const secId in param.items) {
+                            const section = param.items[secId];
+                            const secReqCount = countRequirements(section);
+                            html += `<div style="margin-left: 5rem; color: #64748b; font-size: 0.8rem; margin-top: 2px; font-style: italic;">
+                                ── ${section.name} (${secReqCount})
+                            </div>`;
+                        }
+                    }
                 }
             }
             html += `</div>`;

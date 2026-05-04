@@ -46,6 +46,8 @@ CREATE TABLE divisions_programs (
 CREATE TABLE users (
     user_id INTEGER PRIMARY KEY AUTO_INCREMENT,
     google_id TEXT UNIQUE,
+    google_access_token TEXT,
+    google_refresh_token TEXT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL, -- encypted
     fname TEXT NOT NULL,
@@ -93,9 +95,11 @@ CREATE TABLE accreditation_requirement(
     category_id INT,
     name TEXT NOT NULL,
     codename TEXT,
+    parent_requirement_id INT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES accreditation_categories(category_id)
+    FOREIGN KEY (category_id) REFERENCES accreditation_categories(category_id),
+    FOREIGN KEY (parent_requirement_id) REFERENCES accreditation_requirement(requirement_id)
 );
 
 CREATE TABLE accreditation_requirement_submissions (
@@ -105,13 +109,17 @@ CREATE TABLE accreditation_requirement_submissions (
     office_id INT NOT NULL,
     user_id INT NOT NULL,
     status ENUM('Pending', 'Disapproved', 'Approved') DEFAULT 'Pending',
+    google_drive_file_id TEXT,
+    google_drive_link TEXT,
     file_path TEXT,
     remarks TEXT,
+    marked_by INT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (requirement_id) REFERENCES accreditation_requirement(requirement_id),
     FOREIGN KEY (division_id) REFERENCES divisions(division_id),
     FOREIGN KEY (office_id) REFERENCES divisions_offices(office_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (marked_by) REFERENCES users(user_id)
 );
 
 CREATE TABLE user_login(
@@ -135,5 +143,5 @@ CREATE TABLE news(
     content TEXT NOT NULL,
     event_date DATE NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
