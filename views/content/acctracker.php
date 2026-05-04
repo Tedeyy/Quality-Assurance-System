@@ -1822,6 +1822,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     <option value="aaccup_institution">AACCUP Institution Standard (Area -> Parameter -> Section)</option>
                     <option value="aaccup_program" selected>AACCUP Program Standard (Area -> Parameter -> Section)</option>
                     <option value="copc">COPC Standard (Category -> Requirement)</option>
+                    <option value="suc">SUC Standard (KRA -> Requirement)</option>
                     <option value="ched" disabled>CHED Standard (Coming Soon)</option>
                     <option value="iso" disabled>ISO Standard (Coming Soon)</option>
                 </select>

@@ -48,6 +48,9 @@ switch ($template_type) {
     case 'copc':
         require_once __DIR__ . '/scanner/copc.php';
         break;
+    case 'suc':
+        require_once __DIR__ . '/scanner/suc.php';
+        break;
     case 'ched':
         echo json_encode(['success' => false, 'message' => 'CHED template is not yet implemented.']);
         break;
