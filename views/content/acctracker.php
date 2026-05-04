@@ -1801,6 +1801,27 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             nameInput.required = false;
         }
     }
+
+    function updateDownloadLink(val) {
+        const link = document.getElementById('templateDownloadLink');
+        const text = document.getElementById('templateDownloadText');
+        const container = link.parentElement;
+        
+        const templates = {
+            'aaccup_program': { name: 'AACCUP Program Standard', file: 'aaccupprogramtemplate.xlsx' },
+            'aaccup_institution': { name: 'AACCUP Institution Standard', file: 'aaccupinstitutiontemplate.xlsx' },
+            'copc': { name: 'COPC Standard', file: 'copctemplate.xlsx' },
+            'suc': { name: 'SUC Standard', file: 'suctemplate.xlsx' }
+        };
+
+        if (templates[val]) {
+            link.href = `../context/${templates[val].file}`;
+            text.innerText = `Download ${templates[val].name} Template`;
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    }
 </script>
 
 <!-- Import Accreditation Modal -->
@@ -1817,10 +1838,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <div style="margin-bottom: 1.2rem;">
                 <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Import
                     Template</label>
-                <select name="template_type" required
+                <select name="template_type" id="templateTypeSelect" onchange="updateDownloadLink(this.value)" required
                     style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
+                    <option value="" disabled selected>Select Import Template...</option>
                     <option value="aaccup_institution">AACCUP Institution Standard (Area -> Parameter -> Section)</option>
-                    <option value="aaccup_program" selected>AACCUP Program Standard (Area -> Parameter -> Section)</option>
+                    <option value="aaccup_program">AACCUP Program Standard (Area -> Parameter -> Section)</option>
                     <option value="copc">COPC Standard (Category -> Requirement)</option>
                     <option value="suc">SUC Standard (KRA -> Requirement)</option>
                     <option value="ched" disabled>CHED Standard (Coming Soon)</option>
@@ -1875,15 +1897,15 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 </label>
             </div>
 
-            <div style="margin-bottom: 1.5rem; text-align: center;">
-                <a href="../context/aaccuptemplate.xlsx" download
+            <div style="margin-bottom: 1.5rem; text-align: center; display: none;">
+                <a id="templateDownloadLink" href="#" download
                     style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; color: var(--accent-blue); text-decoration: none; font-weight: 600;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="7 10 12 15 17 10" />
                         <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    Download AACCUP Program Standard Template
+                    <span id="templateDownloadText">Download Template</span>
                 </a>
             </div>
 
