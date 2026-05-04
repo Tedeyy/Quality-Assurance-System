@@ -154,8 +154,11 @@ if ($xlsx = SimpleXLSX::parse($file)) {
                 foreach ($row_raw as $cell) { foreach ($blacklist as $term) { if (strcasecmp($cell, $term) === 0) { $is_header = true; break 2; } } }
                 if ($is_header && empty($row_raw[0])) continue;
 
-                // Parameter (L3)
-                if (preg_match('/^PARAMETER\s+[A-Z]:/i', $search_text)) {
+                // --- INSTITUTIONAL HIERARCHY & REQUIREMENT RULES ---
+                $is_l3_param = preg_match('/^PARAMETER\s+[A-Z]:/i', $search_text);
+                
+                if ($is_l3_param) {
+                    // L3: Parameters Only
                     $cat_name = $search_text;
                     if (!$is_dry_run) {
                         $current_cats[3] = $getOrCreateCat($db, $accreditation_id, $cat_name, $current_cats[2]);
@@ -164,123 +167,97 @@ if ($xlsx = SimpleXLSX::parse($file)) {
                         $preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'][$current_cats[3]] = ['name' => $cat_name, 'items' => []];
                     }
                     for ($d = 4; $d <= 6; $d++) $current_cats[$d] = null;
-                    $stats['categories']++;
-                    continue;
-                }
-
-                // Section (L4)
-                $is_sec = false; $sec_label = '';
-                $c0n = $normalizeSectionLabel($col0); $searchSec = $normalizeSectionLabel($col0 . ' ' . $col1);
-                if ((stripos($c0n, '1_') === 0 || preg_match('/^1\s*_/u', $col0)) && stripos($searchSec, 'SYSTEM') !== false) { $is_sec = true; $sec_label = 'SYSTEM - INPUTS AND PROCESSES'; }
-                elseif ((stripos($c0n, '2_') === 0 || preg_match('/^2\s*_/u', $col0)) && stripos($searchSec, 'IMPLEMENTATION') !== false) { $is_sec = true; $sec_label = 'IMPLEMENTATION'; }
-                elseif ((stripos($c0n, '3_') === 0 || preg_match('/^3\s*_/u', $col0)) && stripos($searchSec, 'OUTCOME') !== false) { $is_sec = true; $sec_label = 'OUTCOME/S'; }
-
-                if ($is_sec) {
-                    if (!$is_dry_run) {
-                        $current_cats[4] = $getOrCreateCat($db, $accreditation_id, $sec_label, $current_cats[3] ?: $current_cats[2]);
-                    } else {
-                        $current_cats[4] = "temp_sec_" . $sheetIndex . "_" . $rowIndex;
-                        $target_preview = &$preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'];
-                        if (isset($current_cats[3]) && $current_cats[3] && isset($target_preview[$current_cats[3]])) $target_preview = &$target_preview[$current_cats[3]]['items'];
-                        $target_preview[$current_cats[4]] = ['name' => $sec_label, 'items' => []];
-                    }
-                    for ($d = 5; $d <= 6; $d++) $current_cats[$d] = null;
                     $last_reqs = []; $stats['categories']++;
                     continue;
                 }
 
-                // 5. Detect Requirement (Priority over Sub-Categories)
-                $filled_cols = [];
-                for ($i = 0; $i <= 5; $i++) if (!empty($row_raw[$i])) $filled_cols[] = $i;
+                // If not L3/L4, it's a Requirement
+                $colA = !empty($row_raw[0]);
+                $colB = !empty($row_raw[1]);
+                $colC = !empty($row_raw[2]);
+                $is_req = false;
+                $req_depth = 1;
+                $codename = '';
+                $full_name = '';
 
-                // RULE: If only ONE column is filled and it's not Col A, it's NOT a requirement (likely a category).
-                // RULE: If Col A is filled, or if Col B and C are filled, it is a requirement/sub-requirement.
-                if (!empty($col0) || count($filled_cols) >= 2) {
-                    $req_depth = !empty($col0) ? 1 : ($filled_cols[0] + 1);
-                    $code_idx = $filled_cols[0];
-                    $codename = $row_raw[$code_idx];
-                    
-                    $name_parts = [];
-                    // All filled columns after the code column are part of the name
-                    for ($i = 1; $i < count($filled_cols); $i++) {
-                        $name_parts[] = $row_raw[$filled_cols[$i]];
-                    }
-                    $full_name = trim(implode(' ', $name_parts));
-                    
-                    if (empty($full_name)) $full_name = $codename;
-
-                    if (!empty($codename)) {
-                        $parent_req_id = ($req_depth > 1) ? ($last_reqs[$req_depth - 1] ?? null) : null;
-                        if (!$is_dry_run) {
-                            $cat_id = $current_cats[6] ?: ($current_cats[5] ?: ($current_cats[4] ?: ($current_cats[3] ?: $current_cats[2])));
-                            
-                            $stmt = $db->prepare("SELECT requirement_id FROM accreditation_requirement 
-                                WHERE category_id = ? AND codename = ? AND name = ? 
-                                AND (parent_requirement_id = ? OR (parent_requirement_id IS NULL AND ? IS NULL)) LIMIT 1");
-                            $stmt->execute([$cat_id, $codename, $full_name, $parent_req_id, $parent_req_id]);
-                            $req_res = $stmt->fetch();
-                            
-                            if ($req_res) {
-                                $last_reqs[$req_depth] = $req_res['requirement_id'];
-                                $stats['skipped_requirements']++;
-                            } else {
-                                try {
-                                    $stmt = $db->prepare("INSERT INTO accreditation_requirement (category_id, codename, name, parent_requirement_id) VALUES (?, ?, ?, ?)");
-                                    $stmt->execute([$cat_id, $codename, $full_name, $parent_req_id]);
-                                    $last_reqs[$req_depth] = $db->lastInsertId();
-                                    $stats['requirements']++;
-                                } catch (Exception $e) {
-                                    error_log("[AACCUP-INST] Row {$rowIndex}: " . $e->getMessage());
-                                }
-                            }
-                        } else {
-                            $last_reqs[$req_depth] = "temp_req_" . $rowIndex;
-                            $target_preview = &$preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'];
-                            for ($d = 3; $d <= 6; $d++) {
-                                if (isset($current_cats[$d]) && $current_cats[$d] && isset($target_preview[$current_cats[$d]])) {
-                                    $target_preview = &$target_preview[$current_cats[$d]]['items'];
-                                }
-                            }
-                            $indent = str_repeat("&nbsp;", ($req_depth - 1) * 4);
-                            $target_preview[] = [
-                                'code' => $codename,
-                                'name' => $indent . ($req_depth > 1 ? "└ " : "") . $full_name
-                            ];
-                            $stats['requirements']++;
-                        }
-                        for ($r = $req_depth + 1; $r <= 5; $r++) unset($last_reqs[$r]);
-                        continue;
-                    }
+                if ($colA && $colB) {
+                    $is_req = true; $req_depth = 1; $codename = $row_raw[0]; $full_name = trim($row_raw[0] . ' ' . $row_raw[1]);
+                } elseif (!$colA && $colB && !$colC) {
+                    $is_req = true; $req_depth = 1; $codename = $row_raw[1]; $full_name = $row_raw[1];
+                } elseif (!$colA && $colB && $colC) {
+                    $is_req = true; $req_depth = 2; $codename = $row_raw[1]; $full_name = trim($row_raw[1] . ' ' . $row_raw[2]);
+                } elseif (!$colA && !$colB && $colC) {
+                    $is_req = true; $req_depth = 2; $codename = $row_raw[2]; $full_name = $row_raw[2];
                 }
 
-                // 4. Detect Sub-Category (L5/L6)
-                // Fires when exactly ONE of cols B–E has text.
-                if (empty($col0)) {
-                    $sc_filled = [];
-                    for ($i = 1; $i <= 4; $i++) if (!empty($row_raw[$i])) $sc_filled[] = $i;
+                if ($is_req) {
+                    // --- SMART DEPTH & SECTION DETECTION ---
+                    // If codename follows S.1.1, I.1, etc., override section and depth
+                    if (preg_match('/^([SIO])\.([\d\.]+)/i', $codename, $m)) {
+                        $prefix = strtoupper($m[1]);
+                        $dots = substr_count($codename, '.');
+                        $req_depth = $dots; // S.1 (1 dot) = Depth 1, S.1.1 (2 dots) = Depth 2
 
-                    if (count($sc_filled) === 1) {
-                        $col_idx = $sc_filled[0];
-                        $cat_name = $row_raw[$col_idx];
-                        
-                        // Only Column B = L5, deeper = L6
-                        $depth = ($col_idx == 1) ? 5 : 6;
-                        $cn_lower = strtolower($cat_name);
-                        $header_exact = ['requirement name', 'code', 'description', 'rating', 'mean', 'total', 'grand total', 'parameter name'];
-                        if (!in_array($cn_lower, $header_exact, true)) {
-                            if (!$is_dry_run) {
-                                $parent = $current_cats[$depth-1] ?: ($current_cats[$depth-2] ?: $current_cats[4] ?: $current_cats[3] ?: $current_cats[2]);
-                                try { $current_cats[$depth] = $getOrCreateCat($db, $accreditation_id, $cat_name, $parent); } catch (Exception $e) { error_log("[AACCUP-INST] Row {$rowIndex} Cat: " . $e->getMessage()); }
-                            } else {
-                                $current_cats[$depth] = "temp_l{$depth}_" . $sheetIndex . "_" . $rowIndex;
-                                $target_preview = &$preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'];
-                                for ($d = 3; $d < $depth; $d++) if (isset($current_cats[$d]) && $current_cats[$d] && isset($target_preview[$current_cats[$d]])) $target_preview = &$target_preview[$current_cats[$d]]['items'];
-                                $target_preview[$current_cats[$depth]] = ['name' => $cat_name, 'items' => []];
-                            }
-                            for ($d = $depth + 1; $d <= 6; $d++) $current_cats[$d] = null;
-                            $stats['categories']++; continue;
+                        // Auto-route to correct L4 Section if prefix is present
+                        $target_l4 = '';
+                        if ($prefix === 'S') $target_l4 = 'SYSTEM - INPUTS AND PROCESSES';
+                        elseif ($prefix === 'I') $target_l4 = 'IMPLEMENTATION';
+                        elseif ($prefix === 'O') $target_l4 = 'OUTCOME/S';
+
+                        if ($target_l4 && (!$current_cats[4] || stripos($preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'][$current_cats[4]]['name'] ?? '', substr($target_l4, 0, 5)) === false)) {
+                             // Force L4 Section if it changed or wasn't set
+                             if (!$is_dry_run) {
+                                 $current_cats[4] = $getOrCreateCat($db, $accreditation_id, $target_l4, $current_cats[3] ?: $current_cats[2]);
+                             } else {
+                                 $current_cats[4] = "auto_l4_" . $prefix;
+                                 $target_preview = &$preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'];
+                                 if (isset($current_cats[3]) && $current_cats[3] && isset($target_preview[$current_cats[3]])) $target_preview = &$target_preview[$current_cats[3]]['items'];
+                                 if (!isset($target_preview[$current_cats[4]])) $target_preview[$current_cats[4]] = ['name' => $target_l4, 'items' => []];
+                             }
+                             for ($d = 5; $d <= 6; $d++) $current_cats[$d] = null;
                         }
                     }
+
+                    if (!$is_dry_run) {
+                        $cat_id = $current_cats[6] ?: ($current_cats[5] ?: ($current_cats[4] ?: ($current_cats[3] ?: $current_cats[2])));
+                        $parent_req_id = ($req_depth > 1) ? ($last_reqs[$req_depth - 1] ?? null) : null;
+                        
+                        $stmt = $db->prepare("SELECT requirement_id FROM accreditation_requirement 
+                            WHERE category_id = ? AND codename = ? AND name = ? 
+                            AND (parent_requirement_id = ? OR (parent_requirement_id IS NULL AND ? IS NULL)) LIMIT 1");
+                        $stmt->execute([$cat_id, $codename, $full_name, $parent_req_id, $parent_req_id]);
+                        $req_res = $stmt->fetch();
+                        
+                        if ($req_res) {
+                            $last_reqs[$req_depth] = $req_res['requirement_id'];
+                            $stats['skipped_requirements']++;
+                        } else {
+                            try {
+                                $stmt = $db->prepare("INSERT INTO accreditation_requirement (category_id, codename, name, parent_requirement_id) VALUES (?, ?, ?, ?)");
+                                $stmt->execute([$cat_id, $codename, $full_name, $parent_req_id]);
+                                $last_reqs[$req_depth] = $db->lastInsertId();
+                                $stats['requirements']++;
+                            } catch (Exception $e) {
+                                error_log("[AACCUP-INST] Row {$rowIndex}: " . $e->getMessage());
+                            }
+                        }
+                    } else {
+                        $last_reqs[$req_depth] = "temp_req_" . $rowIndex;
+                        $target_preview = &$preview_data[$workbook_root_id]['items'][$current_cats[2]]['items'];
+                        for ($d = 3; $d <= 6; $d++) {
+                            if (isset($current_cats[$d]) && $current_cats[$d] && isset($target_preview[$current_cats[$d]])) {
+                                $target_preview = &$target_preview[$current_cats[$d]]['items'];
+                            }
+                        }
+                        $indent = str_repeat("&nbsp;", ($req_depth - 1) * 4);
+                        $target_preview[] = [
+                            'code' => $codename,
+                            'name' => $indent . ($req_depth > 1 ? "└ " : "") . $full_name
+                        ];
+                        $stats['requirements']++;
+                    }
+                    for ($r = $req_depth + 1; $r <= 5; $r++) unset($last_reqs[$r]);
+                    continue;
                 }
             }
         }

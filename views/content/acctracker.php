@@ -1817,8 +1817,8 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     Template</label>
                 <select name="template_type" required
                     style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
-                    <option value="aaccup_program" selected>AACCUP Program Standard (Area -> Parameter -> Section)</option>
                     <option value="aaccup_institution">AACCUP Institution Standard (Area -> Parameter -> Section)</option>
+                    <option value="aaccup_program" selected>AACCUP Program Standard (Area -> Parameter -> Section)</option>
                     <option value="ched" disabled>CHED Standard (Coming Soon)</option>
                     <option value="iso" disabled>ISO Standard (Coming Soon)</option>
                 </select>
