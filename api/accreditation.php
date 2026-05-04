@@ -6,6 +6,25 @@ require_once __DIR__ . '/utils/logger.php';
 $db = (new Database())->getConnection();
 $action = $_GET['action'] ?? '';
 
+function deleteCategoryRecursive($db, $cat_id) {
+    // 1. Get subcategories
+    $stmt = $db->prepare("SELECT category_id FROM accreditation_categories WHERE parent_category_id = ?");
+    $stmt->execute([$cat_id]);
+    $subs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    foreach ($subs as $sub_id) {
+        deleteCategoryRecursive($db, $sub_id);
+    }
+    
+    // 2. Delete requirements in this category
+    $stmt = $db->prepare("DELETE FROM accreditation_requirement WHERE category_id = ?");
+    $stmt->execute([$cat_id]);
+    
+    // 3. Delete this category
+    $stmt = $db->prepare("DELETE FROM accreditation_categories WHERE category_id = ?");
+    $stmt->execute([$cat_id]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'add') {
         $code = trim($_POST['code'] ?? '');
@@ -297,9 +316,14 @@ if ($action === 'delete_submission') {
     $cat_id = $_GET['category_id'] ?? null;
 
     try {
-        $stmt = $db->prepare("DELETE FROM accreditation_categories WHERE category_id = :id");
-        $stmt->execute(['id' => $cat_id]);
-        echo json_encode(['success' => true, 'message' => 'Category deleted successfully!']);
+        $db->beginTransaction();
+        deleteCategoryRecursive($db, $cat_id);
+        $db->commit();
+
+        // Log activity
+        logActivity($db, $_SESSION['user_id'] ?? 0, "Deleted category ID: $cat_id and all its contents recursively");
+
+        echo json_encode(['success' => true, 'message' => 'Category and all its sub-items deleted successfully!']);
         exit;
     } catch (PDOException $e) {
         echo json_encode(['success' => false, 'message' => 'Failed to delete category: ' . $e->getMessage()]);
