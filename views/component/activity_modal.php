@@ -93,6 +93,28 @@
                     <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Description</label>
                     <textarea name="description" placeholder="Briefly describe the activity..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; height: 100px; resize: none;"></textarea>
                 </div>
+                
+                <div style="grid-column: span 2;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.9rem; font-weight: 600;">Request Email Link</label>
+                        <button type="button" onclick="searchInGmail('request')" style="background: #ea4335; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            Search Gmail
+                        </button>
+                    </div>
+                    <input type="url" name="request_email_link" placeholder="https://mail.google.com/mail/u/0/#inbox/..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                </div>
+
+                <div style="grid-column: span 2;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.9rem; font-weight: 600;">Activity Documentation Link</label>
+                        <button type="button" onclick="searchInGmail('doc')" style="background: #ea4335; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            Search Gmail
+                        </button>
+                    </div>
+                    <input type="url" name="email_link" placeholder="Link to documentation (Email, Folder, etc.)" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                </div>
             </div>
             
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 2rem;">
@@ -163,11 +185,14 @@
             form.querySelector('[name="eventvenue"]').value = data.eventvenue;
             form.querySelector('[name="requesting_office_id"]').value = data.requesting_office_id;
             form.querySelector('[name="number_of_participants"]').value = data.number_of_participants;
+            form.querySelector('[name="request_email_link"]').value = data.request_email_link || '';
+            form.querySelector('[name="email_link"]').value = data.email_link || '';
 
             // Set SDGs
             const sdgCheckboxes = form.querySelectorAll('[name="sdg_ids[]"]');
+            const savedSdgIds = (data.sdg_ids || []).map(String);
             sdgCheckboxes.forEach(cb => {
-                cb.checked = data.sdg_ids.includes(cb.value);
+                cb.checked = savedSdgIds.includes(String(cb.value));
             });
 
             // Set Target Groups
@@ -195,6 +220,16 @@
             console.error('Error:', error);
             alert('Error loading activity details: ' + error.message);
         }
+    }
+
+    function searchInGmail(type) {
+        const title = document.querySelector('[name="title"]').value;
+        if (!title) {
+            alert('Please enter an activity title first to search.');
+            return;
+        }
+        const query = encodeURIComponent(title);
+        window.open(`https://mail.google.com/mail/u/0/#search/${query}`, '_blank');
     }
 
     // Close modal on click outside

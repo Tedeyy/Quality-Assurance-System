@@ -161,8 +161,8 @@ CREATE TABLE activities(
     request_email_link TEXT,
     email_link TEXT,
     requesting_office_id INT,
-    speaker TEXT,
-    organizer TEXT,
+    speaker VARCHAR(255),
+    organizer VARCHAR(255),
     target_participants TEXT,
     number_of_participants INT,
     eventvenue TEXT,
@@ -194,10 +194,9 @@ CREATE TABLE activity_evaluation(
     ame_form_link TEXT,
     number_of_respondents INT,
     response_rate FLOAT,
-    rank INT,
     complaints TEXT,
     suggestions_for_improvement TEXT,
-    published_options TEXT,
+    published_options ENUM('Open', 'Closed'),
     date_released DATE,
     deadline DATE, -- 20 Working Days after release
     evaluation_status ENUM('Pending','In Progress', 'Completed', 'Overdue') DEFAULT 'Pending',
@@ -221,8 +220,44 @@ CREATE TABLE activity_statistics(
     oe FLOAT, --Overall Experience	
     oe_wa FLOAT, --Weighted Average (OE)	
     overall_average FLOAT, --Overall Average	
-    rank_ave FLOAT, --Rank (Ave)	
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
 );
+
+CREATE TABLE activity_statistics_others(
+    otherstat_id INT AUTO_INCREMENT PRIMARY KEY,
+    evaluation_id INT,
+    gender_distribution VARCHAR(255),
+    age_distribution VARCHAR(255),
+    unit_distribution VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+);
+
+CREATE TABLE activity_speaker_rating(
+    speaker_id INT AUTO_INCREMENT PRIMARY KEY,
+    evaluation_id INT,
+    name VARCHAR(255) NOT NULL,
+    eandd FLOAT, --Expertise and Delivery
+    mot FLOAT, --Mastery of Topic
+    iae FLOAT, --Interaction and Engagement
+    gi FLOAT, --General Impact
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+);
+
+CREATE TABLE activity_organizer_rating(
+    organizer_id INT AUTO_INCREMENT PRIMARY KEY,
+    evaluation_id INT,
+    name VARCHAR(255) NOT NULL,
+    eandd FLOAT, --Expertise and Delivery
+    mot FLOAT, --Mastery of Topic
+    iae FLOAT, --Interaction and Engagement
+    gi FLOAT, --General Impact
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+); --still unsure, needs verification

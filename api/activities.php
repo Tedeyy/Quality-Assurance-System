@@ -18,6 +18,8 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $eventvenue = $_POST['eventvenue'] ?? '';
         $requesting_office_id = $_POST['requesting_office_id'] ?? null;
         $number_of_participants = $_POST['number_of_participants'] ?? 0;
+        $request_email_link = $_POST['request_email_link'] ?? '';
+        $email_link = $_POST['email_link'] ?? '';
         
         $sdg_ids = $_POST['sdg_ids'] ?? [];
         $target_groups = $_POST['target_groups'] ?? [];
@@ -43,9 +45,11 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $speaker_str = implode(', ', $speakers);
         $organizer_str = implode(', ', $organizers);
 
+        $target_participants_str = implode(', ', $target_groups);
+
         // Insert Activity
-        $query = "INSERT INTO activities (title, description, speaker, organizer, eventdate, eventstatus, eventvenue, requesting_office_id, number_of_participants) 
-                  VALUES (:title, :description, :speaker, :organizer, :eventdate, :eventstatus, :eventvenue, :office_id, :num_part)";
+        $query = "INSERT INTO activities (title, description, speaker, organizer, eventdate, eventstatus, eventvenue, requesting_office_id, number_of_participants, target_participants, request_email_link, email_link) 
+                  VALUES (:title, :description, :speaker, :organizer, :eventdate, :eventstatus, :eventvenue, :office_id, :num_part, :target_participants, :request_email_link, :email_link)";
         
         $stmt = $db->prepare($query);
         $stmt->execute([
@@ -57,7 +61,10 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ':eventstatus' => $eventstatus,
             ':eventvenue' => $eventvenue,
             ':office_id' => $requesting_office_id,
-            ':num_part' => $number_of_participants
+            ':num_part' => $number_of_participants,
+            ':target_participants' => $target_participants_str,
+            ':request_email_link' => $request_email_link,
+            ':email_link' => $email_link
         ]);
 
         $activity_id = $db->lastInsertId();
@@ -147,6 +154,8 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $eventvenue = $_POST['eventvenue'] ?? '';
         $requesting_office_id = $_POST['requesting_office_id'] ?? null;
         $number_of_participants = $_POST['number_of_participants'] ?? 0;
+        $request_email_link = $_POST['request_email_link'] ?? '';
+        $email_link = $_POST['email_link'] ?? '';
         
         $sdg_ids = $_POST['sdg_ids'] ?? [];
         $target_groups = $_POST['target_groups'] ?? [];
@@ -169,6 +178,8 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        $target_participants_str = implode(', ', $target_groups);
+
         $speaker_str = implode(', ', $speakers);
         $organizer_str = implode(', ', $organizers);
 
@@ -182,7 +193,10 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     eventstatus = :eventstatus, 
                     eventvenue = :eventvenue, 
                     requesting_office_id = :office_id, 
-                    number_of_participants = :num_part 
+                    number_of_participants = :num_part,
+                    target_participants = :target_participants,
+                    request_email_link = :request_email_link,
+                    email_link = :email_link
                   WHERE activity_id = :id";
         
         $stmt = $db->prepare($query);
@@ -196,6 +210,9 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ':eventvenue' => $eventvenue,
             ':office_id' => $requesting_office_id,
             ':num_part' => $number_of_participants,
+            ':target_participants' => $target_participants_str,
+            ':request_email_link' => $request_email_link,
+            ':email_link' => $email_link,
             ':id' => $activity_id
         ]);
 
