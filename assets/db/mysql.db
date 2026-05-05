@@ -155,7 +155,7 @@ CREATE TABLE SDGs (
 );
 
 CREATE TABLE activities(
-    activity_id INT AUTO_INCREMENT PRIMARY KEY,
+    activity_id INT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     request_email_link TEXT,

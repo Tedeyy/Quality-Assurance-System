@@ -121,7 +121,7 @@ $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Facul
                     </svg>
                     Export Report
                 </button>
-                <button class="btn btn-primary" onclick="document.getElementById('addActivityModal').style.display='flex'" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                <button class="btn btn-primary" onclick="openAddModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
@@ -311,111 +311,7 @@ $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Facul
     </div>
 </main>
 
-<!-- Add Activity Modal -->
-<div id="addActivityModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-    <div style="background: white; padding: 2rem; border-radius: 12px; width: 600px; max-width: 90vw; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 style="margin: 0; color: var(--accent-blue);">Create New Activity</h2>
-            <button onclick="document.getElementById('addActivityModal').style.display='none'" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
-        </div>
-        
-        <form id="addActivityForm" method="POST" action="../api/activities.php?action=create">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem;">
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Activity Title *</label>
-                    <input type="text" name="title" placeholder="Enter activity title" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
-                </div>
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Requesting Office *</label>
-                    <select name="requesting_office_id" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
-                        <option value="">Select Office</option>
-                        <?php foreach($offices as $office): ?>
-                            <option value="<?= $office['office_id'] ?>" <?= (isset($_SESSION['user_office_id']) && $_SESSION['user_office_id'] == $office['office_id']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($office['name']) ?> (<?= htmlspecialchars($office['acronym']) ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.8rem;">Sustainable Development Goals (SDGs)</label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto;">
-                        <?php foreach($sdgs as $sdg): ?>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" name="sdg_ids[]" value="<?= $sdg['sdg_id'] ?>" style="margin-top: 2px; width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent-blue);">
-                                <span style="color: #334155; line-height: 1.4;"><b>SDG <?= $sdg['sdg_id'] ?></b>: <?= htmlspecialchars($sdg['title']) ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.8rem;">Target Participants</label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto;">
-                        <?php foreach($target_groups as $group): ?>
-                            <label style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                                <input type="checkbox" name="target_groups[]" value="<?= htmlspecialchars($group) ?>" style="width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent-blue);">
-                                <span style="color: #334155;"><?= htmlspecialchars($group) ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Estimated Number of Participants</label>
-                    <input type="number" name="number_of_participants" placeholder="e.g. 50" min="0" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
-                </div>
-                <div style="grid-column: span 2;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <label style="font-size: 0.9rem; font-weight: 600;">Facilitators (Speakers/Organizers)</label>
-                        <button type="button" onclick="addFacilitator()" style="background: var(--accent-blue); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            Add More
-                        </button>
-                    </div>
-                    <div id="facilitatorsContainer" style="display: flex; flex-direction: column; gap: 10px;">
-                        <div class="facilitator-row" style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <div style="flex: 1;">
-                                <input type="text" name="facilitator_names[]" placeholder="Full Name" required style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 0.85rem;">
-                            </div>
-                            <div style="width: 130px;">
-                                <select name="facilitator_roles[]" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: white; font-size: 0.85rem; cursor: pointer;">
-                                    <option value="speaker">Speaker</option>
-                                    <option value="organizer">Organizer</option>
-                                </select>
-                            </div>
-                            <button type="button" onclick="this.closest('.facilitator-row').remove()" style="background: #fee2e2; color: #ef4444; border: none; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Event Date *</label>
-                    <input type="date" name="eventdate" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
-                </div>
-                <div>
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Status</label>
-                    <select name="eventstatus" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
-                        <option value="Pending">Upcoming</option>
-                        <option value="Ongoing">In Progress</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                </div>
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Venue/Location</label>
-                    <input type="text" name="eventvenue" placeholder="e.g. Conference Room A, Zoom Link, etc." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
-                </div>
-                <div style="grid-column: span 2;">
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Description</label>
-                    <textarea name="description" placeholder="Briefly describe the activity..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; height: 100px; resize: none;"></textarea>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" onclick="document.getElementById('addActivityModal').style.display='none'" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Activity</button>
-            </div>
-        </form>
-    </div>
-</div>
+<?php require_once __DIR__ . '/../component/activity_modal.php'; ?>
 
 <script>
     function toggleDropdown(id) {
@@ -432,55 +328,23 @@ $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Facul
         menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
     }
 
-    // Close modals and dropdowns on click outside
-    window.onclick = function(event) {
-        const modal = document.getElementById('addActivityModal');
-        if (event.target == modal) {
-            modal.style.display = "none";
+    // Handle direct edit link
+    window.addEventListener('load', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('edit_id');
+        if (editId) {
+            editActivity(editId);
         }
-        
-        if (!event.target.closest('.action-dropdown')) {
-            document.querySelectorAll('.dropdown-menu').forEach(m => {
-                m.style.display = 'none';
-            });
-        }
-    }
+    });
 
     function viewActivity(id) {
-        console.log('Viewing activity:', id);
-        // Implement view logic
-    }
-
-    function editActivity(id) {
-        console.log('Editing activity:', id);
-        // Implement edit logic
+        window.location.href = 'feed.php?action=view_activity&id=' + id;
     }
 
     function deleteActivity(id) {
         if(confirm('Are you sure you want to delete this activity?')) {
             window.location.href = '../api/activities.php?action=delete&id=' + id;
         }
-    }
-    function addFacilitator() {
-        const container = document.getElementById('facilitatorsContainer');
-        const row = document.createElement('div');
-        row.className = 'facilitator-row';
-        row.style.cssText = 'display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); animation: slideIn 0.2s ease-out;';
-        row.innerHTML = `
-            <div style="flex: 1;">
-                <input type="text" name="facilitator_names[]" placeholder="Full Name" required style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 0.85rem;">
-            </div>
-            <div style="width: 130px;">
-                <select name="facilitator_roles[]" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: white; font-size: 0.85rem; cursor: pointer;">
-                    <option value="speaker">Speaker</option>
-                    <option value="organizer">Organizer</option>
-                </select>
-            </div>
-            <button type="button" onclick="this.closest('.facilitator-row').remove()" style="background: #fee2e2; color: #ef4444; border: none; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-        `;
-        container.appendChild(row);
     }
 </script>
 
