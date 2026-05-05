@@ -163,7 +163,7 @@ CREATE TABLE activities(
     requesting_office_id INT,
     speaker TEXT,
     organizer TEXT,
-    target_participants INT,
+    target_participants TEXT,
     number_of_participants INT,
     eventvenue TEXT,
     eventdate DATE,
@@ -179,6 +179,13 @@ CREATE TABLE activity_sdgs (
     PRIMARY KEY (activity_id, sdg_id),
     FOREIGN KEY (activity_id) REFERENCES activities(activity_id) ON DELETE CASCADE,
     FOREIGN KEY (sdg_id) REFERENCES SDGs(sdg_id) ON DELETE CASCADE
+);
+
+CREATE TABLE activity_target_groups (
+    activity_id INT,
+    target_group VARCHAR(100),
+    PRIMARY KEY (activity_id, target_group),
+    FOREIGN KEY (activity_id) REFERENCES activities(activity_id) ON DELETE CASCADE
 );
 
 CREATE TABLE activity_evaluation(

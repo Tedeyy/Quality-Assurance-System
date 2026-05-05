@@ -13,24 +13,51 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $title = $_POST['title'] ?? '';
         $description = $_POST['description'] ?? '';
-        $organizer = $_POST['organizer'] ?? '';
         $eventdate = $_POST['eventdate'] ?? '';
         $eventstatus = $_POST['eventstatus'] ?? 'Pending';
         $eventvenue = $_POST['eventvenue'] ?? '';
+        $requesting_office_id = $_POST['requesting_office_id'] ?? null;
+        $number_of_participants = $_POST['number_of_participants'] ?? 0;
+        
         $sdg_ids = $_POST['sdg_ids'] ?? [];
+        $target_groups = $_POST['target_groups'] ?? [];
+
+        // Handle multiple speakers/organizers
+        $facilitator_names = $_POST['facilitator_names'] ?? [];
+        $facilitator_roles = $_POST['facilitator_roles'] ?? [];
+        
+        $speakers = [];
+        $organizers = [];
+
+        foreach ($facilitator_names as $index => $name) {
+            if (empty(trim($name))) continue;
+            
+            $role = $facilitator_roles[$index] ?? 'organizer';
+            if ($role === 'speaker') {
+                $speakers[] = trim($name);
+            } else {
+                $organizers[] = trim($name);
+            }
+        }
+
+        $speaker_str = implode(', ', $speakers);
+        $organizer_str = implode(', ', $organizers);
 
         // Insert Activity
-        $query = "INSERT INTO activities (title, description, organizer, eventdate, eventstatus, eventvenue) 
-                  VALUES (:title, :description, :organizer, :eventdate, :eventstatus, :eventvenue)";
+        $query = "INSERT INTO activities (title, description, speaker, organizer, eventdate, eventstatus, eventvenue, requesting_office_id, number_of_participants) 
+                  VALUES (:title, :description, :speaker, :organizer, :eventdate, :eventstatus, :eventvenue, :office_id, :num_part)";
         
         $stmt = $db->prepare($query);
         $stmt->execute([
             ':title' => $title,
             ':description' => $description,
-            ':organizer' => $organizer,
+            ':speaker' => $speaker_str,
+            ':organizer' => $organizer_str,
             ':eventdate' => $eventdate,
             ':eventstatus' => $eventstatus,
-            ':eventvenue' => $eventvenue
+            ':eventvenue' => $eventvenue,
+            ':office_id' => $requesting_office_id,
+            ':num_part' => $number_of_participants
         ]);
 
         $activity_id = $db->lastInsertId();
@@ -43,6 +70,18 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sdg_stmt->execute([
                     ':activity_id' => $activity_id,
                     ':sdg_id' => $sdg_id
+                ]);
+            }
+        }
+
+        // Insert Target Groups
+        if (!empty($target_groups)) {
+            $tg_query = "INSERT INTO activity_target_groups (activity_id, target_group) VALUES (:activity_id, :target_group)";
+            $tg_stmt = $db->prepare($tg_query);
+            foreach ($target_groups as $group) {
+                $tg_stmt->execute([
+                    ':activity_id' => $activity_id,
+                    ':target_group' => $group
                 ]);
             }
         }

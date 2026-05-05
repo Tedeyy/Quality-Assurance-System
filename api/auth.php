@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("SELECT user_id, fname, password, position FROM users WHERE email = :email LIMIT 1");
+            $stmt = $db->prepare("SELECT user_id, fname, password, position, office_id FROM users WHERE email = :email LIMIT 1");
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -83,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['user_fname'] = $user['fname'];
                 $_SESSION['user_position'] = $user['position'] ?? 'user';
+                $_SESSION['user_office_id'] = $user['office_id'];
                 $_SESSION['success'] = 'Welcome back, ' . htmlspecialchars($user['fname']) . '!';
 
                 // Log the login

@@ -17,6 +17,12 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Fetch SDGs for the dropdown
 $sdg_stmt = $db->query("SELECT sdg_id, title FROM SDGs ORDER BY sdg_id ASC");
 $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch offices for the dropdown
+$office_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
+$offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Faculty', 'Staff', 'Stakeholders', 'Out of School Youth', 'Guests', 'Others'];
 ?>
 
 <style>
@@ -89,7 +95,7 @@ $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
         background: #fef2f2;
     }
     .dropdown-item.delete:hover svg {
-        color: #ef4444;
+        color: #ef4444; 
     }
 </style>
 
@@ -214,11 +220,22 @@ $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php endif; ?>
                                 </td>
                                 <td style="padding: 1.2rem;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <div style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: var(--accent-blue);">
-                                            <?= strtoupper(substr($activity['organizer'] ?: '?', 0, 1)) ?>
-                                        </div>
-                                        <span style="font-size: 0.9rem;"><?= htmlspecialchars($activity['organizer'] ?: 'Not Specified') ?></span>
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <?php if ($activity['speaker']): ?>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div title="Speaker" style="width: 24px; height: 24px; background: #fee2e2; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #ef4444;">S</div>
+                                                <span style="font-size: 0.85rem; color: #334155;"><?= htmlspecialchars($activity['speaker']) ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($activity['organizer']): ?>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div title="Organizer" style="width: 24px; height: 24px; background: #e0f2fe; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #0ea5e9;">O</div>
+                                                <span style="font-size: 0.85rem; color: #334155;"><?= htmlspecialchars($activity['organizer']) ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if (!$activity['speaker'] && !$activity['organizer']): ?>
+                                            <span style="color: #94a3b8; font-size: 0.85rem;">Not Specified</span>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td style="padding: 1.2rem;">
@@ -309,8 +326,19 @@ $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
                     <input type="text" name="title" placeholder="Enter activity title" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
                 </div>
                 <div style="grid-column: span 2;">
+                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Requesting Office *</label>
+                    <select name="requesting_office_id" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
+                        <option value="">Select Office</option>
+                        <?php foreach($offices as $office): ?>
+                            <option value="<?= $office['office_id'] ?>" <?= (isset($_SESSION['user_office_id']) && $_SESSION['user_office_id'] == $office['office_id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($office['name']) ?> (<?= htmlspecialchars($office['acronym']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div style="grid-column: span 2;">
                     <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.8rem;">Sustainable Development Goals (SDGs)</label>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); max-height: 220px; overflow-y: auto;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto;">
                         <?php foreach($sdgs as $sdg): ?>
                             <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" name="sdg_ids[]" value="<?= $sdg['sdg_id'] ?>" style="margin-top: 2px; width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent-blue);">
@@ -319,9 +347,45 @@ $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php endforeach; ?>
                     </div>
                 </div>
-                <div>
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Facilitator/Organizer</label>
-                    <input type="text" name="organizer" placeholder="Name of organizer" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                <div style="grid-column: span 2;">
+                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.8rem;">Target Participants</label>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto;">
+                        <?php foreach($target_groups as $group): ?>
+                            <label style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                <input type="checkbox" name="target_groups[]" value="<?= htmlspecialchars($group) ?>" style="width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent-blue);">
+                                <span style="color: #334155;"><?= htmlspecialchars($group) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Estimated Number of Participants</label>
+                    <input type="number" name="number_of_participants" placeholder="e.g. 50" min="0" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                </div>
+                <div style="grid-column: span 2;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.9rem; font-weight: 600;">Facilitators (Speakers/Organizers)</label>
+                        <button type="button" onclick="addFacilitator()" style="background: var(--accent-blue); color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add More
+                        </button>
+                    </div>
+                    <div id="facilitatorsContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                        <div class="facilitator-row" style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="flex: 1;">
+                                <input type="text" name="facilitator_names[]" placeholder="Full Name" required style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 0.85rem;">
+                            </div>
+                            <div style="width: 130px;">
+                                <select name="facilitator_roles[]" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: white; font-size: 0.85rem; cursor: pointer;">
+                                    <option value="speaker">Speaker</option>
+                                    <option value="organizer">Organizer</option>
+                                </select>
+                            </div>
+                            <button type="button" onclick="this.closest('.facilitator-row').remove()" style="background: #fee2e2; color: #ef4444; border: none; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Event Date *</label>
@@ -397,4 +461,32 @@ $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
             window.location.href = '../api/activities.php?action=delete&id=' + id;
         }
     }
+    function addFacilitator() {
+        const container = document.getElementById('facilitatorsContainer');
+        const row = document.createElement('div');
+        row.className = 'facilitator-row';
+        row.style.cssText = 'display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); animation: slideIn 0.2s ease-out;';
+        row.innerHTML = `
+            <div style="flex: 1;">
+                <input type="text" name="facilitator_names[]" placeholder="Full Name" required style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 0.85rem;">
+            </div>
+            <div style="width: 130px;">
+                <select name="facilitator_roles[]" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: white; font-size: 0.85rem; cursor: pointer;">
+                    <option value="speaker">Speaker</option>
+                    <option value="organizer">Organizer</option>
+                </select>
+            </div>
+            <button type="button" onclick="this.closest('.facilitator-row').remove()" style="background: #fee2e2; color: #ef4444; border: none; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+        `;
+        container.appendChild(row);
+    }
 </script>
+
+<style>
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+</style>
