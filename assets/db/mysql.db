@@ -145,3 +145,77 @@ CREATE TABLE news(
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE SDGs (
+    sdg_id INT AUTO_INCREMENT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE activities(
+    activity_id INT AUTO_INCREMENT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    request_email_link TEXT,
+    email_link TEXT,
+    requesting_office_id INT,
+    speaker TEXT,
+    organizer TEXT,
+    target_participants INT,
+    number_of_participants INT,
+    eventvenue TEXT,
+    eventdate DATE,
+    eventstatus ENUM('Pending', 'Ongoing', 'Completed') DEFAULT 'Pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (requesting_office_id) REFERENCES divisions_offices(office_id) 
+);
+
+CREATE TABLE activity_sdgs (
+    activity_id INT,
+    sdg_id INT,
+    PRIMARY KEY (activity_id, sdg_id),
+    FOREIGN KEY (activity_id) REFERENCES activities(activity_id) ON DELETE CASCADE,
+    FOREIGN KEY (sdg_id) REFERENCES SDGs(sdg_id) ON DELETE CASCADE
+);
+
+CREATE TABLE activity_evaluation(
+    evaluation_id INT AUTO_INCREMENT PRIMARY KEY,
+    activity_id INT,
+    ame_form_link TEXT,
+    number_of_respondents INT,
+    response_rate FLOAT,
+    rank INT,
+    complaints TEXT,
+    suggestions_for_improvement TEXT,
+    published_options TEXT,
+    date_released DATE,
+    deadline DATE, -- 20 Working Days after release
+    evaluation_status ENUM('Pending','In Progress', 'Completed', 'Overdue') DEFAULT 'Pending',
+    justification_letter TEXT, -- If applicable
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (activity_id) REFERENCES activities(activity_id)
+);
+
+CREATE TABLE activity_statistics(
+    statistics_id INT AUTO_INCREMENT PRIMARY KEY,
+    evaluation_id INT,
+    osr FLOAT, --Overall Service Rating
+    osr_wa FLOAT, --Weighted Average (OSR)	
+    peor FLOAT, --Presenter Effectiveness /Organizer Rating	
+    peor_wa FLOAT, --Weighted Average (PE/OOR)	
+    pam FLOAT, --Program and Methodology	
+    pam_wa FLOAT, --Weighted Average (PAM)	
+    pamlss FLOAT, --Program/Activity Management/ Logistics and Support Services	
+    pamlss_wa FLOAT, --Weighted Average (P/AM)	
+    oe FLOAT, --Overall Experience	
+    oe_wa FLOAT, --Weighted Average (OE)	
+    overall_average FLOAT, --Overall Average	
+    rank_ave FLOAT, --Rank (Ave)	
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+);
