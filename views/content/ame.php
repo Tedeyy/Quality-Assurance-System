@@ -23,9 +23,62 @@ $office_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_office
 $offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Faculty', 'Staff', 'Stakeholders', 'Out of School Youth', 'Guests', 'Others'];
+
+// Extract unique months for tabbing
+$months = [];
+foreach ($activities as $act) {
+    $m = date('F Y', strtotime($act['eventdate']));
+    if (!in_array($m, $months)) {
+        $months[] = $m;
+    }
+}
+usort($months, function($a, $b) {
+    return strtotime($b) - strtotime($a);
+});
 ?>
 
 <style>
+    .month-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+    .month-tabs::-webkit-scrollbar {
+        height: 4px;
+    }
+    .month-tabs::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    .month-tab {
+        padding: 10px 20px;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .month-tab:hover {
+        background: #f8fafc;
+        color: var(--accent-blue);
+        border-color: #cbd5e1;
+    }
+    .month-tab.active {
+        background: var(--accent-blue);
+        color: white;
+        border-color: var(--accent-blue);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
     .action-dropdown {
         position: relative;
         display: inline-block;
@@ -130,6 +183,14 @@ $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Facul
             </div>
         </div>
 
+        <!-- Monthly Tabs -->
+        <div class="month-tabs" id="monthTabs">
+            <button class="month-tab active" onclick="filterByMonth('all', this)">All Activities</button>
+            <?php foreach ($months as $m): ?>
+                <button class="month-tab" onclick="filterByMonth('<?= $m ?>', this)"><?= $m ?></button>
+            <?php endforeach; ?>
+        </div>
+
         <!-- Stats Overview -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
             <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -207,7 +268,7 @@ $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Facul
                         </tr>
                     <?php else: ?>
                         <?php foreach ($activities as $activity): ?>
-                            <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <tr class="activity-row" data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                 <td style="padding: 1.2rem;">
                                     <div style="font-weight: 700; color: var(--accent-blue); font-size: 1rem;"><?= htmlspecialchars($activity['title']) ?></div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;"><?= htmlspecialchars($activity['description']) ?></div>
@@ -345,6 +406,23 @@ $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Facul
         if(confirm('Are you sure you want to delete this activity?')) {
             window.location.href = '../api/activities.php?action=delete&id=' + id;
         }
+    }
+
+    function filterByMonth(month, btn) {
+        // Update active tab
+        document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Filter rows
+        const rows = document.querySelectorAll('.activity-row');
+        rows.forEach(row => {
+            if (month === 'all' || row.dataset.month === month) {
+                row.style.display = '';
+                row.style.animation = 'slideIn 0.3s ease-out';
+            } else {
+                row.style.display = 'none';
+            }
+        });
     }
 </script>
 
