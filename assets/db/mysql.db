@@ -173,6 +173,8 @@ CREATE TABLE activities(
     FOREIGN KEY (requesting_office_id) REFERENCES divisions_offices(office_id) 
 );
 
+ALTER TABLE activities ADD COLUMN activity_code VARCHAR(100) UNIQUE AFTER activity_id;
+
 CREATE TABLE activity_sdgs (
     activity_id INT,
     sdg_id INT,
@@ -261,3 +263,13 @@ CREATE TABLE activity_organizer_rating(
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
 ); --still unsure, needs verification
+
+CREATE TABLE activity_responses(
+    response_id INT AUTO_INCREMENT PRIMARY KEY,
+    evaluation_id INT,
+    respondent_email VARCHAR(255),
+    respondent_name VARCHAR(255),
+    responses_json LONGTEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+);
