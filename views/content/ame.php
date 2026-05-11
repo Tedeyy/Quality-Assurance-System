@@ -183,13 +183,6 @@ usort($months, function($a, $b) {
             </div>
         </div>
 
-        <!-- Monthly Tabs -->
-        <div class="month-tabs" id="monthTabs">
-            <button class="month-tab active" onclick="filterByMonth('all', this)">All Activities</button>
-            <?php foreach ($months as $m): ?>
-                <button class="month-tab" onclick="filterByMonth('<?= $m ?>', this)"><?= $m ?></button>
-            <?php endforeach; ?>
-        </div>
 
         <!-- Stats Overview -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
@@ -227,16 +220,24 @@ usort($months, function($a, $b) {
             </div>
         </div>
 
+        <!-- Monthly Tabs -->
+        <div class="month-tabs" id="monthTabs">
+            <button class="month-tab active" onclick="filterByMonth('all', this)">All Activities</button>
+            <?php foreach ($months as $m): ?>
+                <button class="month-tab" onclick="filterByMonth('<?= $m ?>', this)"><?= $m ?></button>
+            <?php endforeach; ?>
+        </div>
+
         <!-- Filter & Search Section -->
         <div style="background: white; padding: 1rem; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
             <div style="flex: 1; position: relative; min-width: 250px;">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" placeholder="Search activities..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
+                <input type="text" id="activitySearch" onkeyup="searchActivities()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
-            <select style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
-                <option value="">All Status</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="ongoing">In Progress</option>
+            <select id="statusFilter" onchange="searchActivities()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
+                <option value="all">All Status</option>
+                <option value="upcoming">Upcoming (Pending)</option>
+                <option value="ongoing">In Progress (Ongoing)</option>
                 <option value="completed">Completed</option>
             </select>
         </div>
@@ -268,7 +269,11 @@ usort($months, function($a, $b) {
                         </tr>
                     <?php else: ?>
                         <?php foreach ($activities as $activity): ?>
-                            <tr class="activity-row" data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <?php 
+                                $status_val = strtolower($activity['eventstatus']);
+                                if ($status_val === 'pending') $status_val = 'upcoming';
+                            ?>
+                            <tr class="activity-row" data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" data-status="<?= $status_val ?>" style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                 <td style="padding: 1.2rem;">
                                     <div style="font-weight: 700; color: var(--accent-blue); font-size: 1rem;"><?= htmlspecialchars($activity['title']) ?></div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;"><?= htmlspecialchars($activity['description']) ?></div>
@@ -408,19 +413,41 @@ usort($months, function($a, $b) {
         }
     }
 
+    let currentMonthFilter = 'all';
+
     function filterByMonth(month, btn) {
+        currentMonthFilter = month;
         // Update active tab
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
         btn.classList.add('active');
+        
+        searchActivities(); // Trigger general filter
+    }
 
-        // Filter rows
+    function searchActivities() {
+        const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
         const rows = document.querySelectorAll('.activity-row');
+
         rows.forEach(row => {
-            if (month === 'all' || row.dataset.month === month) {
+            const text = row.innerText.toLowerCase();
+            const status = row.dataset.status;
+            const month = row.dataset.month;
+
+            const matchesSearch = text.includes(searchTerm);
+            const matchesStatus = statusFilter === 'all' || status === statusFilter;
+            const matchesMonth = currentMonthFilter === 'all' || month === currentMonthFilter;
+
+            if (matchesSearch && matchesStatus && matchesMonth) {
                 row.style.display = '';
-                row.style.animation = 'slideIn 0.3s ease-out';
+                // Only animate if it was hidden
+                if (row.classList.contains('hidden-row')) {
+                    row.style.animation = 'slideIn 0.3s ease-out';
+                    row.classList.remove('hidden-row');
+                }
             } else {
                 row.style.display = 'none';
+                row.classList.add('hidden-row');
             }
         });
     }

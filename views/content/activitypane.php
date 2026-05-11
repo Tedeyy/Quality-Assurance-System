@@ -210,11 +210,36 @@ if ($evaluation) {
                             Activity Links & Resources
                         </h3>
                         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                            <?php if ($evaluation && $evaluation['ame_form_link']): ?>
-                                <a href="<?= htmlspecialchars($evaluation['ame_form_link']) ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; background: #eff6ff; color: #1e40af; padding: 12px 20px; border-radius: 10px; border: 1px solid #dbeafe; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    AME Evaluation Form
-                                </a>
+                            <?php if ($evaluation && $evaluation['ame_form_link']): 
+                                $form_url = $evaluation['ame_form_link'];
+                                $edit_url = str_replace('/viewform', '/edit', $form_url);
+                            ?>
+                                <div style="position: relative; display: inline-block;">
+                                    <button onclick="toggleAMEDropdown(event)" style="display: flex; align-items: center; gap: 10px; background: #eff6ff; color: #1e40af; padding: 12px 20px; border-radius: 10px; border: 1px solid #dbeafe; text-decoration: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        AME Evaluation Form
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div id="ameDropdown" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 200px; overflow: hidden;">
+                                        <a href="<?= $edit_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                            Open as Editor
+                                        </a>
+                                        <a href="<?= $form_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            View Respondent Form
+                                        </a>
+                                        <button onclick="copyToClipboard('<?= $form_url ?>')" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                            Copy Respondent Link
+                                        </button>
+                                        <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                                        <button onclick="deleteAMEForm(<?= $activity_id ?>)" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #ef4444; background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                            Delete Form
+                                        </button>
+                                    </div>
+                                </div>
                             <?php endif; ?>
 
                             <?php if ($activity['request_email_link']): ?>
@@ -232,11 +257,73 @@ if ($evaluation) {
                             <?php endif; ?>
 
                             <?php if (!$activity['request_email_link'] && !$activity['email_link'] && (!$evaluation || !$evaluation['ame_form_link'])): ?>
-                                <span style="color: var(--text-secondary); font-size: 0.9rem;">No external links available for this activity.</span>
+                                <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                    <span style="color: var(--text-secondary); font-size: 0.9rem;">No external links available for this activity.</span>
+                                    <?php if (!$evaluation || !$evaluation['ame_form_link']): ?>
+                                        <button onclick="generateAMEForm(this)" style="width: fit-content; display: flex; align-items: center; gap: 10px; background: white; color: var(--accent-blue); padding: 10px 18px; border-radius: 10px; border: 1px dashed var(--accent-blue); text-decoration: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                            Generate AME Evaluation Form
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            <?php elseif (!$evaluation || !$evaluation['ame_form_link']): ?>
+                                <button onclick="generateAMEForm(this)" style="display: flex; align-items: center; gap: 10px; background: white; color: var(--accent-blue); padding: 12px 20px; border-radius: 10px; border: 1px dashed var(--accent-blue); text-decoration: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                    Generate Form
+                                </button>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
+
+                <script>
+                function toggleAMEDropdown(e) {
+                    e.stopPropagation();
+                    const dropdown = document.getElementById('ameDropdown');
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                }
+
+                function copyToClipboard(text) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        alert('Link copied to clipboard!');
+                    });
+                    document.getElementById('ameDropdown').style.display = 'none';
+                }
+
+                function deleteAMEForm(id) {
+                    if (confirm('Are you sure you want to delete this Google Form? This will remove it from Google Drive and reset the link in the database.')) {
+                        window.location.href = '../api/delete_ame_form.php?id=' + id;
+                    }
+                }
+
+                document.addEventListener('click', function() {
+                    const dropdown = document.getElementById('ameDropdown');
+                    if (dropdown) dropdown.style.display = 'none';
+                });
+
+                function generateAMEForm(btn) {
+                    if (confirm('This will create a new Google Form and Google Sheet (if not exists) for this activity. Proceed?')) {
+                        const originalContent = btn.innerHTML;
+                        btn.disabled = true;
+                        btn.style.opacity = '0.7';
+                        btn.style.cursor = 'not-allowed';
+                        btn.innerHTML = `
+                            <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;">
+                                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                            </svg>
+                            Generating...
+                        `;
+                        window.location.href = '../api/generate_ame_form.php?id=<?= $activity_id ?>';
+                    }
+                }
+                </script>
+
+                <style>
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                </style>
 
                 <div style="margin: 1rem 0; display: flex; align-items: center; gap: 15px;">
                     <h2 style="font-size: 1.2rem; color: var(--text-secondary); white-space: nowrap; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Evaluation & Statistics</h2>
