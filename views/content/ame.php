@@ -3,7 +3,9 @@ require_once __DIR__ . '/../../config/database.php';
 $db = (new Database())->getConnection();
 
 // Fetch activities with their ratings and SDGs
-$query = "SELECT a.*, s.overall_average, GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles
+$query = "SELECT a.*, s.overall_average, 
+                  GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles,
+                  GROUP_CONCAT(sdg.sdg_id SEPARATOR ',') as sdg_ids
           FROM activities a 
           LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
           LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
@@ -35,6 +37,14 @@ foreach ($activities as $act) {
 usort($months, function($a, $b) {
     return strtotime($b) - strtotime($a);
 });
+
+// Fetch all SDGs and their activity counts for the dashboard
+$sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(asg.activity_id) as count 
+                     FROM SDGs s 
+                     LEFT JOIN activity_sdgs asg ON s.sdg_id = asg.sdg_id 
+                     GROUP BY s.sdg_id 
+                     ORDER BY s.sdg_id ASC";
+$sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
@@ -150,6 +160,59 @@ usort($months, function($a, $b) {
     .dropdown-item.delete:hover svg {
         color: #ef4444; 
     }
+
+    .sdg-container {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        padding: 10px 0 20px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+        margin-bottom: 2rem;
+        justify-content: space-between;
+    }
+    .sdg-container::-webkit-scrollbar {
+        height: 4px;
+    }
+    .sdg-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    .sdg-card {
+        flex: 0 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transition: transform 0.2s;
+        min-width: 0;
+    }
+    .sdg-card:hover {
+        transform: translateY(-3px);
+    }
+    .sdg-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: filter 0.3s;
+        object-fit: cover;
+    }
+    .sdg-icon.inactive {
+        filter: grayscale(100%);
+        opacity: 0.6;
+    }
+    .sdg-count {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    .sdg-icon.active-icon {
+        box-shadow: 0 0 15px rgba(37, 99, 235, 0.2);
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem;">
@@ -220,6 +283,25 @@ usort($months, function($a, $b) {
             </div>
         </div>
 
+        <!-- SDG Icons Dashboard -->
+        <div class="sdg-container">
+            <?php foreach ($sdg_stats as $sdg): ?>
+                <?php 
+                    $has_activities = $sdg['count'] > 0;
+                    $icon_num = $sdg['sdg_id'];
+                    $icon_path = "../assets/img/sdgs/SDG{$icon_num}.png";
+                ?>
+                <div class="sdg-card" title="<?= htmlspecialchars($sdg['title']) ?>" data-sdg-id="<?= $icon_num ?>">
+                    <img src="<?= $icon_path ?>" 
+                         alt="SDG <?= $icon_num ?>" 
+                         class="sdg-icon <?= $has_activities ? 'active-icon' : 'inactive' ?>">
+                    <span class="sdg-count-val" style="<?= $has_activities ? 'color: var(--accent-blue); background: #eff6ff;' : '' ?> font-size: 0.8rem; font-weight: 800; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">
+                        <?= $sdg['count'] ?>
+                    </span>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
         <!-- Monthly Tabs -->
         <div class="month-tabs" id="monthTabs">
             <button class="month-tab active" onclick="filterByMonth('all', this)">All Activities</button>
@@ -273,7 +355,13 @@ usort($months, function($a, $b) {
                                 $status_val = strtolower($activity['eventstatus']);
                                 if ($status_val === 'pending') $status_val = 'upcoming';
                             ?>
-                            <tr class="activity-row" data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" data-status="<?= $status_val ?>" style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <tr class="activity-row" 
+                                data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" 
+                                data-status="<?= $status_val ?>" 
+                                data-sdgs="<?= $activity['sdg_ids'] ?>"
+                                style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" 
+                                onmouseover="this.style.background='#f8fafc'" 
+                                onmouseout="this.style.background='transparent'">
                                 <td style="padding: 1.2rem;">
                                     <div style="font-weight: 700; color: var(--accent-blue); font-size: 1rem;"><?= htmlspecialchars($activity['title']) ?></div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;"><?= htmlspecialchars($activity['description']) ?></div>
@@ -428,11 +516,16 @@ usort($months, function($a, $b) {
         const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
         const rows = document.querySelectorAll('.activity-row');
+        
+        // Dynamic SDG Counting
+        const sdgCounts = {};
+        for(let i=1; i<=17; i++) sdgCounts[i] = 0;
 
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
             const status = row.dataset.status;
             const month = row.dataset.month;
+            const sdgs = row.dataset.sdgs ? row.dataset.sdgs.split(',') : [];
 
             const matchesSearch = text.includes(searchTerm);
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
@@ -440,7 +533,11 @@ usort($months, function($a, $b) {
 
             if (matchesSearch && matchesStatus && matchesMonth) {
                 row.style.display = '';
-                // Only animate if it was hidden
+                // Count SDGs for visible rows
+                sdgs.forEach(id => {
+                    if(sdgCounts[id] !== undefined) sdgCounts[id]++;
+                });
+
                 if (row.classList.contains('hidden-row')) {
                     row.style.animation = 'slideIn 0.3s ease-out';
                     row.classList.remove('hidden-row');
@@ -448,6 +545,28 @@ usort($months, function($a, $b) {
             } else {
                 row.style.display = 'none';
                 row.classList.add('hidden-row');
+            }
+        });
+
+        // Update SDG UI
+        document.querySelectorAll('.sdg-card').forEach(card => {
+            const id = card.dataset.sdgId;
+            const count = sdgCounts[id];
+            const countLabel = card.querySelector('.sdg-count-val');
+            const icon = card.querySelector('.sdg-icon');
+
+            countLabel.innerText = count;
+            
+            if (count > 0) {
+                icon.classList.remove('inactive');
+                icon.classList.add('active-icon');
+                countLabel.style.color = 'var(--accent-blue)';
+                countLabel.style.background = '#eff6ff';
+            } else {
+                icon.classList.add('inactive');
+                icon.classList.remove('active-icon');
+                countLabel.style.color = '#64748b';
+                countLabel.style.background = '#f1f5f9';
             }
         });
     }
