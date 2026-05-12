@@ -22,17 +22,41 @@ $introLetter = isset($descMatches[1]) ? trim($descMatches[1]) : "";
 preg_match('/Data Privacy and Consent Statement\s+(.*?)\s+-Yes/s', $templateContent, $privacyMatches);
 $privacyStatement = isset($privacyMatches[1]) ? trim($privacyMatches[1]) : "";
 
+// Load facilitators from the normalized junction table
+$fac_stmt = $db->prepare(
+    "SELECT af.role, COALESCE(sp.name, og.name) AS name
+     FROM   activity_facilitators af
+     LEFT JOIN speakers   sp ON af.role = 'speaker'   AND af.person_id = sp.speaker_id
+     LEFT JOIN organizers og ON af.role = 'organizer' AND af.person_id = og.organizer_id
+     WHERE  af.activity_id = :id
+     ORDER BY af.role, af.af_id"
+);
+$fac_stmt->execute(['id' => $activity_id]);
+$fac_rows = $fac_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 $facilitators = [];
-if (!empty($activity['speaker'])) {
-    foreach (explode(',', $activity['speaker']) as $s) {
-        $s = trim($s);
-        if ($s) $facilitators[] = ['name' => $s, 'type' => 'Speaker'];
+if (!empty($fac_rows)) {
+    foreach ($fac_rows as $f) {
+        if ($f['name']) {
+            $facilitators[] = [
+                'name' => $f['name'],
+                'type' => ucfirst($f['role']),
+            ];
+        }
     }
-}
-if (!empty($activity['organizer'])) {
-    foreach (explode(',', $activity['organizer']) as $o) {
-        $o = trim($o);
-        if ($o) $facilitators[] = ['name' => $o, 'type' => 'Organizer'];
+} else {
+    // Fallback: parse legacy comma strings for activities created before migration
+    if (!empty($activity['speaker'])) {
+        foreach (explode(',', $activity['speaker']) as $s) {
+            $s = trim($s);
+            if ($s) $facilitators[] = ['name' => $s, 'type' => 'Speaker'];
+        }
+    }
+    if (!empty($activity['organizer'])) {
+        foreach (explode(',', $activity['organizer']) as $o) {
+            $o = trim($o);
+            if ($o) $facilitators[] = ['name' => $o, 'type' => 'Organizer'];
+        }
     }
 }
 ?>

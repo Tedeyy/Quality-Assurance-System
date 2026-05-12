@@ -239,30 +239,32 @@ CREATE TABLE activity_statistics_others(
 );
 
 CREATE TABLE activity_speaker_rating(
-    speaker_id INT AUTO_INCREMENT PRIMARY KEY,
+    speaker_rating_id INT AUTO_INCREMENT PRIMARY KEY,
     evaluation_id INT,
-    name VARCHAR(255) NOT NULL,
+    speaker_id INT NOT NULL,
     eandd FLOAT, --Expertise and Delivery
     mot FLOAT, --Mastery of Topic
     iae FLOAT, --Interaction and Engagement
     gi FLOAT, --General Impact
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id),
+    FOREIGN KEY (speaker_id) REFERENCES speakers(speaker_id)
 );
 
 CREATE TABLE activity_organizer_rating(
-    organizer_id INT AUTO_INCREMENT PRIMARY KEY,
+    organizer_rating_id INT AUTO_INCREMENT PRIMARY KEY,
     evaluation_id INT,
-    name VARCHAR(255) NOT NULL,
+    organizer_id INT NOT NULL,
     eandd FLOAT, --Expertise and Delivery
     mot FLOAT, --Mastery of Topic
     iae FLOAT, --Interaction and Engagement
     gi FLOAT, --General Impact
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
-); --still unsure, needs verification
+    FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id),
+    FOREIGN KEY (organizer_id) REFERENCES organizers(organizer_id)
+);
 
 CREATE TABLE activity_responses(
     response_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -272,4 +274,18 @@ CREATE TABLE activity_responses(
     responses_json LONGTEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (evaluation_id) REFERENCES activity_evaluation(evaluation_id)
+);
+
+CREATE TABLE speakers(
+    speaker_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE organizers(
+    organizer_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

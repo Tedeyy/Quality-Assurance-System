@@ -92,6 +92,35 @@ $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "
 $host = $_SERVER['HTTP_HOST'];
 $localUri = $protocol . "://" . $host . "/Quality-Assurance-System/evaluation.php?id=" . $activity_id;
 
+// ── Fetch facilitators from junction table ───────────────────────────────────
+$fac_stmt = $db->prepare(
+    "SELECT af.role, af.person_id,
+            COALESCE(sp.name, og.name) AS name
+     FROM   activity_facilitators af
+     LEFT JOIN speakers   sp ON af.role = 'speaker'   AND af.person_id = sp.speaker_id
+     LEFT JOIN organizers og ON af.role = 'organizer' AND af.person_id = og.organizer_id
+     WHERE  af.activity_id = :id
+     ORDER BY af.role, af.af_id"
+);
+$fac_stmt->execute(['id' => $activity_id]);
+$facilitators_list = $fac_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fallback: parse legacy comma strings if junction table empty
+if (empty($facilitators_list)) {
+    if (!empty($data['speaker'])) {
+        foreach (explode(',', $data['speaker']) as $n) {
+            $n = trim($n); if ($n) $facilitators_list[] = ['role' => 'speaker', 'name' => $n];
+        }
+    }
+    if (!empty($data['organizer'])) {
+        foreach (explode(',', $data['organizer']) as $n) {
+            $n = trim($n); if ($n) $facilitators_list[] = ['role' => 'organizer', 'name' => $n];
+        }
+    }
+}
+
+$facilitatorsCount = count($facilitators_list);
+
 // Create dynamic table for responses
 require_once __DIR__ . '/../config/responses_database.php';
 $resp_db_class = new ResponsesDatabase();
@@ -114,16 +143,12 @@ if ($rdb) {
             osr INT,
         ";
         
-        $facilitatorsCount = 0;
-        if (!empty($data['speaker'])) $facilitatorsCount += count(explode(',', $data['speaker']));
-        if (!empty($data['organizer'])) $facilitatorsCount += count(explode(',', $data['organizer']));
-        
-        for ($i=0; $i < $facilitatorsCount; $i++) {
+        for ($i = 0; $i < $facilitatorsCount; $i++) {
             $createTable .= "fac_{$i}_eandd INT, fac_{$i}_mot INT, fac_{$i}_iae INT, fac_{$i}_gi INT, ";
         }
         
-        for ($i=0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
-        for ($i=0; $i < 3; $i++) $createTable .= "log_$i INT, ";
+        for ($i = 0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
+        for ($i = 0; $i < 3; $i++) $createTable .= "log_$i INT, ";
         
         $createTable .= "
             best_topics TEXT,
@@ -169,29 +194,36 @@ if (!$stmt->fetch()) {
        ->execute(['eid' => $evaluation_id]);
 }
 
-// Facilitators
-if (!empty($data['speaker'])) {
-    foreach (explode(',', $data['speaker']) as $sname) {
-        $sname = trim($sname);
-        if (empty($sname)) continue;
-        $stmt = $db->prepare("SELECT speaker_id FROM activity_speaker_rating WHERE evaluation_id = :eid AND name = :name");
-        $stmt->execute(['eid' => $evaluation_id, 'name' => $sname]);
-        if (!$stmt->fetch()) {
-            $db->prepare("INSERT INTO activity_speaker_rating (evaluation_id, name, eandd, mot, iae, gi) VALUES (:eid, :name, 0, 0, 0, 0)")
-               ->execute(['eid' => $evaluation_id, 'name' => $sname]);
-        }
-    }
-}
+// Initialize per-person rating rows from the junction table list
+foreach ($facilitators_list as $fac) {
+    $name = $fac['name'];
+    $role = $fac['role'];
 
-if (!empty($data['organizer'])) {
-    foreach (explode(',', $data['organizer']) as $oname) {
-        $oname = trim($oname);
-        if (empty($oname)) continue;
-        $stmt = $db->prepare("SELECT organizer_id FROM activity_organizer_rating WHERE evaluation_id = :eid AND name = :name");
-        $stmt->execute(['eid' => $evaluation_id, 'name' => $oname]);
-        if (!$stmt->fetch()) {
-            $db->prepare("INSERT INTO activity_organizer_rating (evaluation_id, name, eandd, mot, iae, gi) VALUES (:eid, :name, 0, 0, 0, 0)")
-               ->execute(['eid' => $evaluation_id, 'name' => $oname]);
+    if ($role === 'speaker') {
+        $s_stmt = $db->prepare("SELECT speaker_id FROM speakers WHERE name = :name");
+        $s_stmt->execute(['name' => $name]);
+        $person = $s_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($person) {
+            $sid  = $person['speaker_id'];
+            $chk  = $db->prepare("SELECT speaker_rating_id FROM activity_speaker_rating WHERE evaluation_id = :eid AND speaker_id = :sid");
+            $chk->execute(['eid' => $evaluation_id, 'sid' => $sid]);
+            if (!$chk->fetch()) {
+                $db->prepare("INSERT INTO activity_speaker_rating (evaluation_id, speaker_id, eandd, mot, iae, gi) VALUES (:eid, :sid, 0, 0, 0, 0)")
+                   ->execute(['eid' => $evaluation_id, 'sid' => $sid]);
+            }
+        }
+    } else {
+        $o_stmt = $db->prepare("SELECT organizer_id FROM organizers WHERE name = :name");
+        $o_stmt->execute(['name' => $name]);
+        $person = $o_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($person) {
+            $oid  = $person['organizer_id'];
+            $chk  = $db->prepare("SELECT organizer_rating_id FROM activity_organizer_rating WHERE evaluation_id = :eid AND organizer_id = :oid");
+            $chk->execute(['eid' => $evaluation_id, 'oid' => $oid]);
+            if (!$chk->fetch()) {
+                $db->prepare("INSERT INTO activity_organizer_rating (evaluation_id, organizer_id, eandd, mot, iae, gi) VALUES (:eid, :oid, 0, 0, 0, 0)")
+                   ->execute(['eid' => $evaluation_id, 'oid' => $oid]);
+            }
         }
     }
 }

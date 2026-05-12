@@ -35,6 +35,35 @@ $tg_stmt = $db->prepare($tg_query);
 $tg_stmt->execute([':id' => $activity_id]);
 $target_groups = $tg_stmt->fetchAll(PDO::FETCH_COLUMN);
 
+// Fetch Facilitators from the junction table
+$fac_query = 
+    "SELECT af.role, af.person_id,
+            COALESCE(sp.name, og.name) AS name
+     FROM   activity_facilitators af
+     LEFT JOIN speakers   sp ON af.role = 'speaker'   AND af.person_id = sp.speaker_id
+     LEFT JOIN organizers og ON af.role = 'organizer' AND af.person_id = og.organizer_id
+     WHERE  af.activity_id = :id
+     ORDER BY af.role, af.af_id";
+$fac_stmt_list = $db->prepare($fac_query);
+$fac_stmt_list->execute([':id' => $activity_id]);
+$facilitators_list = $fac_stmt_list->fetchAll(PDO::FETCH_ASSOC);
+
+// Fallback: parse legacy comma strings if junction table is empty (old data)
+if (empty($facilitators_list)) {
+    if (!empty($activity['speaker'])) {
+        foreach (explode(',', $activity['speaker']) as $n) {
+            $n = trim($n);
+            if ($n) $facilitators_list[] = ['role' => 'speaker', 'name' => $n];
+        }
+    }
+    if (!empty($activity['organizer'])) {
+        foreach (explode(',', $activity['organizer']) as $n) {
+            $n = trim($n);
+            if ($n) $facilitators_list[] = ['role' => 'organizer', 'name' => $n];
+        }
+    }
+}
+
 // Fetch Evaluation and Statistics if available
 $eval_query = "SELECT e.*, s.* FROM activity_evaluation e 
                LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id 
@@ -56,12 +85,14 @@ if ($evaluation) {
     $other_stats = $other_stmt->fetch(PDO::FETCH_ASSOC);
 
     // Speaker ratings
-    $speaker_stmt = $db->prepare("SELECT * FROM activity_speaker_rating WHERE evaluation_id = :id");
+    $speaker_stmt = $db->prepare("SELECT r.*, s.name FROM activity_speaker_rating r JOIN speakers s ON r.speaker_id = s.speaker_id WHERE r.evaluation_id = :id");
     $speaker_stmt->execute([':id' => $eval_id]);
     $speaker_ratings = $speaker_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Organizer ratings (Table pending)
-    $organizer_ratings = [];
+    // Organizer ratings
+    $organizer_stmt = $db->prepare("SELECT r.*, o.name FROM activity_organizer_rating r JOIN organizers o ON r.organizer_id = o.organizer_id WHERE r.evaluation_id = :id");
+    $organizer_stmt->execute([':id' => $eval_id]);
+    $organizer_ratings = $organizer_stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
@@ -139,23 +170,24 @@ if ($evaluation) {
                                 Facilitators
                             </h3>
                             <div style="display: flex; flex-direction: column; gap: 12px;">
-                                <?php if ($activity['speaker']): ?>
-                                    <div style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                                        <div style="width: 32px; height: 32px; background: #fee2e2; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: #ef4444;">S</div>
-                                        <div>
-                                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Speaker</div>
-                                            <div style="font-weight: 600; font-size: 0.9rem;"><?= htmlspecialchars($activity['speaker']) ?></div>
+                                <?php if (!empty($facilitators_list)): ?>
+                                    <?php foreach ($facilitators_list as $fac):
+                                        $isSpeaker  = ($fac['role'] === 'speaker');
+                                        $badgeBg    = $isSpeaker ? '#fee2e2' : '#e0f2fe';
+                                        $badgeColor = $isSpeaker ? '#ef4444' : '#0ea5e9';
+                                        $badgeLetter = $isSpeaker ? 'S' : 'O';
+                                        $roleLabel   = $isSpeaker ? 'Speaker' : 'Organizer';
+                                    ?>
+                                        <div style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #f1f5f9;">
+                                            <div style="width: 32px; height: 32px; background: <?= $badgeBg ?>; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: <?= $badgeColor ?>;"><?= $badgeLetter ?></div>
+                                            <div>
+                                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;"><?= $roleLabel ?></div>
+                                                <div style="font-weight: 600; font-size: 0.9rem;"><?= htmlspecialchars($fac['name']) ?></div>
+                                            </div>
                                         </div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if ($activity['organizer']): ?>
-                                    <div style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                                        <div style="width: 32px; height: 32px; background: #e0f2fe; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: #0ea5e9;">O</div>
-                                        <div>
-                                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Organizer</div>
-                                            <div style="font-weight: 600; font-size: 0.9rem;"><?= htmlspecialchars($activity['organizer']) ?></div>
-                                        </div>
-                                    </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span style="color: var(--text-secondary); font-size: 0.9rem;">No facilitators assigned</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -221,10 +253,6 @@ if ($evaluation) {
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
                                     <div id="ameDropdown" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 200px; overflow: hidden;">
-                                        <a href="<?= $edit_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                            Open as Editor
-                                        </a>
                                         <a href="<?= $form_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             View Respondent Form

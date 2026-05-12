@@ -5,6 +5,10 @@
             <h2 id="modalTitle" style="margin: 0; color: var(--accent-blue);">Create New Activity</h2>
             <button onclick="document.getElementById('addActivityModal').style.display='none'" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
+
+        <!-- Datalists for Suggestions -->
+        <datalist id="speakerList"></datalist>
+        <datalist id="organizerList"></datalist>
         
         <form id="addActivityForm" method="POST" action="../api/activities.php?action=create">
             <input type="hidden" name="activity_id" id="edit_activity_id">
@@ -131,12 +135,17 @@
         const row = document.createElement('div');
         row.className = 'facilitator-row';
         row.style.cssText = 'display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); animation: slideIn 0.2s ease-out;';
+        
+        const listId = role === 'speaker' ? 'speakerList' : 'organizerList';
+        
         row.innerHTML = `
             <div style="flex: 1;">
-                <input type="text" name="facilitator_names[]" placeholder="Full Name" value="${name}" required style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 0.85rem;">
+                <input type="text" name="facilitator_names[]" placeholder="Full Name" value="${name}" required 
+                       list="${listId}"
+                       style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 0.85rem;">
             </div>
             <div style="width: 130px;">
-                <select name="facilitator_roles[]" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: white; font-size: 0.85rem; cursor: pointer;">
+                <select name="facilitator_roles[]" onchange="updateRoleList(this)" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: white; font-size: 0.85rem; cursor: pointer;">
                     <option value="speaker" ${role === 'speaker' ? 'selected' : ''}>Speaker</option>
                     <option value="organizer" ${role === 'organizer' ? 'selected' : ''}>Organizer</option>
                 </select>
@@ -148,7 +157,29 @@
         container.appendChild(row);
     }
 
+    function updateRoleList(select) {
+        const row = select.closest('.facilitator-row');
+        const input = row.querySelector('input');
+        input.setAttribute('list', select.value === 'speaker' ? 'speakerList' : 'organizerList');
+    }
+
+    async function fetchFacilitators() {
+        try {
+            const response = await fetch('../api/facilitators.php?action=list');
+            const data = await response.json();
+            
+            const sList = document.getElementById('speakerList');
+            const oList = document.getElementById('organizerList');
+            
+            sList.innerHTML = data.speakers.map(s => `<option value="${s}">`).join('');
+            oList.innerHTML = data.organizers.map(o => `<option value="${o}">`).join('');
+        } catch (e) {
+            console.error("Failed to fetch lists", e);
+        }
+    }
+
     function openAddModal(redirectUrl = '') {
+        fetchFacilitators();
         const modal = document.getElementById('addActivityModal');
         const form = document.getElementById('addActivityForm');
         form.reset();
@@ -164,6 +195,7 @@
 
     async function editActivity(id, redirectUrl = '') {
         try {
+            fetchFacilitators();
             const response = await fetch('../api/activities.php?action=get&id=' + id);
             if (!response.ok) throw new Error('Failed to fetch activity details');
             const data = await response.json();
@@ -201,17 +233,23 @@
                 cb.checked = data.target_groups.includes(cb.value);
             });
 
-            // Set Facilitators
+            // Set Facilitators — use structured array from API
             const container = document.getElementById('facilitatorsContainer');
             container.innerHTML = '';
-            
-            if (data.speaker) {
-                data.speaker.split(', ').forEach(name => addFacilitator(name, 'speaker'));
+
+            const facilitators = data.facilitators || [];
+            if (facilitators.length > 0) {
+                facilitators.forEach(f => addFacilitator(f.name || '', f.role || 'speaker'));
+            } else {
+                // Legacy fallback (old comma-string fields)
+                if (data.speaker) {
+                    data.speaker.split(', ').forEach(name => addFacilitator(name, 'speaker'));
+                }
+                if (data.organizer) {
+                    data.organizer.split(', ').forEach(name => addFacilitator(name, 'organizer'));
+                }
             }
-            if (data.organizer) {
-                data.organizer.split(', ').forEach(name => addFacilitator(name, 'organizer'));
-            }
-            if (!data.speaker && !data.organizer) {
+            if (container.children.length === 0) {
                 addFacilitator();
             }
 
