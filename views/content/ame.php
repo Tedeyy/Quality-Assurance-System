@@ -410,8 +410,8 @@ $organizer_ratings = $db->query("
         <!-- Stats Overview -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
             <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Activities</span>
-                <div style="font-size: 2rem; font-weight: 800; color: var(--accent-blue); margin-top: 5px;"><?= count($activities) ?></div>
+                <span id="stat-total-label" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Activities</span>
+                <div id="stat-total-activities" style="font-size: 2rem; font-weight: 800; color: var(--accent-blue); margin-top: 5px;"><?= count($activities) ?></div>
                 <div style="margin-top: 10px; font-size: 0.8rem; color: #10b981; display: flex; align-items: center; gap: 4px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
                     Updated just now
@@ -431,16 +431,18 @@ $organizer_ratings = $db->query("
                     }
                     $avg = $rated_count > 0 ? number_format($total_rating / $rated_count, 2) . "%" : '0.00%';
                 ?>
-                <div style="font-size: 2rem; font-weight: 800; color: var(--accent-gold); margin-top: 5px;"><?= $avg ?></div>
-                <div style="margin-top: 10px; font-size: 0.8rem; color: #64748b;">Based on <?= $rated_count ?> evaluations</div>
+                <div id="stat-avg-score" style="font-size: 2rem; font-weight: 800; color: var(--accent-gold); margin-top: 5px;"><?= $avg ?></div>
+                <div id="stat-eval-count" style="margin-top: 10px; font-size: 0.8rem; color: #64748b;">Based on <?= $rated_count ?> evaluations</div>
             </div>
             <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
                 <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Upcoming Events</span>
                 <?php
-                    $upcoming = array_filter($activities, function($a) { return $a['eventstatus'] === 'Pending'; });
+                    $upcoming = array_filter($activities, function($a) { 
+                        return $a['eventstatus'] === 'Pending' || $a['eventstatus'] === 'Ongoing'; 
+                    });
                 ?>
-                <div style="font-size: 2rem; font-weight: 800; color: #f59e0b; margin-top: 5px;"><?= count($upcoming) ?></div>
-                <div style="margin-top: 10px; font-size: 0.8rem; color: #64748b;">Scheduled for this month</div>
+                <div id="stat-upcoming-events" style="font-size: 2rem; font-weight: 800; color: #f59e0b; margin-top: 5px;"><?= count($upcoming) ?></div>
+                <div id="stat-upcoming-subtext" style="margin-top: 10px; font-size: 0.8rem; color: #64748b;">Scheduled for this month</div>
             </div>
         </div>
 
@@ -518,6 +520,7 @@ $organizer_ratings = $db->query("
                             ?>
                             <tr class="activity-row" 
                                 data-id="<?= $activity['activity_id'] ?>"
+                                data-date="<?= $activity['eventdate'] ?>"
                                 data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" 
                                 data-status="<?= $status_val ?>" 
                                 data-sdgs="<?= $activity['sdg_ids'] ?>"
@@ -558,8 +561,22 @@ $organizer_ratings = $db->query("
                                     </div>
                                 </td>
                                 <td style="padding: 1.2rem;">
-                                    <div style="font-size: 0.9rem; font-weight: 500;"><?= date('M d, Y', strtotime($activity['eventdate'])) ?></div>
-                                    <div style="font-size: 0.75rem; color: var(--text-secondary);"><?= $activity['eventvenue'] ?: 'Location TBD' ?></div>
+                                    <div style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 2px;"><?= date('M d, Y', strtotime($activity['eventdate'])) ?></div>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                        <div style="font-size: 0.8rem; color: #475569; display: flex; align-items: center; gap: 4px;">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            <?= date('h:i A', strtotime($activity['eventdate'])) ?>
+                                        </div>
+                                        <?php if (!empty($activity['duration'])): ?>
+                                            <div style="font-size: 0.7rem; color: #64748b; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; border: 1px solid #e2e8f0; font-weight: 500;">
+                                                <?= htmlspecialchars($activity['duration']) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        <?= $activity['eventvenue'] ?: 'Location TBD' ?>
+                                    </div>
                                 </td>
                                 <td style="padding: 1.2rem;">
                                     <?php
@@ -745,12 +762,14 @@ $organizer_ratings = $db->query("
             if (matchesSearch && matchesStatus && matchesMonth) {
                 row.style.display = '';
                 
-                // Collect data for rankings
+                // Collect data for rankings and stats
                 activeActivities.push({
                     id: row.dataset.id,
                     title: row.dataset.title,
                     rate: parseFloat(row.dataset.responseRate || 0),
-                    avg: parseFloat(row.dataset.overallAverage || 0)
+                    avg: parseFloat(row.dataset.overallAverage || 0),
+                    date: row.dataset.date,
+                    status: row.dataset.status
                 });
 
                 // Count SDGs for visible rows
@@ -767,6 +786,28 @@ $organizer_ratings = $db->query("
                 row.classList.add('hidden-row');
             }
         });
+
+        // Update Stats Overview
+        const totalVisible = activeActivities.length;
+        const ratedActivities = activeActivities.filter(a => a.avg > 0);
+        const avgScore = ratedActivities.length > 0 
+            ? (ratedActivities.reduce((acc, a) => acc + a.avg, 0) / ratedActivities.length).toFixed(2) + '%'
+            : '0.00%';
+        
+        const today = new Date().setHours(0,0,0,0);
+        const upcomingCount = activeActivities.filter(a => {
+            const eventDate = new Date(a.date).setHours(0,0,0,0);
+            return eventDate >= today;
+        }).length;
+
+        document.getElementById('stat-total-activities').innerText = totalVisible;
+        document.getElementById('stat-avg-score').innerText = avgScore;
+        document.getElementById('stat-eval-count').innerText = `Based on ${ratedActivities.length} evaluations`;
+        document.getElementById('stat-upcoming-events').innerText = upcomingCount;
+        
+        const monthLabel = currentMonthFilter === 'all' ? 'Overall' : currentMonthFilter;
+        document.getElementById('stat-total-label').innerText = monthLabel + ' Activities';
+        document.getElementById('stat-upcoming-subtext').innerText = 'Scheduled ' + (currentMonthFilter === 'all' ? 'overall' : 'for ' + currentMonthFilter);
 
         // Update Rankings
         updateRankings(activeActivities);

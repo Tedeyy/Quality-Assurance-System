@@ -77,13 +77,23 @@
                         <!-- Facilitator rows will be added here -->
                     </div>
                 </div>
-                <div>
-                    <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Event Date *</label>
-                    <input type="date" name="eventdate" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                <div style="grid-column: span 2; display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 1.2rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Event Date *</label>
+                        <input type="date" name="eventdate" id="modal_eventdate" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Event Time *</label>
+                        <input type="time" name="eventtime" id="modal_eventtime" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Duration</label>
+                        <input type="text" name="duration" id="modal_duration" placeholder="e.g. 2 hours" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                    </div>
                 </div>
-                <div>
+                <div style="grid-column: span 2;">
                     <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Status</label>
-                    <select name="eventstatus" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
+                    <select name="eventstatus" id="modal_eventstatus" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
                         <option value="Pending">Upcoming</option>
                         <option value="Ongoing">In Progress</option>
                         <option value="Completed">Completed</option>
@@ -212,7 +222,17 @@
             
             form.querySelector('[name="title"]').value = data.title;
             form.querySelector('[name="description"]').value = data.description;
-            form.querySelector('[name="eventdate"]').value = data.eventdate;
+            
+            // Split DATETIME into Date and Time
+            if (data.eventdate) {
+                const parts = data.eventdate.split(' ');
+                form.querySelector('[name="eventdate"]').value = parts[0];
+                if (parts[1]) {
+                    form.querySelector('[name="eventtime"]').value = parts[1].substring(0, 5);
+                }
+            }
+            
+            form.querySelector('[name="duration"]').value = data.duration || '';
             form.querySelector('[name="eventstatus"]').value = data.eventstatus;
             form.querySelector('[name="eventvenue"]').value = data.eventvenue;
             form.querySelector('[name="requesting_office_id"]').value = data.requesting_office_id;

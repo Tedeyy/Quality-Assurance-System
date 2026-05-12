@@ -71,7 +71,13 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $title               = $_POST['title']                ?? '';
         $description         = $_POST['description']          ?? '';
         $eventdate           = $_POST['eventdate']            ?? '';
+        $eventtime           = $_POST['eventtime']            ?? '';
+        $duration            = $_POST['duration']             ?? '';
         $eventstatus         = $_POST['eventstatus']          ?? 'Pending';
+
+        if ($eventdate && $eventtime) {
+            $eventdate = $eventdate . ' ' . $eventtime;
+        }
         $eventvenue          = $_POST['eventvenue']           ?? '';
         $requesting_office_id = $_POST['requesting_office_id'] ?? null;
         $number_of_participants = $_POST['number_of_participants'] ?? 0;
@@ -103,11 +109,11 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // Insert Activity (keep legacy columns populated for any old tooling)
         $stmt = $db->prepare(
             "INSERT INTO activities
-                (activity_code, title, description, speaker, organizer, eventdate, eventstatus, eventvenue,
+                (activity_code, title, description, speaker, organizer, eventdate, duration, eventstatus, eventvenue,
                  requesting_office_id, number_of_participants, target_participants,
                  request_email_link, email_link)
              VALUES
-                (:code, :title, :description, :speaker, :organizer, :eventdate, :eventstatus, :eventvenue,
+                (:code, :title, :description, :speaker, :organizer, :eventdate, :duration, :eventstatus, :eventvenue,
                  :office_id, :num_part, :target_participants, :request_email_link, :email_link)"
         );
         $stmt->execute([
@@ -117,6 +123,7 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ':speaker'            => $speaker_str,
             ':organizer'          => $organizer_str,
             ':eventdate'          => $eventdate,
+            ':duration'           => $duration,
             ':eventstatus'        => $eventstatus,
             ':eventvenue'         => $eventvenue,
             ':office_id'          => $requesting_office_id,
@@ -232,7 +239,13 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $title               = $_POST['title']                ?? '';
         $description         = $_POST['description']          ?? '';
         $eventdate           = $_POST['eventdate']            ?? '';
+        $eventtime           = $_POST['eventtime']            ?? '';
+        $duration            = $_POST['duration']             ?? '';
         $eventstatus         = $_POST['eventstatus']          ?? 'Pending';
+
+        if ($eventdate && $eventtime) {
+            $eventdate = $eventdate . ' ' . $eventtime;
+        }
         $eventvenue          = $_POST['eventvenue']           ?? '';
         $requesting_office_id = $_POST['requesting_office_id'] ?? null;
         $number_of_participants = $_POST['number_of_participants'] ?? 0;
@@ -264,7 +277,7 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             "UPDATE activities SET
                 title = :title, description = :description,
                 speaker = :speaker, organizer = :organizer,
-                eventdate = :eventdate, eventstatus = :eventstatus, eventvenue = :eventvenue,
+                eventdate = :eventdate, duration = :duration, eventstatus = :eventstatus, eventvenue = :eventvenue,
                 requesting_office_id = :office_id, number_of_participants = :num_part,
                 target_participants = :target_participants,
                 request_email_link = :request_email_link, email_link = :email_link
@@ -276,6 +289,7 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ':speaker'            => $speaker_str,
             ':organizer'          => $organizer_str,
             ':eventdate'          => $eventdate,
+            ':duration'           => $duration,
             ':eventstatus'        => $eventstatus,
             ':eventvenue'         => $eventvenue,
             ':office_id'          => $requesting_office_id,

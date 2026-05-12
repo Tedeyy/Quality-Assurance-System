@@ -88,7 +88,8 @@ CREATE TABLE `activities` (
   `target_participants` text DEFAULT NULL,
   `number_of_participants` int(11) DEFAULT NULL,
   `eventvenue` text DEFAULT NULL,
-  `eventdate` date DEFAULT NULL,
+  `eventdate` datetime DEFAULT NULL,
+  `duration` varchar(100) DEFAULT NULL,
   `eventstatus` enum('Pending','Ongoing','Completed') DEFAULT 'Pending',
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -355,3 +356,4 @@ CREATE TABLE `users` (
   CONSTRAINT `users_ibfk_1` FOREIGN KEY (`division_id`) REFERENCES `divisions` (`division_id`),
   CONSTRAINT `users_ibfk_2` FOREIGN KEY (`office_id`) REFERENCES `divisions_offices` (`office_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
