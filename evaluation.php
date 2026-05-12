@@ -32,6 +32,7 @@ if ($published_options !== 'Open') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Form Closed — <?= htmlspecialchars($activity['title']) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/img/QAO_logo.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -387,10 +388,9 @@ if (!empty($fac_rows)) {
                 <div class="rating-grid">
                     <?php 
                     $metrics = [
-                        'eandd' => ['label' => 'Expertise and Delivery', 'desc' => 'The speaker\'s proficiency and how effectively they conveyed the information.'],
+                        'eff' => ['label' => 'Effectiveness', 'desc' => 'How well the facilitator achieved the intended goals of the session.'],
                         'mot' => ['label' => 'Mastery of Topic', 'desc' => 'The depth of knowledge and command shown over the subject matter.'],
-                        'iae' => ['label' => 'Interaction & Engagement', 'desc' => 'The speaker\'s ability to involve the audience and keep them attentive.'],
-                        'gi' => ['label' => 'General Impact', 'desc' => 'The overall value, inspiration, and practical takeaway provided.']
+                        'atf' => ['label' => 'Ability to Facilitate', 'desc' => 'The facilitator\'s skill in managing the discussion and audience participation.']
                     ];
                     foreach ($metrics as $key => $m): ?>
                     <div class="rating-item">

@@ -122,10 +122,17 @@ if (empty($facilitators_list)) {
 
 $facilitatorsCount = count($facilitators_list);
 
-// Create dynamic table for responses
-require_once __DIR__ . '/../config/responses_database.php';
-$resp_db_class = new ResponsesDatabase();
-$rdb = $resp_db_class->getConnection();
+// Helper to add working days
+function addWorkingDays($startDate, $days) {
+    $date = new DateTime($startDate);
+    while ($days > 0) {
+        $date->modify('+1 day');
+        if ($date->format('N') < 6) { // 1 (Mon) to 5 (Fri)
+            $days--;
+        }
+    }
+    return $date->format('Y-m-d');
+}
 
 if ($rdb) {
     $rdb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -145,7 +152,7 @@ if ($rdb) {
         ";
         
         for ($i = 0; $i < $facilitatorsCount; $i++) {
-            $createTable .= "fac_{$i}_eandd INT, fac_{$i}_mot INT, fac_{$i}_iae INT, fac_{$i}_gi INT, ";
+            $createTable .= "fac_{$i}_eff INT, fac_{$i}_mot INT, fac_{$i}_atf INT, ";
         }
         
         for ($i = 0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
@@ -165,17 +172,20 @@ if ($rdb) {
     }
 }
 
+$date_released = date('Y-m-d');
+$deadline = addWorkingDays($date_released, 20);
+
 $stmt = $db->prepare("SELECT evaluation_id FROM activity_evaluation WHERE activity_id = :aid");
 $stmt->execute(['aid' => $activity_id]);
 $eval = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($eval) {
     $evaluation_id = $eval['evaluation_id'];
-    $update = $db->prepare("UPDATE activity_evaluation SET ame_form_link = :link, published_options = 'Open' WHERE evaluation_id = :eid");
-    $update->execute(['link' => $localUri, 'eid' => $evaluation_id]);
+    $update = $db->prepare("UPDATE activity_evaluation SET ame_form_link = :link, published_options = 'Open', date_released = :dr, deadline = :dl WHERE evaluation_id = :eid");
+    $update->execute(['link' => $localUri, 'eid' => $evaluation_id, 'dr' => $date_released, 'dl' => $deadline]);
 } else {
-    $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, evaluation_status, published_options) VALUES (:aid, :link, 'Pending', 'Open')");
-    $insert->execute(['aid' => $activity_id, 'link' => $localUri]);
+    $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, evaluation_status, published_options, date_released, deadline) VALUES (:aid, :link, 'Pending', 'Open', :dr, :dl)");
+    $insert->execute(['aid' => $activity_id, 'link' => $localUri, 'dr' => $date_released, 'dl' => $deadline]);
     $evaluation_id = $db->lastInsertId();
 }
 
@@ -209,7 +219,7 @@ foreach ($facilitators_list as $fac) {
             $chk  = $db->prepare("SELECT speaker_rating_id FROM activity_speaker_rating WHERE evaluation_id = :eid AND speaker_id = :sid");
             $chk->execute(['eid' => $evaluation_id, 'sid' => $sid]);
             if (!$chk->fetch()) {
-                $db->prepare("INSERT INTO activity_speaker_rating (evaluation_id, speaker_id, eandd, mot, iae, gi) VALUES (:eid, :sid, 0, 0, 0, 0)")
+                $db->prepare("INSERT INTO activity_speaker_rating (evaluation_id, speaker_id, eff, mot, atf) VALUES (:eid, :sid, 0, 0, 0)")
                    ->execute(['eid' => $evaluation_id, 'sid' => $sid]);
             }
         }
@@ -222,7 +232,7 @@ foreach ($facilitators_list as $fac) {
             $chk  = $db->prepare("SELECT organizer_rating_id FROM activity_organizer_rating WHERE evaluation_id = :eid AND organizer_id = :oid");
             $chk->execute(['eid' => $evaluation_id, 'oid' => $oid]);
             if (!$chk->fetch()) {
-                $db->prepare("INSERT INTO activity_organizer_rating (evaluation_id, organizer_id, eandd, mot, iae, gi) VALUES (:eid, :oid, 0, 0, 0, 0)")
+                $db->prepare("INSERT INTO activity_organizer_rating (evaluation_id, organizer_id, eff, mot, atf) VALUES (:eid, :oid, 0, 0, 0)")
                    ->execute(['eid' => $evaluation_id, 'oid' => $oid]);
             }
         }

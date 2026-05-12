@@ -97,7 +97,7 @@ if ($evaluation) {
 ?>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem;">
-    <div class="container" style="max-width: 1000px; margin: 0 auto; padding: 0 20px;">
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
         <!-- Header & Navigation -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <a href="feed.php?action=activity" style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-secondary)'">
@@ -118,7 +118,7 @@ if ($evaluation) {
 
         <?php require_once __DIR__ . '/../component/activity_modal.php'; ?>
 
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem;">
             <!-- Main Content -->
             <div style="display: flex; flex-direction: column; gap: 2rem;">
                 <div style="background: white; padding: 2.5rem; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
@@ -499,8 +499,8 @@ if ($evaluation) {
                             <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;">
                                 <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Overall Rating</div>
                                 <div style="display: flex; align-items: baseline; gap: 4px;">
-                                    <span style="font-size: 3rem; font-weight: 900; color: #fbbf24; line-height: 1;"><?= number_format($evaluation['overall_average'] ?: 0, 1) ?></span>
-                                    <span style="font-size: 1.2rem; color: #475569; font-weight: 600;">/ 5.0</span>
+                                    <span style="font-size: 3rem; font-weight: 900; color: #fbbf24; line-height: 1;"><?= $evaluation['overall_average'] ?: '0%' ?></span>
+                                    <span style="font-size: 1.2rem; color: #475569; font-weight: 600;">Score</span>
                                 </div>
                                 <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05;">
                                     <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -537,13 +537,13 @@ if ($evaluation) {
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="<?= $m['icon'] ?>"/></svg>
                                         </div>
                                         <div>
-                                            <div style="font-size: 0.9rem; color: #f8fafc; font-weight: 600;"><?= $m['label'] ?></div>
-                                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">Weighted Avg: <span style="color: #94a3b8; font-weight: 700;"><?= number_format($evaluation[$m['wa']] ?: 0, 2) ?></span></div>
+                                            <div style="font-size: 1rem; color: #f8fafc; font-weight: 700;"><?= $m['label'] ?></div>
+                                            <div style="font-size: 0.65rem; color: #64748b; margin-top: 4px; line-height: 1.4;"><?= $evaluation[$m['val']] ?: 'No data yet' ?></div>
                                         </div>
                                     </div>
                                     <div style="text-align: right;">
-                                        <div style="font-size: 1.4rem; font-weight: 800; color: #fbbf24;"><?= number_format($evaluation[$m['val']] ?: 0, 2) ?></div>
-                                        <div style="font-size: 0.65rem; color: #475569; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Category Score</div>
+                                        <div style="font-size: 1.6rem; font-weight: 900; color: #fbbf24;"><?= $evaluation[$m['wa']] ?: '0%' ?></div>
+                                        <div style="font-size: 0.6rem; color: #475569; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Weighted Avg</div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -574,47 +574,47 @@ if ($evaluation) {
                         <?php endif; ?>
 
                         <!-- Facilitator Ratings Section -->
-                        <?php if (!empty($speaker_ratings)): ?>
+                        <?php if (!empty($speaker_ratings) || !empty($organizer_ratings)): ?>
                             <div style="margin-top: 3rem;">
                                 <h3 style="font-size: 1rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
                                     Facilitator Excellence Ratings
                                 </h3>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                                    <?php foreach($speaker_ratings as $s): ?>
+                                    <?php 
+                                    $all_ratings = [];
+                                    foreach($speaker_ratings as $s) { $s['role_label'] = 'Speaker'; $s['role_code'] = 'SP'; $all_ratings[] = $s; }
+                                    foreach($organizer_ratings as $o) { $o['role_label'] = 'Organizer'; $o['role_code'] = 'OG'; $all_ratings[] = $o; }
+                                    
+                                    foreach($all_ratings as $r): 
+                                        $avg = ($r['eff'] + $r['mot'] + $r['atf']) / 3;
+                                    ?>
                                         <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
                                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #fbbf24; color: #0f172a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;">SP</div>
+                                                    <div style="width: 36px; height: 36px; border-radius: 50%; background: <?= $r['role_code'] === 'SP' ? '#fbbf24' : '#3b82f6' ?>; color: #0f172a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;"><?= $r['role_code'] ?></div>
                                                     <div>
-                                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 700;"><?= htmlspecialchars($s['name']) ?></div>
-                                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Speaker</div>
+                                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 700;"><?= htmlspecialchars($r['name']) ?></div>
+                                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;"><?= $r['role_label'] ?></div>
                                                     </div>
                                                 </div>
-                                                <?php 
-                                                $avg = ($s['eandd'] + $s['mot'] + $s['iae'] + $s['gi']) / 4;
-                                                ?>
                                                 <div style="text-align: right;">
                                                     <div style="font-size: 1.4rem; font-weight: 800; color: #fbbf24;"><?= number_format($avg, 2) ?></div>
                                                     <div style="font-size: 0.6rem; color: #475569; font-weight: 800; text-transform: uppercase;">Average</div>
                                                 </div>
                                             </div>
-                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                                <div style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px;">
-                                                    <div style="font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Expertise</div>
-                                                    <div style="font-size: 0.9rem; color: #cbd5e1; font-weight: 700;"><?= number_format($s['eandd'], 2) ?></div>
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
+                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Effectiveness</div>
+                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['eff'], 2) ?></div>
                                                 </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px;">
-                                                    <div style="font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mastery</div>
-                                                    <div style="font-size: 0.9rem; color: #cbd5e1; font-weight: 700;"><?= number_format($s['mot'], 2) ?></div>
+                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
+                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mastery</div>
+                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['mot'], 2) ?></div>
                                                 </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px;">
-                                                    <div style="font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Engagement</div>
-                                                    <div style="font-size: 0.9rem; color: #cbd5e1; font-weight: 700;"><?= number_format($s['iae'], 2) ?></div>
-                                                </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px;">
-                                                    <div style="font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Impact</div>
-                                                    <div style="font-size: 0.9rem; color: #cbd5e1; font-weight: 700;"><?= number_format($s['gi'], 2) ?></div>
+                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
+                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Facilitation</div>
+                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['atf'], 2) ?></div>
                                                 </div>
                                             </div>
                                         </div>

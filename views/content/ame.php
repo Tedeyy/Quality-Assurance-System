@@ -263,14 +263,15 @@ $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
                     $total_rating = 0;
                     $rated_count = 0;
                     foreach($activities as $act) {
-                        if($act['overall_average'] > 0) {
-                            $total_rating += $act['overall_average'];
+                        $score = (float) str_replace('%', '', $act['overall_average']);
+                        if($score > 0) {
+                            $total_rating += $score;
                             $rated_count++;
                         }
                     }
-                    $avg = $rated_count > 0 ? number_format($total_rating / $rated_count, 2) : '0.00';
+                    $avg = $rated_count > 0 ? number_format($total_rating / $rated_count, 2) . "%" : '0.00%';
                 ?>
-                <div style="font-size: 2rem; font-weight: 800; color: var(--accent-gold); margin-top: 5px;"><?= $avg ?> / 5.0</div>
+                <div style="font-size: 2rem; font-weight: 800; color: var(--accent-gold); margin-top: 5px;"><?= $avg ?></div>
                 <div style="margin-top: 10px; font-size: 0.8rem; color: #64748b;">Based on <?= $rated_count ?> evaluations</div>
             </div>
             <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
@@ -377,13 +378,13 @@ $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
                                     <div style="display: flex; flex-direction: column; gap: 8px;">
                                         <?php if ($activity['speaker']): ?>
                                             <div style="display: flex; align-items: center; gap: 8px;">
-                                                <div title="Speaker" style="width: 24px; height: 24px; background: #fee2e2; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #ef4444;">S</div>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                                 <span style="font-size: 0.85rem; color: #334155;"><?= htmlspecialchars($activity['speaker']) ?></span>
                                             </div>
                                         <?php endif; ?>
                                         <?php if ($activity['organizer']): ?>
                                             <div style="display: flex; align-items: center; gap: 8px;">
-                                                <div title="Organizer" style="width: 24px; height: 24px; background: #e0f2fe; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #0ea5e9;">O</div>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                                 <span style="font-size: 0.85rem; color: #334155;"><?= htmlspecialchars($activity['organizer']) ?></span>
                                             </div>
                                         <?php endif; ?>
@@ -417,7 +418,7 @@ $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
                                     <?php if ($activity['overall_average']): ?>
                                         <div style="display: flex; align-items: center; gap: 4px;">
                                             <svg width="14" height="14" fill="#DFB641" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                                            <span style="font-weight: 700; font-size: 0.9rem;"><?= number_format($activity['overall_average'], 1) ?></span>
+                                            <span style="font-weight: 700; font-size: 0.9rem;"><?= $activity['overall_average'] ?: '0%' ?></span>
                                         </div>
                                     <?php else: ?>
                                         <span style="color: #94a3b8; font-size: 0.85rem;">Pending</span>
