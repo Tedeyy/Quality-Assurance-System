@@ -320,13 +320,46 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ── DELETE ───────────────────────────────────────────────────────────────────
 if ($action === 'delete' && isset($_GET['id'])) {
+    $id = $_GET['id'];
     try {
-        // Junction rows will cascade or be cleaned separately; delete activity
-        $db->prepare("DELETE FROM activity_facilitators WHERE activity_id = :id")->execute([':id' => $_GET['id']]);
-        $db->prepare("DELETE FROM activities WHERE activity_id = :id")->execute([':id' => $_GET['id']]);
-        $_SESSION['success'] = "Activity deleted successfully!";
+        $db->beginTransaction();
+
+        // 1. Find evaluation_id
+        $stmt = $db->prepare("SELECT evaluation_id FROM activity_evaluation WHERE activity_id = :id");
+        $stmt->execute([':id' => $id]);
+        $eval = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($eval) {
+            $eid = $eval['evaluation_id'];
+            
+            // Delete related stats and ratings
+            $db->prepare("DELETE FROM activity_speaker_rating WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
+            $db->prepare("DELETE FROM activity_organizer_rating WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
+            $db->prepare("DELETE FROM activity_statistics WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
+            $db->prepare("DELETE FROM activity_statistics_others WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
+            $db->prepare("DELETE FROM activity_evaluation WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
+        }
+
+        // 2. Delete junction rows
+        $db->prepare("DELETE FROM activity_facilitators WHERE activity_id = :id")->execute([':id' => $id]);
+        $db->prepare("DELETE FROM activity_sdgs WHERE activity_id = :id")->execute([':id' => $id]);
+        $db->prepare("DELETE FROM activity_target_groups WHERE activity_id = :id")->execute([':id' => $id]);
+
+        // 3. Delete the activity itself
+        $db->prepare("DELETE FROM activities WHERE activity_id = :id")->execute([':id' => $id]);
+
+        // 4. Drop dynamic response table in the other database
+        require_once __DIR__ . '/../config/responses_database.php';
+        $rdb = (new ResponsesDatabase())->getConnection();
+        if ($rdb) {
+            $rdb->exec("DROP TABLE IF EXISTS activity_$id");
+        }
+
+        $db->commit();
+        $_SESSION['success'] = "Activity and all related evaluation data deleted successfully!";
         header("Location: ../views/feed.php?action=activity");
-    } catch (PDOException $e) {
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
         $_SESSION['error'] = "Error deleting activity: " . $e->getMessage();
         header("Location: ../views/feed.php?action=activity");
     }

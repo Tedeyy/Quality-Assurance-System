@@ -250,7 +250,11 @@ if ($rdb) {
     MailService::sendAcknowledgment($_POST['email'], $_POST['fullname'] ?: 'Valued Participant', $act_title, $summary);
 }
 
-echo "<div style='text-align:center; padding: 100px; font-family: sans-serif;'>
+echo "<script>
+        localStorage.removeItem('eval_data_" . $activity_id . "');
+        localStorage.removeItem('eval_step_" . $activity_id . "');
+      </script>
+      <div style='text-align:center; padding: 100px; font-family: sans-serif;'>
         <h1 style='color: #059669;'>Evaluation Submitted Successfully!</h1>
         <p>Thank you for your feedback. Your response has been recorded and analytics have been updated.</p>
         <a href='javascript:window.close()' style='color: #2563eb; text-decoration: none;'>Close Window</a>

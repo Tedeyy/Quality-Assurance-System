@@ -231,7 +231,7 @@ $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">Track, evaluate, and report institutional activities and faculty performance.</p>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                <button class="btn btn-secondary" onclick="openExportModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
@@ -245,6 +245,98 @@ $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
                 </button>
             </div>
         </div>
+
+        <!-- Export Modal -->
+        <div id="exportModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
+            <div style="background: white; width: 450px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; animation: modalPop 0.3s ease;">
+                <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                    <h2 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export Report
+                    </h2>
+                    <button onclick="closeExportModal()" style="background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Report Type</label>
+                        <select id="exportType" onchange="toggleExportFields()" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem;">
+                            <option value="all">All Activities</option>
+                            <option value="office_month">Office Performance (Monthly)</option>
+                            <option value="office_range">Office Performance (Date Range)</option>
+                        </select>
+                    </div>
+
+                    <div id="officeField" style="display: none; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Requesting Office</label>
+                        <select id="exportOffice" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem;">
+                            <option value="">Select Office</option>
+                            <?php foreach ($offices as $o): ?>
+                                <option value="<?= $o['office_id'] ?>"><?= htmlspecialchars($o['name']) ?> (<?= $o['acronym'] ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div id="monthField" style="display: none; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Select Month</label>
+                        <select id="exportMonth" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem;">
+                            <?php foreach ($months as $m): ?>
+                                <option value="<?= $m ?>"><?= $m ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div id="rangeFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">From</label>
+                            <input type="date" id="exportStart" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem;">
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">To</label>
+                            <input type="date" id="exportEnd" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem;">
+                        </div>
+                    </div>
+                </div>
+                <div style="padding: 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="closeExportModal()" style="padding: 12px 20px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 700; cursor: pointer; transition: all 0.2s;">Cancel</button>
+                    <button onclick="generateExport()" style="padding: 12px 24px; border-radius: 10px; border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">Download Excel</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function openExportModal() {
+                document.getElementById('exportModal').style.display = 'flex';
+            }
+            function closeExportModal() {
+                document.getElementById('exportModal').style.display = 'none';
+            }
+            function toggleExportFields() {
+                const type = document.getElementById('exportType').value;
+                document.getElementById('officeField').style.display = (type !== 'all') ? 'flex' : 'none';
+                document.getElementById('monthField').style.display = (type === 'office_month') ? 'flex' : 'none';
+                document.getElementById('rangeFields').style.display = (type === 'office_range') ? 'flex' : 'none';
+            }
+            function generateExport() {
+                const type = document.getElementById('exportType').value;
+                const office = document.getElementById('exportOffice').value;
+                const month = document.getElementById('exportMonth').value;
+                const start = document.getElementById('exportStart').value;
+                const end = document.getElementById('exportEnd').value;
+
+                let url = `../api/export_report.php?type=${type}`;
+                if (office) url += `&office_id=${office}`;
+                if (type === 'office_month' && month) url += `&month=${month}`;
+                if (type === 'office_range') {
+                    if (start) url += `&start_date=${start}`;
+                    if (end) url += `&end_date=${end}`;
+                }
+
+                window.location.href = url;
+                closeExportModal();
+            }
+        </script>
 
 
         <!-- Stats Overview -->
