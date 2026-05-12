@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../services/MailService.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -229,6 +230,24 @@ if ($rdb) {
         unit_distribution = :unit_distribution 
         WHERE evaluation_id = :eid")
        ->execute(array_merge($dist_results, ['eid' => $evaluation_id]));
+
+    // --- SEND EMAIL ACKNOWLEDGMENT ---
+    $act_stmt = $db->prepare("SELECT title FROM activities WHERE activity_id = :aid");
+    $act_stmt->execute(['aid' => $activity_id]);
+    $act_title = $act_stmt->fetchColumn();
+
+    $summary = [];
+    $label_map = [1 => 'Poor', 2 => 'Fair', 3 => 'Satisfactory', 4 => 'Very Satisfactory', 5 => 'Excellent'];
+    
+    // Core ratings
+    if (isset($_POST['osr'])) $summary['Overall Service Rating'] = $label_map[$_POST['osr']] ?? $_POST['osr'];
+    if (isset($_POST['oe'])) $summary['Overall Experience'] = $label_map[$_POST['oe']] ?? $_POST['oe'];
+    
+    // Feedback
+    if (isset($_POST['best_topics'])) $summary['Best Topics/Insights'] = htmlspecialchars($_POST['best_topics']);
+    if (isset($_POST['improvements'])) $summary['Suggested Improvements'] = htmlspecialchars($_POST['improvements']);
+
+    MailService::sendAcknowledgment($_POST['email'], $_POST['fullname'] ?: 'Valued Participant', $act_title, $summary);
 }
 
 echo "<div style='text-align:center; padding: 100px; font-family: sans-serif;'>

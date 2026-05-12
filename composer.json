@@ -1,6 +1,7 @@
 {
     "require": {
         "shuchkin/simplexlsx": "^1.1",
-        "google/apiclient": "^2.19"
+        "google/apiclient": "^2.19",
+        "phpmailer/phpmailer": "^7.0"
     }
 }
