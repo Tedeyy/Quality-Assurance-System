@@ -344,6 +344,49 @@ if ($evaluation) {
                         window.location.href = '../api/generate_ame_form.php?id=<?= $activity_id ?>';
                     }
                 }
+
+                async function toggleVisibility(evaluationId, activityId) {
+                    const btn    = document.getElementById('visibilityToggleBtn');
+                    const track  = document.getElementById('visToggleTrack');
+                    const thumb  = document.getElementById('visToggleThumb');
+                    const label  = document.getElementById('visToggleLabel');
+
+                    // Optimistic disable during request
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+
+                    try {
+                        const fd = new FormData();
+                        fd.append('activity_id', activityId);
+
+                        const res  = await fetch('../api/evaluation_settings.php?action=toggle_visibility', {
+                            method: 'POST', body: fd
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            const isNowOpen = (data.published_options === 'Open');
+
+                            // Animate pill
+                            track.style.background = isNowOpen ? '#10b981' : '#334155';
+                            thumb.style.left        = isNowOpen ? '19px'   : '3px';
+
+                            // Update label
+                            label.textContent   = isNowOpen ? 'Open' : 'Closed';
+                            label.style.color   = isNowOpen ? '#10b981' : '#94a3b8';
+
+                            // Update button border
+                            btn.style.borderColor = isNowOpen ? '#10b981' : 'rgba(255,255,255,0.1)';
+                        } else {
+                            alert('Failed to update visibility: ' + (data.error || 'Unknown error'));
+                        }
+                    } catch (e) {
+                        alert('Network error. Please try again.');
+                    } finally {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }
+                }
                 </script>
 
                 <style>
@@ -423,10 +466,28 @@ if ($evaluation) {
                                         Form
                                     </a>
                                 <?php endif; ?>
-                                <div style="background: rgba(255,255,255,0.03); padding: 10px 18px; border-radius: 10px; border: 1px solid <?= ($evaluation['published_options'] === 'Open') ? '#10b981' : 'rgba(255,255,255,0.1)' ?>; display: flex; flex-direction: column; justify-content: center;">
-                                    <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Visibility</div>
-                                    <div style="font-size: 0.85rem; font-weight: 700; color: <?= ($evaluation['published_options'] === 'Open') ? '#10b981' : '#cbd5e1' ?>;"><?= $evaluation['published_options'] ?: 'Closed' ?></div>
-                                </div>
+                                <?php
+                                    $isOpen   = ($evaluation['published_options'] === 'Open');
+                                    $togBorder = $isOpen ? '#10b981' : 'rgba(255,255,255,0.1)';
+                                    $togLabel  = $isOpen ? 'Open' : 'Closed';
+                                    $togColor  = $isOpen ? '#10b981' : '#94a3b8';
+                                ?>
+                                <button
+                                    id="visibilityToggleBtn"
+                                    onclick="toggleVisibility(<?= $evaluation['evaluation_id'] ?>, <?= $activity_id ?>)"
+                                    title="Toggle form visibility"
+                                    style="background: rgba(255,255,255,0.03); padding: 10px 18px; border-radius: 10px; border: 1px solid <?= $togBorder ?>; display: flex; flex-direction: column; justify-content: center; cursor: pointer; transition: all 0.25s; gap: 6px; min-width: 110px;"
+                                    onmouseover="this.style.background='rgba(255,255,255,0.07)'"
+                                    onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                                    <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; text-align: left;">Visibility</div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <!-- Pill switch -->
+                                        <div id="visToggleTrack" style="width: 36px; height: 20px; border-radius: 20px; background: <?= $isOpen ? '#10b981' : '#334155' ?>; position: relative; transition: background 0.25s; flex-shrink: 0;">
+                                            <div id="visToggleThumb" style="width: 14px; height: 14px; border-radius: 50%; background: white; position: absolute; top: 3px; left: <?= $isOpen ? '19px' : '3px' ?>; transition: left 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.3);"></div>
+                                        </div>
+                                        <span id="visToggleLabel" style="font-size: 0.85rem; font-weight: 700; color: <?= $togColor ?>;"><?= $togLabel ?></span>
+                                    </div>
+                                </button>
                                 <div style="background: rgba(255,255,255,0.03); padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; justify-content: center;">
                                     <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Status</div>
                                     <div style="font-size: 0.85rem; font-weight: 700; color: #10b981;"><?= $evaluation['evaluation_status'] ?></div>

@@ -3,13 +3,103 @@ require_once __DIR__ . '/config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
-$activity_id = $_GET['id'] ?? null;
-if (!$activity_id) die("Invalid Activity ID");
+$activity_code = $_GET['code'] ?? null;
+if (!$activity_code) die("Invalid Access Code");
 
-$stmt = $db->prepare("SELECT * FROM activities WHERE activity_id = :id");
-$stmt->execute(['id' => $activity_id]);
+$stmt = $db->prepare("SELECT * FROM activities WHERE activity_code = :code");
+$stmt->execute(['code' => $activity_code]);
 $activity = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$activity) die("Activity not found");
+
+$activity_id = $activity['activity_id'];
+
+// Gate: check if the evaluation form is open
+$eval_check = $db->prepare("SELECT published_options FROM activity_evaluation WHERE activity_id = :id");
+$eval_check->execute(['id' => $activity_id]);
+$eval_row = $eval_check->fetch(PDO::FETCH_ASSOC);
+$published_options = $eval_row['published_options'] ?? null;
+
+if ($published_options !== 'Open') {
+    // Determine a friendly reason
+    $reason = (!$eval_row)
+        ? "The evaluation form has not been generated yet."
+        : "The evaluation form is currently closed by the administrator.";
+    ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Closed — <?= htmlspecialchars($activity['title']) ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #f8fafc;
+        }
+        .card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 3rem 2.5rem;
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes pop {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to   { opacity: 1; transform: scale(1)   translateY(0);    }
+        }
+        .icon-wrap {
+            width: 72px; height: 72px;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        .icon-wrap svg { color: #ef4444; }
+        h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.75rem; color: #f8fafc; }
+        .activity-name {
+            font-size: 0.9rem; font-weight: 600; color: #60a5fa;
+            background: rgba(96,165,250,0.1);
+            padding: 6px 16px; border-radius: 20px; display: inline-block;
+            margin-bottom: 1.25rem;
+        }
+        p { font-size: 0.95rem; color: #94a3b8; line-height: 1.6; }
+        .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 1.5rem 0; }
+        .meta { font-size: 0.8rem; color: #475569; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon-wrap">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </div>
+        <h1>Form Closed</h1>
+        <div class="activity-name"><?= htmlspecialchars($activity['title']) ?></div>
+        <p><?= $reason ?></p>
+        <div class="divider"></div>
+        <p class="meta">If you believe this is an error, please contact the event organizer.</p>
+    </div>
+</body>
+</html>
+    <?php
+    exit;
+}
 
 // Parse Template
 $templatePath = __DIR__ . '/context/formtemplatespeaker';
@@ -167,6 +257,14 @@ if (!empty($fac_rows)) {
             border: 1px solid var(--border);
         }
         .btn-close-page:hover { background: #e2e8f0; }
+        .btn-prev {
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -421,13 +519,22 @@ if (!empty($fac_rows)) {
         </div>
     </div>
 
+    <!-- Form Closed Modal -->
+    <div id="closedModal" class="modal-overlay">
+        <div class="modal">
+            <h2>Form Closed</h2>
+            <p>The evaluation form has been closed by the administrator. You can no longer submit responses.</p>
+            <button type="button" class="btn-close-page" onclick="window.location.reload();">Close Page</button>
+        </div>
+    </div>
+
     <script>
         const totalSteps = <?= 5 + count($facilitators) ?>;
-        let currentStep = parseInt(localStorage.getItem('eval_step_<?= $activity_id ?>')) || 0;
+        let currentStep = parseInt(localStorage.getItem('eval_step_<?= $activity_code ?>')) || 0;
 
         // Auto-load saved data
         document.addEventListener('DOMContentLoaded', () => {
-            const savedData = JSON.parse(localStorage.getItem('eval_data_<?= $activity_id ?>') || '{}');
+            const savedData = JSON.parse(localStorage.getItem('eval_data_<?= $activity_code ?>') || '{}');
             for (let [name, value] of Object.entries(savedData)) {
                 const inputs = document.getElementsByName(name);
                 if (inputs.length > 0) {
@@ -462,24 +569,42 @@ if (!empty($fac_rows)) {
 
         // Auto-save data
         document.getElementById('evalForm').addEventListener('input', (e) => {
-            const formData = JSON.parse(localStorage.getItem('eval_data_<?= $activity_id ?>') || '{}');
+            const formData = JSON.parse(localStorage.getItem('eval_data_<?= $activity_code ?>') || '{}');
             if (e.target.type === 'radio') {
                 if (e.target.checked) formData[e.target.name] = e.target.value;
             } else {
                 formData[e.target.name] = e.target.value;
             }
-            localStorage.setItem('eval_data_<?= $activity_id ?>', JSON.stringify(formData));
+            localStorage.setItem('eval_data_<?= $activity_code ?>', JSON.stringify(formData));
         });
 
         function updateProgress(step) {
             const fill = document.getElementById('progressFill');
             fill.style.width = ((step / totalSteps) * 100) + '%';
-            localStorage.setItem('eval_step_<?= $activity_id ?>', step);
+            localStorage.setItem('eval_step_<?= $activity_code ?>', step);
+        }
+
+        async function checkFormStatus() {
+            try {
+                const response = await fetch(`api/check_form_status.php?code=<?= $activity_code ?>`);
+                const data = await response.json();
+                if (data.status !== 'Open') {
+                    document.getElementById('closedModal').style.display = 'flex';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                console.error("Status check failed", e);
+                return true; // Default to allow if check fails (optional)
+            }
         }
 
         async function nextSection(num) {
             if (!validateSection('sec' + num)) return;
             
+            // CHECK FORM STATUS
+            if (!await checkFormStatus()) return;
+
             // Check for duplicate email in Section 1
             if (num === 1) {
                 const email = document.querySelector('input[name="email"]').value;
@@ -541,8 +666,12 @@ if (!empty($fac_rows)) {
             updateProgress(currentStep);
         }
 
-        function nextFacSection(idx) {
+        async function nextFacSection(idx) {
             if (!validateSection('secFac' + idx)) return;
+            
+            // CHECK FORM STATUS
+            if (!await checkFormStatus()) return;
+
             document.getElementById('secFac' + idx).classList.remove('active');
             const nextIdx = idx + 1;
             if (document.getElementById('secFac' + nextIdx)) {
@@ -607,9 +736,15 @@ if (!empty($fac_rows)) {
         }
 
         // Clear storage on successful submit
-        document.getElementById('evalForm').onsubmit = () => {
-            localStorage.removeItem('eval_data_<?= $activity_id ?>');
-            localStorage.removeItem('eval_step_<?= $activity_id ?>');
+        document.getElementById('evalForm').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            // CHECK FORM STATUS
+            if (!await checkFormStatus()) return;
+
+            localStorage.removeItem('eval_data_<?= $activity_code ?>');
+            localStorage.removeItem('eval_step_<?= $activity_code ?>');
+            e.target.submit();
         };
     </script>
 </body>

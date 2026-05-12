@@ -27,6 +27,19 @@ function getOrInsertFacilitator($db, $name, $role) {
     return $db->lastInsertId();
 }
 
+function generateUniqueCode($db) {
+    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    do {
+        $code = '';
+        for ($i = 0; $i < 8; $i++) {
+            $code .= $chars[rand(0, strlen($chars) - 1)];
+        }
+        $stmt = $db->prepare("SELECT COUNT(*) FROM activities WHERE activity_code = :code");
+        $stmt->execute([':code' => $code]);
+    } while ($stmt->fetchColumn() > 0);
+    return $code;
+}
+
 /**
  * Sync activity_facilitators rows for a given activity.
  * Deletes all old rows and re-inserts the new set atomically (within the
@@ -85,17 +98,20 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $organizer_str            = implode(', ', $organizer_names);
         $target_participants_str  = implode(', ', $target_groups);
 
+        $activity_code = generateUniqueCode($db);
+
         // Insert Activity (keep legacy columns populated for any old tooling)
         $stmt = $db->prepare(
             "INSERT INTO activities
-                (title, description, speaker, organizer, eventdate, eventstatus, eventvenue,
+                (activity_code, title, description, speaker, organizer, eventdate, eventstatus, eventvenue,
                  requesting_office_id, number_of_participants, target_participants,
                  request_email_link, email_link)
              VALUES
-                (:title, :description, :speaker, :organizer, :eventdate, :eventstatus, :eventvenue,
+                (:code, :title, :description, :speaker, :organizer, :eventdate, :eventstatus, :eventvenue,
                  :office_id, :num_part, :target_participants, :request_email_link, :email_link)"
         );
         $stmt->execute([
+            ':code'               => $activity_code,
             ':title'              => $title,
             ':description'        => $description,
             ':speaker'            => $speaker_str,
@@ -138,14 +154,19 @@ if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ── GET (single activity for the edit modal) ─────────────────────────────────
-if ($action === 'get' && isset($_GET['id'])) {
+if ($action === 'get' && (isset($_GET['id']) || isset($_GET['code']))) {
     try {
-        $id = $_GET['id'];
-        $stmt = $db->prepare("SELECT * FROM activities WHERE activity_id = :id");
-        $stmt->execute([':id' => $id]);
+        if (isset($_GET['id'])) {
+            $stmt = $db->prepare("SELECT * FROM activities WHERE activity_id = :id");
+            $stmt->execute([':id' => $_GET['id']]);
+        } else {
+            $stmt = $db->prepare("SELECT * FROM activities WHERE activity_code = :code");
+            $stmt->execute([':code' => $_GET['code']]);
+        }
         $activity = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($activity) {
+            $id = $activity['activity_id'];
             // SDGs
             $sdg_stmt = $db->prepare("SELECT sdg_id FROM activity_sdgs WHERE activity_id = :id");
             $sdg_stmt->execute([':id' => $id]);

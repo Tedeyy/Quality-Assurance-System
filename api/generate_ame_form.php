@@ -88,9 +88,10 @@ try {
 }
 
 // 5. Update Database and Initialize Records
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+$activity_code = $data['activity_code'];
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$localUri = $protocol . "://" . $host . "/Quality-Assurance-System/evaluation.php?id=" . $activity_id;
+$localUri = $protocol . "://" . $host . "/Quality-Assurance-System/evaluation.php?code=" . $activity_code;
 
 // ── Fetch facilitators from junction table ───────────────────────────────────
 $fac_stmt = $db->prepare(
@@ -170,10 +171,10 @@ $eval = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($eval) {
     $evaluation_id = $eval['evaluation_id'];
-    $update = $db->prepare("UPDATE activity_evaluation SET ame_form_link = :link WHERE evaluation_id = :eid");
+    $update = $db->prepare("UPDATE activity_evaluation SET ame_form_link = :link, published_options = 'Open' WHERE evaluation_id = :eid");
     $update->execute(['link' => $localUri, 'eid' => $evaluation_id]);
 } else {
-    $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, evaluation_status) VALUES (:aid, :link, 'Pending')");
+    $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, evaluation_status, published_options) VALUES (:aid, :link, 'Pending', 'Open')");
     $insert->execute(['aid' => $activity_id, 'link' => $localUri]);
     $evaluation_id = $db->lastInsertId();
 }
