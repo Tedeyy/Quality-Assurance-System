@@ -21,7 +21,7 @@ $recent_activities_stmt = $db->query("
 ");
 $recent_activities = $recent_activities_stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<<main class="hero" style="min-height: calc(100vh - 200px); padding: 0; background: #f8fafc;">
+<main class="hero" style="min-height: calc(100vh - 200px); padding: 0; background: #f8fafc;">
     <div style="display: flex; min-height: calc(100vh - 200px);">
         
         <!-- Unified Left Sidebar -->
