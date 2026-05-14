@@ -305,6 +305,114 @@ if ($evaluation) {
                 </div>
 
                 <script>
+                function toggleInterpretDropdown(e) {
+                    e.stopPropagation();
+                    const dropdown = document.getElementById('interpretDropdown');
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                }
+
+                document.addEventListener('click', function() {
+                    const dropdown = document.getElementById('interpretDropdown');
+                    if (dropdown) dropdown.style.display = 'none';
+                });
+
+                async function runAIInterpretation() {
+                    if (!confirm('Run AI Analysis? This will overwrite current complaints and suggestions.')) return;
+                    
+                    const btn = event.currentTarget;
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = `<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Analyzing...`;
+
+                    try {
+                        const res = await fetch(`../api/analyze_feedback.php?id=<?= $activity_id ?>`);
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            document.getElementById('complaints-display').innerHTML = data.complaints.replace(/\n/g, '<br>');
+                            document.getElementById('suggestions-display').innerHTML = data.suggestions.replace(/\n/g, '<br>');
+                            document.getElementById('manualComplaints').value = data.complaints;
+                            document.getElementById('manualSuggestions').value = data.suggestions;
+                            alert('AI Analysis Complete!');
+                        } else {
+                            alert('AI Analysis Failed: ' + data.error);
+                        }
+                    } catch (e) {
+                        alert('Network error during AI analysis.');
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+
+                async function openManualInterpret() {
+                    document.getElementById('manualInterpretModal').style.display = 'flex';
+                    const tableBody = document.getElementById('rawResponsesTableBody');
+                    tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">Loading responses...</td></tr>';
+
+                    try {
+                        const res = await fetch(`../api/get_raw_responses.php?id=<?= $activity_id ?>`);
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            if (data.responses.length === 0) {
+                                tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">No responses found.</td></tr>';
+                            } else {
+                                tableBody.innerHTML = data.responses.map(r => `
+                                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5; border-right: 1px solid #f1f5f9;">${r.best_topics || '<span style="color: #cbd5e1;">N/A</span>'}</td>
+                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5;">${r.improvements || '<span style="color: #cbd5e1;">N/A</span>'}</td>
+                                    </tr>
+                                `).join('');
+                            }
+                        } else {
+                            tableBody.innerHTML = `<tr><td colspan="2" style="color: #ef4444; text-align: center; padding: 3rem;">Error: ${data.error}</td></tr>`;
+                        }
+                    } catch (e) {
+                        tableBody.innerHTML = '<tr><td colspan="2" style="color: #ef4444; text-align: center; padding: 3rem;">Failed to load responses.</td></tr>';
+                    }
+                }
+
+                function closeManualInterpret() {
+                    document.getElementById('manualInterpretModal').style.display = 'none';
+                }
+
+                async function saveManualInterpretation() {
+                    const btn = event.currentTarget;
+                    const complaints = document.getElementById('manualComplaints').value;
+                    const suggestions = document.getElementById('manualSuggestions').value;
+
+                    btn.disabled = true;
+                    btn.textContent = 'Saving...';
+
+                    try {
+                        const fd = new FormData();
+                        fd.append('activity_id', '<?= $activity_id ?>');
+                        fd.append('complaints', complaints);
+                        fd.append('suggestions', suggestions);
+
+                        const res = await fetch('../api/save_manual_interpretation.php', {
+                            method: 'POST',
+                            body: fd
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            document.getElementById('complaints-display').innerHTML = complaints.replace(/\n/g, '<br>');
+                            document.getElementById('suggestions-display').innerHTML = suggestions.replace(/\n/g, '<br>');
+                            closeManualInterpret();
+                            alert('Interpretation saved successfully!');
+                        } else {
+                            alert('Failed to save: ' + data.error);
+                        }
+                    } catch (e) {
+                        alert('Network error saving interpretation.');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Save Interpretation';
+                    }
+                }
+
                 function toggleAMEDropdown(e) {
                     e.stopPropagation();
                     const dropdown = document.getElementById('ameDropdown');
@@ -423,23 +531,99 @@ if ($evaluation) {
                         </div>
                     </div>
 
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="font-size: 1.1rem; color: var(--text-primary); margin: 0;">Evaluation Interpretation</h3>
+                        <div class="action-dropdown" style="position: relative;">
+                            <button onclick="toggleInterpretDropdown(event)" style="display: flex; align-items: center; gap: 8px; background: white; color: var(--accent-blue); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--accent-blue); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3.5l-1 4.5 4.5-1z"/></svg>
+                                Interpret Results
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div id="interpretDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: white; border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 180px; overflow: hidden;">
+                                <button onclick="runAIInterpretation()" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                    AI Interpret
+                                </button>
+                                <button onclick="openManualInterpret()" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    Manual Interpret
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
-                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
                             <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 6 0v-4"/><path d="M10 5h6a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z"/></svg>
                                 Complaints
                             </h4>
-                            <div style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
+                            <div id="complaints-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
                                 <?= $evaluation['complaints'] ? nl2br(htmlspecialchars($evaluation['complaints'])) : '<i>No complaints reported.</i>' ?>
                             </div>
                         </div>
-                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
                             <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 Suggestions for Improvement
                             </h4>
-                            <div style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
+                            <div id="suggestions-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
                                 <?= $evaluation['suggestions_for_improvement'] ? nl2br(htmlspecialchars($evaluation['suggestions_for_improvement'])) : '<i>No suggestions provided.</i>' ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Interpretation Modal -->
+                    <div id="manualInterpretModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
+                        <div style="background: white; width: 95%; max-width: 1200px; height: 85vh; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; animation: modalPop 0.3s ease;">
+                            <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                                <div>
+                                    <h2 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0;">Manual Interpretation</h2>
+                                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">Review raw responses and write your summary.</p>
+                                </div>
+                                <button onclick="closeManualInterpret()" style="background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 350px; flex: 1; overflow: hidden;">
+                                <!-- Raw Responses List -->
+                                <div style="padding: 24px; overflow-y: auto; background: #f8fafc; border-right: 1px solid #e2e8f0;">
+                                    <h3 style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Respondent Feedback</h3>
+                                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                                            <thead style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+                                                <tr>
+                                                    <th style="padding: 12px 16px; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 800; width: 50%;">Liked Best</th>
+                                                    <th style="padding: 12px 16px; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 800; width: 50%;">Least Liked / Improved</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="rawResponsesTableBody">
+                                                <!-- Dynamic rows -->
+                                                <tr>
+                                                    <td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">Loading responses...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <!-- Manual Input Form -->
+                                <div style="padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Complaints</label>
+                                        <textarea id="manualComplaints" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize common complaints..."><?= htmlspecialchars($evaluation['complaints'] ?? '') ?></textarea>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Suggestions</label>
+                                        <textarea id="manualSuggestions" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize suggestions for improvement..."><?= htmlspecialchars($evaluation['suggestions_for_improvement'] ?? '') ?></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                                <button onclick="closeManualInterpret()" style="padding: 10px 20px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 700; cursor: pointer; transition: all 0.2s;">Cancel</button>
+                                <button onclick="saveManualInterpretation()" style="padding: 10px 24px; border-radius: 10px; border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s;">Save Interpretation</button>
                             </div>
                         </div>
                     </div>

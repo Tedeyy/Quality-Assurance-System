@@ -36,7 +36,7 @@ footer {
     url("../img/nbsc_campus.jpg");
   background-size: cover;
   background-position: center;
-  padding: 2.5rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   color: white;
@@ -74,25 +74,25 @@ footer {
 .brand-subtitle {
   font-size: 1rem;
   opacity: 0.9;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .brand-description {
   font-size: 0.9rem;
-  line-height: 1.6;
+  line-height: 1.5;
   opacity: 0.8;
   max-width: 450px;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .quote-box {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 15px;
   backdrop-filter: blur(10px);
   margin-top: auto;
-  margin-bottom: 3rem;
+  margin-bottom: 1.5rem;
 }
 
 .quote-text {
@@ -138,7 +138,7 @@ footer {
 /* Right Pane */
 .login-form-pane {
   width: 400px;
-  padding: 2.5rem 2.5rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -147,8 +147,8 @@ footer {
 }
 
 .login-logo {
-  height: 80px;
-  margin-bottom: 2rem;
+  height: 60px;
+  margin-bottom: 1.5rem;
 }
 
 .auth-form {
@@ -228,9 +228,9 @@ footer {
 }
 
 .auth-links {
-  margin-top: 2rem;
+  margin-top: 1.2rem;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #64748b;
 }
 
