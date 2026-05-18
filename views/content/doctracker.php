@@ -27,13 +27,17 @@ $offices = $office_stmt->fetchAll(PDO::FETCH_COLUMN);
 $sys_offices_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
 $sys_offices = $sys_offices_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch all existing tags for the datalist drop-down list
+$all_tags_stmt = $db->query("SELECT tag_name FROM tags ORDER BY tag_name ASC");
+$existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
+
 // Confidentiality Labels
 $confidentiality_levels = [
-    1 => ['label' => 'Public', 'color' => '#10b981', 'bg' => '#ecfdf5', 'icon' => '🔓'],
-    2 => ['label' => 'Internal', 'color' => '#3b82f6', 'bg' => '#eff6ff', 'icon' => '🔒'],
-    3 => ['label' => 'Restricted', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => '🛡️'],
-    4 => ['label' => 'Confidential', 'color' => '#f97316', 'bg' => '#fff7ed', 'icon' => '🔑'],
-    5 => ['label' => 'Strictly Confidential', 'color' => '#ef4444', 'bg' => '#fef2f2', 'icon' => '🚨']
+    1 => ['label' => 'Public', 'color' => '#10b981', 'bg' => '#ecfdf5', 'icon' => ''],
+    2 => ['label' => 'Internal', 'color' => '#3b82f6', 'bg' => '#eff6ff', 'icon' => ''],
+    3 => ['label' => 'Restricted', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => ''],
+    4 => ['label' => 'Confidential', 'color' => '#f97316', 'bg' => '#fff7ed', 'icon' => ''],
+    5 => ['label' => 'Strictly Confidential', 'color' => '#ef4444', 'bg' => '#fef2f2', 'icon' => '']
 ];
 ?>
 
@@ -334,8 +338,13 @@ $confidentiality_levels = [
                                                 View Details
                                             </button>
                                             <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                                            <button class="dropdown-item" onclick="openEditModal(<?= $doc['doc_id'] ?>)">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                Edit Document
+                                            </button>
+                                            <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
                                             <button class="dropdown-item delete" onclick="deleteDocument(<?= $doc['doc_id'] ?>)">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                                 Delete Document
                                             </button>
                                         </div>
@@ -361,7 +370,7 @@ $confidentiality_levels = [
 
 <!-- Add Document Modal -->
 <div id="addDocModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
-    <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
+    <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; max-height: 90vh; overflow-y: auto; scrollbar-width: thin; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
             <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem; font-weight: 800;">Register & Map Document</h2>
             <button onclick="document.getElementById('addDocModal').style.display='none'" style="background: transparent; border: none; font-size: 1.8rem; cursor: pointer; color: #94a3b8; line-height: 1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</button>
@@ -401,11 +410,11 @@ $confidentiality_levels = [
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Confidentiality Level *</label>
                     <select name="confidentiality" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="1">Level 1 - Public 🔓</option>
-                        <option value="2">Level 2 - Internal 🔒</option>
-                        <option value="3">Level 3 - Restricted 🛡️</option>
-                        <option value="4">Level 4 - Confidential 🔑</option>
-                        <option value="5">Level 5 - Strictly Confidential 🚨</option>
+                        <option value="1">Level 1 - Public</option>
+                        <option value="2">Level 2 - Internal</option>
+                        <option value="3">Level 3 - Restricted</option>
+                        <option value="4">Level 4 - Confidential</option>
+                        <option value="5">Level 5 - Strictly Confidential</option>
                     </select>
                 </div>
             </div>
@@ -416,13 +425,105 @@ $confidentiality_levels = [
             </div>
 
             <div>
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Tags (Comma-separated)</label>
-                <input type="text" name="tags" placeholder="e.g. academic, compliance, faculty, evaluation" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Document Tags</label>
+                <div id="tags-inputs-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="tag-input-row" style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" name="tags[]" list="existing-tags-list" placeholder="Select or type a tag..." style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <button type="button" onclick="removeTagInputRow(this)" style="background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; border-radius: 8px; padding: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; font-weight: 700; transition: background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">&times;</button>
+                    </div>
+                </div>
+                <button type="button" onclick="addTagInputRow()" style="background: transparent; border: 1.5px dashed var(--accent-blue); color: var(--accent-blue); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; margin-bottom: 0.5rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(0, 28, 87, 0.04)'" onmouseout="this.style.background='transparent'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Tag Field
+                </button>
             </div>
+
+            <datalist id="existing-tags-list">
+                <?php foreach ($existing_tags as $et): ?>
+                    <option value="<?= htmlspecialchars($et) ?>"></option>
+                <?php endforeach; ?>
+            </datalist>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.2rem;">
                 <button type="button" onclick="document.getElementById('addDocModal').style.display='none'" class="btn" style="padding: 10px 20px; font-weight: 600; border: 1px solid var(--border-color); background: white; color: #475569; border-radius: 8px; cursor: pointer;">Cancel</button>
                 <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700; border-radius: 8px; cursor: pointer;">Register Document</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Document Modal -->
+<div id="editDocModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
+    <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; max-height: 90vh; overflow-y: auto; scrollbar-width: thin; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+            <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem; font-weight: 800;">Edit Mapped Document</h2>
+            <button onclick="document.getElementById('editDocModal').style.display='none'" style="background: transparent; border: none; font-size: 1.8rem; cursor: pointer; color: #94a3b8; line-height: 1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+        </div>
+
+        <form action="../api/documents.php?action=edit" method="POST" style="display: flex; flex-direction: column; gap: 1.2rem;">
+            <input type="hidden" name="doc_id" id="edit_doc_id">
+
+            <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Document Code *</label>
+                <input type="text" name="doc_code" id="edit_doc_code" required placeholder="e.g. ISO-2015-QMS-01" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+            </div>
+
+            <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Office of Origin *</label>
+                <select name="office_of_origin" id="edit_office_of_origin" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white; cursor: pointer;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <option value="">Select Office</option>
+                    <?php foreach ($sys_offices as $sys_o): ?>
+                        <option value="<?= htmlspecialchars($sys_o['name']) ?>"><?= htmlspecialchars($sys_o['name']) ?> (<?= htmlspecialchars($sys_o['acronym']) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Category *</label>
+                    <select name="category" id="edit_category" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <option value="Policy">Policy</option>
+                        <option value="Manual">Manual</option>
+                        <option value="Guidelines">Guidelines</option>
+                        <option value="SOP">Standard Operating Procedure (SOP)</option>
+                        <option value="Form">Form / Checklist</option>
+                        <option value="Report">Official Report</option>
+                        <option value="Minutes">Minutes of Meeting</option>
+                        <option value="Contract">Contracts & Memorandums</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Confidentiality Level *</label>
+                    <select name="confidentiality" id="edit_confidentiality" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <option value="1">Level 1 - Public</option>
+                        <option value="2">Level 2 - Internal</option>
+                        <option value="3">Level 3 - Restricted</option>
+                        <option value="4">Level 4 - Confidential</option>
+                        <option value="5">Level 5 - Strictly Confidential</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Purpose / Scope of Use</label>
+                <textarea name="purpose" id="edit_purpose" rows="3" placeholder="Describe the document's goal, application scope, or purpose..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; resize: vertical;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'"></textarea>
+            </div>
+
+            <div>
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Document Tags</label>
+                <div id="edit_tags_inputs_container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- dynamic edit tags row appended by JS -->
+                </div>
+                <button type="button" onclick="addEditTagInputRow()" style="background: transparent; border: 1.5px dashed var(--accent-blue); color: var(--accent-blue); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; margin-bottom: 0.5rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(0, 28, 87, 0.04)'" onmouseout="this.style.background='transparent'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Tag Field
+                </button>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.2rem;">
+                <button type="button" onclick="document.getElementById('editDocModal').style.display='none'" class="btn" style="padding: 10px 20px; font-weight: 600; border: 1px solid var(--border-color); background: white; color: #475569; border-radius: 8px; cursor: pointer;">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700; border-radius: 8px; cursor: pointer;">Save Changes</button>
             </div>
         </form>
     </div>
@@ -703,6 +804,101 @@ $confidentiality_levels = [
                   .replace(/>/g, '&gt;')
                   .replace(/"/g, '&quot;')
                   .replace(/'/g, '&#039;');
+    }
+
+    function addTagInputRow() {
+        const container = document.getElementById('tags-inputs-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'tag-input-row';
+        newRow.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+        newRow.innerHTML = `
+            <input type="text" name="tags[]" list="existing-tags-list" placeholder="Select or type a tag..." style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+            <button type="button" onclick="removeTagInputRow(this)" style="background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; border-radius: 8px; padding: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; font-weight: 700; transition: background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">&times;</button>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function removeTagInputRow(btn) {
+        const container = document.getElementById('tags-inputs-container');
+        const rows = container.querySelectorAll('.tag-input-row');
+        if (rows.length > 1) {
+            btn.closest('.tag-input-row').remove();
+        } else {
+            btn.closest('.tag-input-row').querySelector('input').value = '';
+        }
+    }
+
+    async function openEditModal(id) {
+        try {
+            const response = await fetch(`../api/documents.php?action=get&doc_id=${id}`);
+            if (!response.ok) throw new Error('Network error');
+            const res = await response.json();
+            
+            if (res.success) {
+                const doc = res.data;
+                
+                document.getElementById('edit_doc_id').value = doc.doc_id;
+                document.getElementById('edit_doc_code').value = doc.doc_code;
+                document.getElementById('edit_office_of_origin').value = doc.office_of_origin;
+                document.getElementById('edit_category').value = doc.category;
+                document.getElementById('edit_confidentiality').value = doc.confidentiality;
+                document.getElementById('edit_purpose').value = doc.purpose || '';
+                
+                // Populating dynamic tags in edit modal
+                const container = document.getElementById('edit_tags_inputs_container');
+                container.innerHTML = ''; // clear previous
+                
+                if (doc.tags && doc.tags.length > 0) {
+                    doc.tags.forEach((tag) => {
+                        const row = document.createElement('div');
+                        row.className = 'tag-input-row';
+                        row.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+                        row.innerHTML = `
+                            <input type="text" name="tags[]" list="existing-tags-list" value="${escapeHtml(tag)}" placeholder="Select or type a tag..." style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                            <button type="button" onclick="removeEditTagInputRow(this)" style="background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; border-radius: 8px; padding: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; font-weight: 700; transition: background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">&times;</button>
+                        `;
+                        container.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('div');
+                    row.className = 'tag-input-row';
+                    row.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+                    row.innerHTML = `
+                        <input type="text" name="tags[]" list="existing-tags-list" placeholder="Select or type a tag..." style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <button type="button" onclick="removeEditTagInputRow(this)" style="background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; border-radius: 8px; padding: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; font-weight: 700; transition: background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">&times;</button>
+                    `;
+                    container.appendChild(row);
+                }
+                
+                document.getElementById('editDocModal').style.display = 'flex';
+            } else {
+                alert('Failed to load document data: ' + res.message);
+            }
+        } catch (e) {
+            alert('Error loading document: ' + e.message);
+        }
+    }
+
+    function addEditTagInputRow() {
+        const container = document.getElementById('edit_tags_inputs_container');
+        const newRow = document.createElement('div');
+        newRow.className = 'tag-input-row';
+        newRow.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+        newRow.innerHTML = `
+            <input type="text" name="tags[]" list="existing-tags-list" placeholder="Select or type a tag..." style="flex: 1; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+            <button type="button" onclick="removeEditTagInputRow(this)" style="background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; border-radius: 8px; padding: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; font-weight: 700; transition: background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">&times;</button>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function removeEditTagInputRow(btn) {
+        const container = document.getElementById('edit_tags_inputs_container');
+        const rows = container.querySelectorAll('.tag-input-row');
+        if (rows.length > 1) {
+            btn.closest('.tag-input-row').remove();
+        } else {
+            btn.closest('.tag-input-row').querySelector('input').value = '';
+        }
     }
 
     // Close action menus when clicking outside

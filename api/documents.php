@@ -13,11 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $category = trim($_POST['category'] ?? '');
         $purpose = trim($_POST['purpose'] ?? '');
         $confidentiality = (int)($_POST['confidentiality'] ?? 1);
-        $tags_input = trim($_POST['tags'] ?? '');
+        $tags_input = $_POST['tags'] ?? '';
         
         if (empty($doc_code) || empty($office_of_origin) || empty($category)) {
             $_SESSION['error'] = 'Document Code, Office of Origin, and Category are required.';
-            header('Location: ../views/feed.php?action=document');
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
             exit;
         }
 
@@ -40,7 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // 2. Link Tags
             if (!empty($tags_input)) {
-                $tags_arr = array_filter(array_map('trim', explode(',', $tags_input)));
+                $tags_arr = [];
+                if (is_array($tags_input)) {
+                    $tags_arr = array_filter(array_map('trim', $tags_input));
+                } else {
+                    $tags_arr = array_filter(array_map('trim', explode(',', $tags_input)));
+                }
+
                 foreach ($tags_arr as $tname) {
                     if (empty($tname)) continue;
                     
@@ -69,12 +76,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 logActivity($db, $_SESSION['user_id'] ?? 0, "Registered new document: $doc_code ($category)");
             }
 
-            header('Location: ../views/feed.php?action=document');
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
             exit;
         } catch (PDOException $e) {
             $db->rollBack();
             $_SESSION['error'] = 'Failed to register document: ' . $e->getMessage();
-            header('Location: ../views/feed.php?action=document');
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
+            exit;
+        }
+    } elseif ($action === 'edit') {
+        $doc_id = $_POST['doc_id'] ?? null;
+        $doc_code = trim($_POST['doc_code'] ?? '');
+        $office_of_origin = trim($_POST['office_of_origin'] ?? '');
+        $category = trim($_POST['category'] ?? '');
+        $purpose = trim($_POST['purpose'] ?? '');
+        $confidentiality = (int)($_POST['confidentiality'] ?? 1);
+        $tags_input = $_POST['tags'] ?? '';
+
+        if (empty($doc_id) || empty($doc_code) || empty($office_of_origin) || empty($category)) {
+            $_SESSION['error'] = 'Required fields missing for document update.';
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
+            exit;
+        }
+
+        try {
+            $db->beginTransaction();
+
+            // 1. Update Document
+            $stmt = $db->prepare("
+                UPDATE documents 
+                SET doc_code = :doc_code, 
+                    office_of_origin = :office_of_origin, 
+                    category = :category, 
+                    purpose = :purpose, 
+                    confidentiality = :confidentiality 
+                WHERE doc_id = :doc_id
+            ");
+            $stmt->execute([
+                'doc_code' => $doc_code,
+                'office_of_origin' => $office_of_origin,
+                'category' => $category,
+                'purpose' => $purpose ?: null,
+                'confidentiality' => $confidentiality,
+                'doc_id' => $doc_id
+            ]);
+
+            // 2. Clear existing tags links
+            $del_tags = $db->prepare("DELETE FROM document_tags WHERE doc_id = :doc_id");
+            $del_tags->execute(['doc_id' => $doc_id]);
+
+            // 3. Insert new tag mappings
+            if (!empty($tags_input)) {
+                $tags_arr = [];
+                if (is_array($tags_input)) {
+                    $tags_arr = array_filter(array_map('trim', $tags_input));
+                } else {
+                    $tags_arr = array_filter(array_map('trim', explode(',', $tags_input)));
+                }
+
+                foreach ($tags_arr as $tname) {
+                    if (empty($tname)) continue;
+
+                    // Try to insert/get tag
+                    $tag_stmt = $db->prepare("SELECT tag_id FROM tags WHERE tag_name = :tname");
+                    $tag_stmt->execute(['tname' => $tname]);
+                    $tag_id = $tag_stmt->fetchColumn();
+
+                    if (!$tag_id) {
+                        $ins_tag = $db->prepare("INSERT INTO tags (tag_name) VALUES (:tname)");
+                        $ins_tag->execute(['tname' => $tname]);
+                        $tag_id = $db->lastInsertId();
+                    }
+
+                    // Link to document
+                    $link_stmt = $db->prepare("INSERT IGNORE INTO document_tags (doc_id, tag_id) VALUES (:doc_id, :tag_id)");
+                    $link_stmt->execute(['doc_id' => $doc_id, 'tag_id' => $tag_id]);
+                }
+            }
+
+            $db->commit();
+            $_SESSION['success'] = 'Document updated successfully!';
+
+            if (function_exists('logActivity')) {
+                logActivity($db, $_SESSION['user_id'] ?? 0, "Updated document: $doc_code ($category)");
+            }
+
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
+            exit;
+        } catch (PDOException $e) {
+            $db->rollBack();
+            $_SESSION['error'] = 'Failed to update document: ' . $e->getMessage();
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
             exit;
         }
     }
@@ -85,7 +182,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $doc_id = $_GET['doc_id'] ?? null;
         if (empty($doc_id)) {
             $_SESSION['error'] = 'Document ID is required.';
-            header('Location: ../views/feed.php?action=document');
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
             exit;
         }
 
@@ -94,11 +192,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $stmt->execute(['id' => $doc_id]);
 
             $_SESSION['success'] = 'Document deleted successfully!';
-            header('Location: ../views/feed.php?action=document');
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
             exit;
         } catch (PDOException $e) {
             $_SESSION['error'] = 'Failed to delete document: ' . $e->getMessage();
-            header('Location: ../views/feed.php?action=document');
+            $redirect_url = $_POST['redirect_url'] ?? $_GET['redirect_url'] ?? '../views/feed.php?action=document';
+            header('Location: ' . $redirect_url);
             exit;
         }
     } elseif ($action === 'get') {
