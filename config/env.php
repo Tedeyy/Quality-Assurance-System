@@ -21,12 +21,11 @@ function loadEnv($path) {
             if (preg_match('/^"(.*)"$/', $value, $matches) || preg_match("/^'(.*)'$/", $value, $matches)) {
                 $value = $matches[1];
             }
-            
-            if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
-                putenv(sprintf('%s=%s', $name, $value));
-                $_ENV[$name] = $value;
-                $_SERVER[$name] = $value;
-            }
+            // Always overwrite $_ENV and $_SERVER so that .env takes precedence over server defaults.
+            // Use @ to safely suppress warnings if putenv() is disabled on shared hosting.
+            @putenv(sprintf('%s=%s', $name, $value));
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
         }
     }
     return true;
@@ -34,3 +33,4 @@ function loadEnv($path) {
 
 // Automatically load .env from the root directory when this file is included
 loadEnv(__DIR__ . '/../.env');
+
