@@ -1,8 +1,8 @@
     <footer>
         <div class="footer-content">
             <div class="footer-brand">
-                <h3>QA System</h3>
-                <p>Your one-stop solution for quality assurance.</p>
+                <img src="../assets/img/NBSC_logo.png" alt="NBSC Logo" style="height: 90px; width: auto;">
+                <img src="../assets/img/QAO_logo.png" alt="QAO Logo" style="height: 90px; width: auto;">
             </div>
             <div class="footer-links">
                 <p>Follow us</p>

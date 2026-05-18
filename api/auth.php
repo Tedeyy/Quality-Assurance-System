@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $stmt = $db->prepare("SELECT user_id, fname, password, position FROM users WHERE email = :email LIMIT 1");
+            $stmt = $db->prepare("SELECT user_id, fname, password, position, office_id FROM users WHERE email = :email LIMIT 1");
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -83,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['user_fname'] = $user['fname'];
                 $_SESSION['user_position'] = $user['position'] ?? 'user';
+                $_SESSION['user_office_id'] = $user['office_id'];
                 $_SESSION['success'] = 'Welcome back, ' . htmlspecialchars($user['fname']) . '!';
 
                 // Log the login
@@ -163,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'client_id' => $client_id,
             'redirect_uri' => $redirect_uri,
             'response_type' => 'code',
-            'scope' => 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.file',
+            'scope' => 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/forms.body https://www.googleapis.com/auth/spreadsheets',
             'access_type' => 'offline',
             'prompt' => 'consent select_account'
         ];

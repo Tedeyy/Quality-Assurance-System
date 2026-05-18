@@ -47,6 +47,44 @@ class AIService {
         }
     }
 
+    public function interpretFeedback($responses) {
+        try {
+            if (!$this->apiKey) {
+                return ["error" => "Gemini API Key not configured in .env"];
+            }
+
+            $prompt = "You are a Quality Assurance analyst. Analyze the following respondent feedback from an institutional activity and provide a summarized interpretation.
+
+            DATA:
+            " . json_encode($responses) . "
+
+            INSTRUCTIONS:
+            1. Extract common themes for 'Complaints' (things that went wrong or were disliked).
+            2. Extract 'Suggestions for Improvement' (actionable feedback).
+            3. Return the results in a valid JSON format with keys: 'complaints' and 'suggestions'.
+            4. Keep descriptions professional, concise, and grouped by theme. 
+            5. If there are no complaints or suggestions, state 'None reported'.
+
+            OUTPUT FORMAT:
+            {
+                \"complaints\": \"Summary text here...\",
+                \"suggestions\": \"Summary text here...\"
+            }";
+
+            $response = $this->callGemini($prompt);
+            
+            // Extract JSON if AI wraps it in markdown blocks
+            if (preg_match('/\{.*\}/s', $response, $matches)) {
+                $json = json_decode($matches[0], true);
+                if ($json) return $json;
+            }
+
+            return ["error" => "Failed to parse AI response: " . $response];
+        } catch (Exception $e) {
+            return ["error" => "AI Analysis failed: " . $e->getMessage()];
+        }
+    }
+
     private function callGemini($prompt) {
         // Use gemini-flash-latest as verified in the model list
         $model = "gemini-flash-latest";

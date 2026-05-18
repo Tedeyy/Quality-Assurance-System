@@ -1,147 +1,359 @@
-create database quality_assurance_system;
-use quality_assurance_system;
+DROP TABLE IF EXISTS `accreditation_categories`;
 
-CREATE TABLE divisions (
-    division_id INT AUTO_INCREMENT PRIMARY KEY,
-    acronym TEXT NOT NULL,
-    name TEXT NOT NULL,
-    parent_division_id INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_division_id) REFERENCES divisions(division_id)
-);
+CREATE TABLE `accreditation_categories` (
+  `category_id` int(11) NOT NULL AUTO_INCREMENT,
+  `accreditation_id` int(11) DEFAULT NULL,
+  `parent_category_id` int(11) DEFAULT NULL,
+  `name` text NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`category_id`),
+  KEY `accreditation_id` (`accreditation_id`),
+  KEY `parent_category_id` (`parent_category_id`),
+  CONSTRAINT `accreditation_categories_ibfk_1` FOREIGN KEY (`accreditation_id`) REFERENCES `accreditations` (`accreditation_id`),
+  CONSTRAINT `accreditation_categories_ibfk_2` FOREIGN KEY (`parent_category_id`) REFERENCES `accreditation_categories` (`category_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE divisions_offices (
-    office_id INT AUTO_INCREMENT PRIMARY KEY,
-    acronym TEXT NOT NULL,
-    name TEXT NOT NULL,
-    division_id INT,
-    parent_office_id INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (division_id) REFERENCES divisions(division_id),
-    FOREIGN KEY (parent_office_id) REFERENCES divisions_offices(office_id)
-);
+DROP TABLE IF EXISTS `accreditation_requirement`;
 
-CREATE TABLE divisions_sections (
-    section_id INT AUTO_INCREMENT PRIMARY KEY,
-    acronym TEXT NOT NULL,
-    name TEXT NOT NULL,
-    office_id INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (office_id) REFERENCES divisions_offices(office_id)
-);
+CREATE TABLE `accreditation_requirement` (
+  `requirement_id` int(11) NOT NULL AUTO_INCREMENT,
+  `category_id` int(11) DEFAULT NULL,
+  `name` text NOT NULL,
+  `codename` int(11) DEFAULT NULL,
+  `parent_requirement_id` int(11) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`requirement_id`),
+  KEY `category_id` (`category_id`),
+  KEY `accreditation_requirement_ibfk_2` (`parent_requirement_id`),
+  CONSTRAINT `accreditation_requirement_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `accreditation_categories` (`category_id`) ON DELETE CASCADE,
+  CONSTRAINT `accreditation_requirement_ibfk_2` FOREIGN KEY (`parent_requirement_id`) REFERENCES `accreditation_requirement` (`requirement_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE divisions_programs (
-    program_id INT AUTO_INCREMENT PRIMARY KEY,
-    acronym TEXT NOT NULL,
-    name TEXT NOT NULL,
-    section_id INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (section_id) REFERENCES divisions_sections(section_id)
-);
+DROP TABLE IF EXISTS `accreditation_requirement_submissions`;
 
-CREATE TABLE users (
-    user_id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    google_id TEXT UNIQUE,
-    google_access_token TEXT,
-    google_refresh_token TEXT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL, -- encypted
-    fname TEXT NOT NULL,
-    lname TEXT NOT NULL,
-    birthdate DATE,
-    gender ENUM('Male', 'Female', 'Others'),
-    address TEXT,
-    province TEXT,
-    city TEXT,
-    barangay TEXT,
-    contact_number VARCHAR(11),
-    division_id INT,
-    office_id INT,
-    position TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (division_id) REFERENCES divisions(division_id),
-    FOREIGN KEY (office_id) REFERENCES divisions_offices(office_id)
-);
+CREATE TABLE `accreditation_requirement_submissions` (
+  `submission_id` int(11) NOT NULL AUTO_INCREMENT,
+  `requirement_id` int(11) NOT NULL,
+  `division_id` int(11) NOT NULL,
+  `office_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `status` enum('Pending','Uploaded','Approved','Returned') DEFAULT 'Pending',
+  `google_drive_file_id` text DEFAULT NULL,
+  `google_drive_link` text DEFAULT NULL,
+  `file_path` text DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
+  `marked_by` int(11) DEFAULT NULL,
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`submission_id`),
+  KEY `requirement_id` (`requirement_id`),
+  KEY `division_id` (`division_id`),
+  KEY `office_id` (`office_id`),
+  KEY `user_id` (`user_id`),
+  KEY `marked_by` (`marked_by`),
+  CONSTRAINT `accreditation_requirement_submissions_ibfk_1` FOREIGN KEY (`requirement_id`) REFERENCES `accreditation_requirement` (`requirement_id`),
+  CONSTRAINT `accreditation_requirement_submissions_ibfk_2` FOREIGN KEY (`division_id`) REFERENCES `divisions` (`division_id`),
+  CONSTRAINT `accreditation_requirement_submissions_ibfk_3` FOREIGN KEY (`office_id`) REFERENCES `divisions_offices` (`office_id`),
+  CONSTRAINT `accreditation_requirement_submissions_ibfk_4` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
+  CONSTRAINT `accreditation_requirement_submissions_ibfk_5` FOREIGN KEY (`marked_by`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE accreditations(
-    accreditation_id INT AUTO_INCREMENT PRIMARY KEY,
-    code TEXT NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    deadline DATE,
-    status ENUM ('In Progress', 'Completed', 'Inactive'),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+DROP TABLE IF EXISTS `accreditations`;
 
-CREATE TABLE accreditation_categories(
-    category_id INT AUTO_INCREMENT PRIMARY KEY,
-    accreditation_id INT,
-    parent_category_id INT DEFAULT NULL,
-    name TEXT NOT NULL,
-    FOREIGN KEY (accreditation_id) REFERENCES accreditations(accreditation_id) ON DELETE CASCADE,
-    FOREIGN KEY (parent_category_id) REFERENCES accreditation_categories(category_id) ON DELETE CASCADE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+CREATE TABLE `accreditations` (
+  `accreditation_id` int(11) NOT NULL AUTO_INCREMENT,
+  `code` text NOT NULL,
+  `name` text NOT NULL,
+  `description` text DEFAULT NULL,
+  `deadline` date DEFAULT NULL,
+  `status` enum('In Progress','Completed','Inactive') DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`accreditation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE accreditation_requirement(
-    requirement_id INT AUTO_INCREMENT PRIMARY KEY,
-    category_id INT,
-    name TEXT NOT NULL,
-    codename TEXT,
-    parent_requirement_id INT DEFAULT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES accreditation_categories(category_id) ON DELETE CASCADE,
-    FOREIGN KEY (parent_requirement_id) REFERENCES accreditation_requirement(requirement_id) ON DELETE CASCADE
-);
+DROP TABLE IF EXISTS `activities`;
 
-CREATE TABLE accreditation_requirement_submissions (
-    submission_id INT AUTO_INCREMENT PRIMARY KEY,
-    requirement_id INT NOT NULL,
-    division_id INT NOT NULL,
-    office_id INT NOT NULL,
-    user_id INT NOT NULL,
-    status ENUM('Pending', 'Disapproved', 'Approved') DEFAULT 'Pending',
-    google_drive_file_id TEXT,
-    google_drive_link TEXT,
-    file_path TEXT,
-    remarks TEXT,
-    marked_by INT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (requirement_id) REFERENCES accreditation_requirement(requirement_id),
-    FOREIGN KEY (division_id) REFERENCES divisions(division_id),
-    FOREIGN KEY (office_id) REFERENCES divisions_offices(office_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (marked_by) REFERENCES users(user_id)
-);
+CREATE TABLE `activities` (
+  `activity_id` int(11) NOT NULL AUTO_INCREMENT,
+  `activity_code` varchar(100) DEFAULT NULL,
+  `title` text NOT NULL,
+  `description` text NOT NULL,
+  `request_email_link` text DEFAULT NULL,
+  `email_link` text DEFAULT NULL,
+  `requesting_office_id` int(11) DEFAULT NULL,
+  `speaker` varchar(255) DEFAULT NULL,
+  `organizer` varchar(255) DEFAULT NULL,
+  `target_participants` text DEFAULT NULL,
+  `number_of_participants` int(11) DEFAULT NULL,
+  `eventvenue` text DEFAULT NULL,
+  `eventdate` datetime DEFAULT NULL,
+  `duration` varchar(100) DEFAULT NULL,
+  `eventstatus` enum('Pending','Ongoing','Completed') DEFAULT 'Pending',
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`activity_id`),
+  UNIQUE KEY `activity_code` (`activity_code`),
+  KEY `requesting_office_id` (`requesting_office_id`),
+  CONSTRAINT `activities_ibfk_2` FOREIGN KEY (`requesting_office_id`) REFERENCES `divisions_offices` (`office_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE user_login(
-    login_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    login_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
+DROP TABLE IF EXISTS `activity_evaluation`;
 
-CREATE TABLE user_activity(
-    activity_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    activity_description TEXT,
-    activity_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-);
+CREATE TABLE `activity_evaluation` (
+  `evaluation_id` int(11) NOT NULL AUTO_INCREMENT,
+  `activity_id` int(11) DEFAULT NULL,
+  `ame_form_link` text DEFAULT NULL,
+  `number_of_respondents` int(11) DEFAULT NULL,
+  `response_rate` float DEFAULT NULL,
+  `complaints` text DEFAULT NULL,
+  `suggestions_for_improvement` text DEFAULT NULL,
+  `published_options` enum('Open','Closed') DEFAULT NULL,
+  `date_released` date DEFAULT NULL,
+  `deadline` date DEFAULT NULL,
+  `evaluation_status` enum('Pending','In Progress','Completed','Overdue') DEFAULT 'Pending',
+  `justification_letter` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`evaluation_id`),
+  KEY `activity_id` (`activity_id`),
+  CONSTRAINT `activity_evaluation_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`activity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE news(
-    news_id INT AUTO_INCREMENT PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    event_date DATE NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+DROP TABLE IF EXISTS `activity_facilitators`;
+
+CREATE TABLE `activity_facilitators` (
+  `af_id` int(11) NOT NULL AUTO_INCREMENT,
+  `activity_id` int(11) NOT NULL,
+  `person_id` int(11) NOT NULL,
+  `role` enum('speaker','organizer') NOT NULL,
+  PRIMARY KEY (`af_id`),
+  UNIQUE KEY `uq_af` (`activity_id`,`person_id`,`role`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `activity_organizer_rating`;
+
+CREATE TABLE `activity_organizer_rating` (
+  `organizer_rating_id` int(11) NOT NULL AUTO_INCREMENT,
+  `evaluation_id` int(11) DEFAULT NULL,
+  `eff` float DEFAULT 0,
+  `organizer_id` int(11) NOT NULL,
+  `mot` float DEFAULT NULL,
+  `atf` float DEFAULT 0,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`organizer_rating_id`),
+  KEY `evaluation_id` (`evaluation_id`),
+  KEY `organizer_id` (`organizer_id`),
+  CONSTRAINT `activity_organizer_rating_ibfk_1` FOREIGN KEY (`evaluation_id`) REFERENCES `activity_evaluation` (`evaluation_id`),
+  CONSTRAINT `activity_organizer_rating_ibfk_2` FOREIGN KEY (`organizer_id`) REFERENCES `organizers` (`organizer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `activity_sdgs`;
+
+CREATE TABLE `activity_sdgs` (
+  `activity_id` int(11) NOT NULL,
+  `sdg_id` int(11) NOT NULL,
+  PRIMARY KEY (`activity_id`,`sdg_id`),
+  KEY `sdg_id` (`sdg_id`),
+  CONSTRAINT `activity_sdgs_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`activity_id`) ON DELETE CASCADE,
+  CONSTRAINT `activity_sdgs_ibfk_2` FOREIGN KEY (`sdg_id`) REFERENCES `sdgs` (`sdg_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `activity_speaker_rating`;
+
+CREATE TABLE `activity_speaker_rating` (
+  `speaker_rating_id` int(11) NOT NULL AUTO_INCREMENT,
+  `evaluation_id` int(11) DEFAULT NULL,
+  `eff` float DEFAULT 0,
+  `speaker_id` int(11) NOT NULL,
+  `mot` float DEFAULT NULL,
+  `atf` float DEFAULT 0,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`speaker_rating_id`),
+  KEY `evaluation_id` (`evaluation_id`),
+  KEY `speaker_id` (`speaker_id`),
+  CONSTRAINT `activity_speaker_rating_ibfk_1` FOREIGN KEY (`evaluation_id`) REFERENCES `activity_evaluation` (`evaluation_id`),
+  CONSTRAINT `activity_speaker_rating_ibfk_2` FOREIGN KEY (`speaker_id`) REFERENCES `speakers` (`speaker_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `activity_statistics`;
+
+CREATE TABLE `activity_statistics` (
+  `statistics_id` int(11) NOT NULL AUTO_INCREMENT,
+  `evaluation_id` int(11) DEFAULT NULL,
+  `osr` varchar(255) DEFAULT '0%',
+  `osr_wa` varchar(255) DEFAULT '0%',
+  `peor` varchar(255) DEFAULT '0%',
+  `peor_wa` varchar(255) DEFAULT '0%',
+  `pam` varchar(255) DEFAULT '0%',
+  `pam_wa` varchar(255) DEFAULT '0%',
+  `pamlss` varchar(255) DEFAULT '0%',
+  `pamlss_wa` varchar(255) DEFAULT '0%',
+  `oe` varchar(255) DEFAULT '0%',
+  `oe_wa` varchar(255) DEFAULT '0%',
+  `overall_average` varchar(255) DEFAULT '0%',
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`statistics_id`),
+  KEY `evaluation_id` (`evaluation_id`),
+  CONSTRAINT `activity_statistics_ibfk_1` FOREIGN KEY (`evaluation_id`) REFERENCES `activity_evaluation` (`evaluation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `activity_statistics_others`;
+
+CREATE TABLE `activity_statistics_others` (
+  `otherstat_id` int(11) NOT NULL AUTO_INCREMENT,
+  `evaluation_id` int(11) DEFAULT NULL,
+  `gender_distribution` varchar(255) DEFAULT NULL,
+  `age_distribution` varchar(255) DEFAULT NULL,
+  `unit_distribution` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`otherstat_id`),
+  KEY `evaluation_id` (`evaluation_id`),
+  CONSTRAINT `activity_statistics_others_ibfk_1` FOREIGN KEY (`evaluation_id`) REFERENCES `activity_evaluation` (`evaluation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `activity_target_groups`;
+
+CREATE TABLE `activity_target_groups` (
+  `activity_id` int(11) NOT NULL,
+  `target_group` varchar(100) NOT NULL,
+  PRIMARY KEY (`activity_id`,`target_group`),
+  CONSTRAINT `activity_target_groups_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`activity_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `divisions`;
+
+CREATE TABLE `divisions` (
+  `division_id` int(11) NOT NULL AUTO_INCREMENT,
+  `acronym` text NOT NULL,
+  `name` text NOT NULL,
+  `parent_division_id` int(11) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`division_id`),
+  KEY `parent_division_id` (`parent_division_id`),
+  CONSTRAINT `divisions_ibfk_1` FOREIGN KEY (`parent_division_id`) REFERENCES `divisions` (`division_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `divisions_offices`;
+
+CREATE TABLE `divisions_offices` (
+  `office_id` int(11) NOT NULL AUTO_INCREMENT,
+  `acronym` text NOT NULL,
+  `name` text NOT NULL,
+  `division_id` int(11) DEFAULT NULL,
+  `parent_office_id` int(11) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`office_id`),
+  KEY `division_id` (`division_id`),
+  KEY `parent_office_id` (`parent_office_id`),
+  CONSTRAINT `divisions_offices_ibfk_1` FOREIGN KEY (`division_id`) REFERENCES `divisions` (`division_id`),
+  CONSTRAINT `divisions_offices_ibfk_2` FOREIGN KEY (`parent_office_id`) REFERENCES `divisions_offices` (`office_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `news`;
+
+CREATE TABLE `news` (
+  `news_id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` text NOT NULL,
+  `content` text NOT NULL,
+  `event_date` date DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`news_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `organizers`;
+
+CREATE TABLE `organizers` (
+  `organizer_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`organizer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `sdgs`;
+
+CREATE TABLE `sdgs` (
+  `sdg_id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` text NOT NULL,
+  `description` text NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`sdg_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `speakers`;
+
+CREATE TABLE `speakers` (
+  `speaker_id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`speaker_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `user_activity`;
+
+CREATE TABLE `user_activity` (
+  `activity_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `activity_description` text DEFAULT NULL,
+  `activity_time` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`activity_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `user_activity_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `user_login`;
+
+CREATE TABLE `user_login` (
+  `login_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `login_time` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`login_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `user_login_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `users`;
+
+CREATE TABLE `users` (
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
+  `google_id` text DEFAULT NULL,
+  `google_refresh_token` text NOT NULL,
+  `google_access_token` text NOT NULL,
+  `email` text NOT NULL,
+  `password` text NOT NULL,
+  `fname` text NOT NULL,
+  `lname` text NOT NULL,
+  `birthdate` date DEFAULT NULL,
+  `gender` enum('Male','Female','Others') DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `province` text NOT NULL,
+  `city` text NOT NULL,
+  `barangay` text NOT NULL,
+  `contact_number` varchar(11) DEFAULT NULL,
+  `division_id` int(11) DEFAULT NULL,
+  `office_id` int(11) DEFAULT NULL,
+  `position` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `google_id` (`google_id`) USING HASH,
+  UNIQUE KEY `email` (`email`) USING HASH,
+  KEY `division_id` (`division_id`),
+  KEY `office_id` (`office_id`),
+  CONSTRAINT `users_ibfk_1` FOREIGN KEY (`division_id`) REFERENCES `divisions` (`division_id`),
+  CONSTRAINT `users_ibfk_2` FOREIGN KEY (`office_id`) REFERENCES `divisions_offices` (`office_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+

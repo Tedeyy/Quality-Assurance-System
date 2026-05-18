@@ -26,6 +26,8 @@ if (isset($_SESSION['user_id'])) {
         require_once __DIR__ . '/content/acctracker.php';
     } elseif ($action === 'activity') {
         require_once __DIR__ . '/content/ame.php';
+    } elseif ($action === 'view_activity') {
+        require_once __DIR__ . '/content/activitypane.php';
     } elseif ($action === 'document') {
         require_once __DIR__ . '/content/doctracker.php';
     } else {
