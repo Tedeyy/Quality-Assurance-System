@@ -109,7 +109,7 @@ if ($evaluation) {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Edit
                 </button>
-                <button class="btn btn-primary" style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                <button class="btn btn-primary" onclick="downloadPDF()" style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     Download PDF
                 </button>
@@ -118,7 +118,27 @@ if ($evaluation) {
 
         <?php require_once __DIR__ . '/../component/activity_modal.php'; ?>
 
-        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem;">
+        <!-- PDF Wrapper -->
+        <div id="activity-report">
+            <!-- PDF Only Header -->
+            <div class="pdf-only-header" style="display: none; margin-bottom: 30px; border-bottom: 2px solid #0f172a; padding-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="../assets/img/NBSC_logo.png" style="height: 60px;">
+                        <img src="../assets/img/QAO_logo.png" style="height: 60px;">
+                        <div>
+                            <div style="font-weight: 800; font-size: 1.2rem; color: #0f172a;">Northern Bukidnon State College</div>
+                            <div style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Quality Assurance Office</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase; color: #2563eb;">Activity Monitoring & Evaluation</div>
+                        <div style="font-size: 0.7rem; color: #94a3b8;">Report Generated: <?= date('F d, Y') ?></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem;">
             <!-- Main Content -->
             <div style="display: flex; flex-direction: column; gap: 2rem;">
                 <div style="background: white; padding: 2.5rem; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
@@ -304,7 +324,49 @@ if ($evaluation) {
                     </div>
                 </div>
 
+                <!-- PDF Library -->
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
                 <script>
+                async function downloadPDF() {
+                    const element = document.getElementById('activity-report');
+                    const pdfHeader = element.querySelector('.pdf-only-header');
+                    const interpretBtn = element.querySelector('.action-dropdown');
+                    const visToggle = element.querySelector('#visibilityToggleBtn');
+                    
+                    // Show PDF header and hide interactive elements
+                    pdfHeader.style.display = 'block';
+                    if (interpretBtn) interpretBtn.style.display = 'none';
+                    if (visToggle) visToggle.style.display = 'none';
+                    
+                    const opt = {
+                        margin:       [0.5, 0.5],
+                        filename:     'Activity_Report_<?= str_replace(' ', '_', $activity['title']) ?>.pdf',
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+                        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    try {
+                        const btn = event.currentTarget;
+                        const originalContent = btn.innerHTML;
+                        btn.disabled = true;
+                        btn.innerHTML = `<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Generating...`;
+
+                        await html2pdf().set(opt).from(element).save();
+                        
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                    } catch (error) {
+                        console.error('PDF Generation Error:', error);
+                        alert('Failed to generate PDF. Please try again.');
+                    } finally {
+                        // Revert UI changes
+                        pdfHeader.style.display = 'none';
+                        if (interpretBtn) interpretBtn.style.display = 'block';
+                        if (visToggle) visToggle.style.display = 'flex';
+                    }
+                }
+
                 function toggleInterpretDropdown(e) {
                     e.stopPropagation();
                     const dropdown = document.getElementById('interpretDropdown');

@@ -1,4 +1,5 @@
 <?php
+$sub = $_GET['sub'] ?? 'monitoring';
 require_once __DIR__ . '/../../config/database.php';
 $db = (new Database())->getConnection();
 
