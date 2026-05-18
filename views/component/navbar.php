@@ -1,9 +1,9 @@
 <?php
 $current_action = $_GET['action'] ?? '';
 $is_dashboard_active = ($current_action === 'dashboard' || $current_action === '');
-$is_document_active = ($current_action === 'document');
-$is_accreditation_active = ($current_action === 'accreditation');
-$is_activity_active = ($current_action === 'activity' || $current_action === 'view_activity');
+$is_document_active = ($current_action === 'document' || $current_action === 'docmasterlist');
+$is_accreditation_active = ($current_action === 'accreditation' || $current_action === 'accmasterlist');
+$is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity');
 ?>
 
 <!-- Premium Navbar & Dropdown Styles -->
@@ -305,13 +305,11 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'vi
                     <svg class="qa-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.25s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
                 <div class="qa-dropdown-menu">
-                    <a href="feed.php?action=document&tab=masterlist" class="qa-dropdown-item">
+                    <a href="feed.php?action=docmasterlist" class="qa-dropdown-item">
                         <span>Masterlist</span>
-                        <span class="qa-item-detail">View All Files</span>
                     </a>
                     <a href="feed.php?action=document" class="qa-dropdown-item">
                         <span>Mapping</span>
-                        <span class="qa-item-detail">File Structure</span>
                     </a>
                 </div>
             </div>
@@ -324,13 +322,11 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'vi
                     <svg class="qa-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.25s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
                 <div class="qa-dropdown-menu">
-                    <a href="feed.php?action=accreditation" class="qa-dropdown-item">
+                    <a href="feed.php?action=accmasterlist" class="qa-dropdown-item">
                         <span>Masterlist</span>
-                        <span class="qa-item-detail">All Standards</span>
                     </a>
                     <a href="feed.php?action=accreditation" class="qa-dropdown-item">
                         <span>Tracking</span>
-                        <span class="qa-item-detail">Requirements Progress</span>
                     </a>
                 </div>
             </div>
@@ -345,11 +341,9 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'vi
                 <div class="qa-dropdown-menu">
                     <a href="feed.php?action=activity" class="qa-dropdown-item">
                         <span>Monitoring and Evaluation</span>
-                        <span class="qa-item-detail">AME Analytics</span>
                     </a>
-                    <a href="feed.php?action=activity" class="qa-dropdown-item">
+                    <a href="feed.php?action=actmasterlist" class="qa-dropdown-item">
                         <span>Masterlist</span>
-                        <span class="qa-item-detail">View All Activities</span>
                     </a>
                 </div>
             </div>
@@ -383,16 +377,16 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'vi
             <a href="feed.php?action=dashboard" class="qa-nav-link <?= $is_dashboard_active ? 'active' : '' ?>">Dashboard</a>
             
             <div class="qa-drawer-heading">Document</div>
-            <a href="feed.php?action=document&tab=masterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
+            <a href="feed.php?action=docmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             <a href="feed.php?action=document" class="qa-nav-link" style="padding-left: 1.5rem;">Mapping</a>
             
             <div class="qa-drawer-heading">Accreditation</div>
-            <a href="feed.php?action=accreditation" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
+            <a href="feed.php?action=accmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             <a href="feed.php?action=accreditation" class="qa-nav-link" style="padding-left: 1.5rem;">Tracking</a>
             
             <div class="qa-drawer-heading">Activity</div>
             <a href="feed.php?action=activity" class="qa-nav-link" style="padding-left: 1.5rem;">Monitoring and Evaluation</a>
-            <a href="feed.php?action=activity" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
+            <a href="feed.php?action=actmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             
             <div style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.5rem;">
                 <a href="../api/auth.php?action=logout" class="qa-logout-btn" style="justify-content: center;">
