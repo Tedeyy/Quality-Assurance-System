@@ -16,8 +16,11 @@ $stmt = $db->query($query);
 $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch distinct categories for the dropdown and tabs
-$cat_stmt = $db->query("SELECT DISTINCT category FROM documents ORDER BY category ASC");
-$categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
+$cat_stmt = $db->query("SELECT DISTINCT category FROM documents WHERE category IS NOT NULL AND category != '' ORDER BY category ASC");
+$db_categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
+$default_categories = ['Policy', 'Manual', 'Guidelines', 'SOP', 'Form', 'Report', 'Minutes', 'Contract'];
+$categories = array_unique(array_merge($default_categories, $db_categories));
+sort($categories);
 
 // Fetch distinct offices for the dropdown filter
 $office_stmt = $db->query("SELECT DISTINCT office_of_origin FROM documents ORDER BY office_of_origin ASC");
@@ -237,11 +240,16 @@ $confidentiality_levels = [
         </div>
 
         <!-- Dynamic Category Tabs -->
-        <div style="display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;">
-            <button class="category-tab active" onclick="filterByCategory('all', this)">All Categories</button>
-            <?php foreach ($categories as $c): ?>
-                <button class="category-tab" onclick="filterByCategory('<?= htmlspecialchars(addslashes($c)) ?>', this)"><?= htmlspecialchars($c) ?></button>
-            <?php endforeach; ?>
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <button class="category-tab active" id="all-categories-tab" onclick="filterByCategory('all', this)">All Categories</button>
+            <div style="width: 250px;">
+                <select id="categoryFilterDropdown" onchange="filterByCategoryDropdown(this.value)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); outline: none; background: white; cursor: pointer; transition: all 0.2s ease;" onfocus="this.style.borderColor='var(--accent-blue)';" onblur="this.style.borderColor='var(--border-color)';">
+                    <option value="">Select Category...</option>
+                    <?php foreach ($categories as $c): ?>
+                        <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
 
         <!-- Filters Block -->
@@ -395,16 +403,15 @@ $confidentiality_levels = [
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Category *</label>
-                    <select name="category" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="Policy">Policy</option>
-                        <option value="Manual">Manual</option>
-                        <option value="Guidelines">Guidelines</option>
-                        <option value="SOP">Standard Operating Procedure (SOP)</option>
-                        <option value="Form">Form / Checklist</option>
-                        <option value="Report">Official Report</option>
-                        <option value="Minutes">Minutes of Meeting</option>
-                        <option value="Contract">Contracts & Memorandums</option>
+                    <select name="category" required onchange="handleCategoryChange(this, 'add_new_category_container')" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <?php endforeach; ?>
+                        <option value="__NEW__">-- Add New Category --</option>
                     </select>
+                    <div id="add_new_category_container" style="display: none; margin-top: 0.5rem;">
+                        <input type="text" name="new_category" placeholder="Enter new category name..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    </div>
                 </div>
                 
                 <div>
@@ -481,16 +488,15 @@ $confidentiality_levels = [
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Category *</label>
-                    <select name="category" id="edit_category" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="Policy">Policy</option>
-                        <option value="Manual">Manual</option>
-                        <option value="Guidelines">Guidelines</option>
-                        <option value="SOP">Standard Operating Procedure (SOP)</option>
-                        <option value="Form">Form / Checklist</option>
-                        <option value="Report">Official Report</option>
-                        <option value="Minutes">Minutes of Meeting</option>
-                        <option value="Contract">Contracts & Memorandums</option>
+                    <select name="category" id="edit_category" required onchange="handleCategoryChange(this, 'edit_new_category_container')" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <?php endforeach; ?>
+                        <option value="__NEW__">-- Add New Category --</option>
                     </select>
+                    <div id="edit_new_category_container" style="display: none; margin-top: 0.5rem;">
+                        <input type="text" name="new_category" id="edit_new_category" placeholder="Enter new category name..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    </div>
                 </div>
                 
                 <div>
@@ -530,7 +536,7 @@ $confidentiality_levels = [
 </div>
 
 <!-- View Document Details Modal -->
-<div id="viewDocModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
+<div id="viewDocModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2100; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
     <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
             <div>
@@ -582,11 +588,14 @@ $confidentiality_levels = [
         </div>
 
         <!-- Target Info -->
-        <div style="background: rgba(0, 28, 87, 0.03); border: 1px dashed rgba(0, 28, 87, 0.2); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="background: rgba(0, 28, 87, 0.03); border: 1px dashed rgba(0, 28, 87, 0.2); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-right: 28px;">
                 <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Comparing Source Document</span>
                 <span id="target_conf_badge" style="font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px;">Public</span>
             </div>
+            <button id="target_view_details_btn" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 50%; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
             <h3 id="target_code" style="margin: 0 0 4px 0; color: var(--accent-blue); font-size: 1.2rem; font-weight: 800;">CODE-101</h3>
             <div style="font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 4px;"><span id="target_office">Office</span> | <span id="target_category" style="color: var(--accent-gold);">Category</span></div>
             <p id="target_purpose" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); font-style: italic; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">No purpose details.</p>
@@ -622,7 +631,31 @@ $confidentiality_levels = [
     function filterByCategory(category, btn) {
         currentCategoryFilter = category;
         document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) {
+            btn.classList.add('active');
+        }
+        if (category === 'all') {
+            const select = document.getElementById('categoryFilterDropdown');
+            if (select) {
+                select.value = '';
+            }
+        }
+        searchDocuments();
+    }
+
+    function filterByCategoryDropdown(category) {
+        const allTab = document.getElementById('all-categories-tab');
+        if (category === '') {
+            currentCategoryFilter = 'all';
+            if (allTab) {
+                allTab.classList.add('active');
+            }
+        } else {
+            currentCategoryFilter = category;
+            if (allTab) {
+                allTab.classList.remove('active');
+            }
+        }
         searchDocuments();
     }
 
@@ -717,6 +750,7 @@ $confidentiality_levels = [
                 document.getElementById('target_office').textContent = target.office_of_origin;
                 document.getElementById('target_category').textContent = target.category;
                 document.getElementById('target_purpose').textContent = target.purpose || 'No purpose recorded.';
+                document.getElementById('target_view_details_btn').onclick = () => viewDetails(target.doc_id);
                 
                 // Populate list
                 let resultsHTML = '';
@@ -741,8 +775,11 @@ $confidentiality_levels = [
                         const breakID = `breakdown-${doc.doc_id}`;
                         
                         resultsHTML += `
-                            <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; transition: transform 0.2s;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; transition: transform 0.2s; position: relative;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                                <button onclick="viewDetails(${doc.doc_id})" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 50%; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                </button>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-right: 28px;">
                                     <div>
                                         <h4 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">${escapeHtml(doc.doc_code)}</h4>
                                         <span style="font-size:0.75rem; color:#64748b;">${escapeHtml(doc.office_of_origin)} | <b style="color:var(--accent-blue);">${escapeHtml(doc.category)}</b></span>
@@ -841,6 +878,9 @@ $confidentiality_levels = [
                 document.getElementById('edit_doc_code').value = doc.doc_code;
                 document.getElementById('edit_office_of_origin').value = doc.office_of_origin;
                 document.getElementById('edit_category').value = doc.category;
+                document.getElementById('edit_new_category_container').style.display = 'none';
+                document.getElementById('edit_new_category').required = false;
+                document.getElementById('edit_new_category').value = '';
                 document.getElementById('edit_confidentiality').value = doc.confidentiality;
                 document.getElementById('edit_purpose').value = doc.purpose || '';
                 
@@ -898,6 +938,20 @@ $confidentiality_levels = [
             btn.closest('.tag-input-row').remove();
         } else {
             btn.closest('.tag-input-row').querySelector('input').value = '';
+        }
+    }
+
+    function handleCategoryChange(selectElement, containerId) {
+        const container = document.getElementById(containerId);
+        const input = container.querySelector('input');
+        if (selectElement.value === '__NEW__') {
+            container.style.display = 'block';
+            input.required = true;
+            input.focus();
+        } else {
+            container.style.display = 'none';
+            input.required = false;
+            input.value = '';
         }
     }
 

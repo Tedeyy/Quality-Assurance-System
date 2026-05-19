@@ -2,7 +2,7 @@
 $current_action = $_GET['action'] ?? '';
 $is_dashboard_active = ($current_action === 'dashboard' || $current_action === '');
 $is_document_active = ($current_action === 'document' || $current_action === 'docmasterlist');
-$is_accreditation_active = ($current_action === 'accreditation' || $current_action === 'accmasterlist');
+$is_accreditation_active = ($current_action === 'accreditation' || $current_action === 'accmasterlist' || $current_action === 'accmapping');
 $is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity');
 ?>
 
@@ -325,6 +325,9 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'ac
                     <a href="feed.php?action=accmasterlist" class="qa-dropdown-item">
                         <span>Masterlist</span>
                     </a>
+                    <a href="feed.php?action=accmapping" class="qa-dropdown-item">
+                        <span>Mapping</span>
+                    </a>
                     <a href="feed.php?action=accreditation" class="qa-dropdown-item">
                         <span>Tracking</span>
                     </a>
@@ -382,6 +385,7 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'ac
             
             <div class="qa-drawer-heading">Accreditation</div>
             <a href="feed.php?action=accmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
+            <a href="feed.php?action=accmapping" class="qa-nav-link" style="padding-left: 1.5rem;">Mapping</a>
             <a href="feed.php?action=accreditation" class="qa-nav-link" style="padding-left: 1.5rem;">Tracking</a>
             
             <div class="qa-drawer-heading">Activity</div>

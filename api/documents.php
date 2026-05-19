@@ -11,6 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $doc_code = trim($_POST['doc_code'] ?? '');
         $office_of_origin = trim($_POST['office_of_origin'] ?? '');
         $category = trim($_POST['category'] ?? '');
+        if ($category === '__NEW__') {
+            $category = trim($_POST['new_category'] ?? '');
+        }
         $purpose = trim($_POST['purpose'] ?? '');
         $confidentiality = (int)($_POST['confidentiality'] ?? 1);
         $tags_input = $_POST['tags'] ?? '';
@@ -91,6 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $doc_code = trim($_POST['doc_code'] ?? '');
         $office_of_origin = trim($_POST['office_of_origin'] ?? '');
         $category = trim($_POST['category'] ?? '');
+        if ($category === '__NEW__') {
+            $category = trim($_POST['new_category'] ?? '');
+        }
         $purpose = trim($_POST['purpose'] ?? '');
         $confidentiality = (int)($_POST['confidentiality'] ?? 1);
         $tags_input = $_POST['tags'] ?? '';
