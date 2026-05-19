@@ -235,7 +235,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
                             </svg>
                         <?php endif; ?>
                     </div>
-                    <div onclick="openComplianceTracker(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($bridges_by_requirement[$req_id] ?? [])) ?>)"
+                    <div onclick="handleRequirementClick(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)"
                         style="cursor: pointer; display: flex; flex-direction: column;" onmouseover="this.style.textDecoration='underline'"
                         onmouseout="this.style.textDecoration='none'">
                         <div>
@@ -276,6 +276,17 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                                 Edit
+                            </button>
+                            <button
+                                onclick="openComplianceTracker(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($bridges_by_requirement[$req_id] ?? [])) ?>)"
+                                style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;"
+                                onmouseover="this.style.background='#f8fafc'"
+                                onmouseout="this.style.background='transparent'">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Manage Proofs
                             </button>
                             <button
                                 onclick="deleteItem('requirement', '<?= $req_id ?>', '<?= addslashes($req['name']) ?>')"
