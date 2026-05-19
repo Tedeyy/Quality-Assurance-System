@@ -256,11 +256,11 @@ $confidentiality_levels = [
         <div style="background: white; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
             <div style="flex: 1; position: relative; min-width: 250px;">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="documentSearch" onkeyup="searchDocuments()" placeholder="Search documents by code, office or tags..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
+                <input type="text" id="documentSearch" oninput="resetPageAndSearch()" placeholder="Search documents by code, office or tags..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
             
             <div style="width: 200px;">
-                <select id="officeFilter" onchange="searchDocuments()" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white; cursor: pointer;">
+                <select id="officeFilter" onchange="resetPageAndSearch()" style="width: 100%; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white; cursor: pointer;">
                     <option value="all">All Offices</option>
                     <?php foreach ($offices as $o): ?>
                         <option value="<?= htmlspecialchars($o) ?>"><?= htmlspecialchars($o) ?></option>
@@ -365,12 +365,8 @@ $confidentiality_levels = [
             </table>
             
             <div style="padding: 1rem 1.2rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px;">
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">Showing <b id="showing-count"><?= count($documents) ?></b> documents</div>
-                <div style="display: flex; gap: 5px;">
-                    <button class="btn" style="padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px;">Previous</button>
-                    <button class="btn" style="padding: 5px 12px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem; border-radius: 6px;">1</button>
-                    <button class="btn" style="padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px;">Next</button>
-                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);" id="showing-count-container">Showing <b>0 - 0</b> of <b>0</b> documents</div>
+                <div id="pagination-controls" style="display: flex; gap: 5px;"></div>
             </div>
         </div>
     </div>
@@ -627,9 +623,17 @@ $confidentiality_levels = [
     }
 
     let currentCategoryFilter = 'all';
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    function resetPageAndSearch() {
+        currentPage = 1;
+        searchDocuments();
+    }
 
     function filterByCategory(category, btn) {
         currentCategoryFilter = category;
+        currentPage = 1;
         document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
         if (btn) {
             btn.classList.add('active');
@@ -644,6 +648,7 @@ $confidentiality_levels = [
     }
 
     function filterByCategoryDropdown(category) {
+        currentPage = 1;
         const allTab = document.getElementById('all-categories-tab');
         if (category === '') {
             currentCategoryFilter = 'all';
@@ -664,7 +669,7 @@ $confidentiality_levels = [
         const officeFilter = document.getElementById('officeFilter').value;
         const rows = document.querySelectorAll('.doc-row');
         
-        let visibleCount = 0;
+        let matchingRows = [];
         
         rows.forEach(row => {
             const code = row.getAttribute('data-code').toLowerCase();
@@ -679,14 +684,97 @@ $confidentiality_levels = [
             const matchesCategory = currentCategoryFilter === 'all' || row.getAttribute('data-category') === currentCategoryFilter;
             
             if (matchesSearch && matchesOffice && matchesCategory) {
-                row.style.display = '';
-                visibleCount++;
+                matchingRows.push(row);
             } else {
                 row.style.display = 'none';
             }
         });
         
-        document.getElementById('showing-count').textContent = visibleCount;
+        const totalItems = matchingRows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+        
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+        if (currentPage < 1) {
+            currentPage = 1;
+        }
+        
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        
+        matchingRows.forEach((row, index) => {
+            if (index >= startIndex && index < endIndex) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        const actualStart = totalItems === 0 ? 0 : startIndex + 1;
+        const actualEnd = Math.min(endIndex, totalItems);
+        
+        const countContainer = document.getElementById('showing-count-container');
+        if (countContainer) {
+            countContainer.innerHTML = `Showing <b>${actualStart} - ${actualEnd}</b> of <b>${totalItems}</b> documents`;
+        }
+        
+        updatePaginationUI(totalPages);
+    }
+
+    function updatePaginationUI(totalPages) {
+        const controls = document.getElementById('pagination-controls');
+        if (!controls) return;
+        
+        controls.innerHTML = '';
+        
+        // Previous
+        const prevBtn = document.createElement('button');
+        prevBtn.innerText = 'Previous';
+        prevBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+        if (currentPage === 1) {
+            prevBtn.disabled = true;
+            prevBtn.style.opacity = '0.5';
+            prevBtn.style.cursor = 'default';
+        } else {
+            prevBtn.onclick = () => {
+                currentPage--;
+                searchDocuments();
+            };
+        }
+        controls.appendChild(prevBtn);
+        
+        // Page Number Buttons
+        for (let i = 1; i <= totalPages; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.innerText = i;
+            if (i === currentPage) {
+                pageBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem; border-radius: 6px; cursor: default;';
+            } else {
+                pageBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    searchDocuments();
+                };
+            }
+            controls.appendChild(pageBtn);
+        }
+        
+        // Next
+        const nextBtn = document.createElement('button');
+        nextBtn.innerText = 'Next';
+        nextBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+        if (currentPage === totalPages) {
+            nextBtn.disabled = true;
+            nextBtn.style.opacity = '0.5';
+            nextBtn.style.cursor = 'default';
+        } else {
+            nextBtn.onclick = () => {
+                currentPage++;
+                searchDocuments();
+            };
+        }
+        controls.appendChild(nextBtn);
     }
 
     async function viewDetails(id) {
@@ -954,6 +1042,9 @@ $confidentiality_levels = [
             input.value = '';
         }
     }
+
+    // Initialize search on load to set up pagination
+    searchDocuments();
 
     // Close action menus when clicking outside
     document.addEventListener('click', () => {
