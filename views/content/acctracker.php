@@ -1149,11 +1149,23 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <?php if ($is_qao): ?>
             <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed var(--border-color); margin-bottom: 1.5rem;">
                 <h3 style="font-size: 0.85rem; margin: 0 0 0.8rem 0; color: var(--accent-blue);">Add Required Proof of Compliance</h3>
-                <form action="../api/accreditation.php?action=add_proof" method="POST" style="display: flex; gap: 10px;">
+                <form action="../api/accreditation.php?action=add_proof" method="POST" id="addProofForm" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
                     <input type="hidden" name="requirement_id" id="add_proof_req_id">
-                    <input type="text" name="proof_name" required placeholder="e.g. Syllabus, Class Schedule, OBE Curriculum Map" class="form-control" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem;">
-                    <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Add Proof</button>
+                    
+                    <div id="add_proof_fields_container" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule, OBE Curriculum Map" class="form-control" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem;">
+                            <div style="width: 28px;"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                        <button type="button" onclick="addProofField()" class="btn btn-secondary" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; background: transparent; border: 1px solid var(--accent-blue); color: var(--accent-blue);">
+                            + Add Another Proof
+                        </button>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Save Proofs</button>
+                    </div>
                 </form>
             </div>
             <?php endif; ?>
@@ -1190,6 +1202,16 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         
         if (document.getElementById('add_proof_req_id')) {
             document.getElementById('add_proof_req_id').value = reqId;
+        }
+
+        const fieldsContainer = document.getElementById('add_proof_fields_container');
+        if (fieldsContainer) {
+            fieldsContainer.innerHTML = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule, OBE Curriculum Map" class="form-control" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem;">
+                    <div style="width: 28px;"></div>
+                </div>
+            `;
         }
 
         const container = document.getElementById('proofs_container');
@@ -1441,6 +1463,20 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             console.error('Delete error:', error);
             showConfirmation({ title: 'Error', message: 'Failed to delete compliance proof.', type: 'danger' });
         }
+    }
+
+    function addProofField() {
+        const container = document.getElementById('add_proof_fields_container');
+        if (!container) return;
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+        row.innerHTML = `
+            <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule, OBE Curriculum Map" class="form-control" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem;">
+            <button type="button" onclick="this.parentElement.remove()" style="background: transparent; border: none; font-size: 1.25rem; color: #ef4444; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">&times;</button>
+        `;
+        container.appendChild(row);
     }
 
     function openReviewModal(sub, name) {
