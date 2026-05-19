@@ -211,23 +211,62 @@ if ($success_count > 0) {
         ? "https://drive.google.com/drive/folders/" . $submission_file_id
         : "https://drive.google.com/file/d/" . $submission_file_id . "/view";
 
-    $stmt = $db->prepare("INSERT INTO accreditation_requirement_submissions 
-        (requirement_id, user_id, google_drive_file_id, google_drive_link, division_id, office_id, status) 
-        VALUES (:req_id, :user_id, :file_id, :link, :division_id, :office_id, 'Pending')
-        ON DUPLICATE KEY UPDATE 
-        google_drive_file_id = :file_id, google_drive_link = :link, division_id = :division_id, office_id = :office_id, status = 'Pending', updated_at = NOW()");
+    $bridge_id = $_POST['bridge_id'] ?? null;
+    $existing_submission_id = null;
     
-    $stmt->execute([
-        'req_id' => $requirement_id,
-        'user_id' => $_SESSION['user_id'],
-        'file_id' => $submission_file_id,
-        'link' => $drive_link,
-        'division_id' => $division_id,
-        'office_id' => $office_id
-    ]);
+    if ($bridge_id) {
+        $stmt = $db->prepare("SELECT submission_id FROM document_bridge WHERE bridge_id = :bridge_id");
+        $stmt->execute(['bridge_id' => $bridge_id]);
+        $existing_submission_id = $stmt->fetchColumn();
+    }
 
-    logActivity($db, $_SESSION['user_id'], "Directly uploaded $success_count PDF(s) as User to Drive for: $req_name");
-    echo json_encode(['success' => true, 'message' => "Successfully uploaded $success_count file(s) and tracked your submission!"]);
+    if ($existing_submission_id) {
+        // Update existing submission record to trigger re-review
+        $stmt = $db->prepare("UPDATE accreditation_requirement_submissions SET 
+            google_drive_file_id = :file_id, 
+            google_drive_link = :link, 
+            division_id = :division_id, 
+            office_id = :office_id, 
+            status = 'Pending', 
+            remarks = NULL, 
+            marked_by = NULL,
+            user_id = :user_id,
+            updated_at = NOW() 
+            WHERE submission_id = :sub_id");
+        $stmt->execute([
+            'file_id' => $submission_file_id,
+            'link' => $drive_link,
+            'division_id' => $division_id,
+            'office_id' => $office_id,
+            'user_id' => $_SESSION['user_id'],
+            'sub_id' => $existing_submission_id
+        ]);
+    } else {
+        // Insert new submission
+        $stmt = $db->prepare("INSERT INTO accreditation_requirement_submissions 
+            (requirement_id, user_id, google_drive_file_id, google_drive_link, division_id, office_id, status) 
+            VALUES (:req_id, :user_id, :file_id, :link, :division_id, :office_id, 'Pending')");
+        $stmt->execute([
+            'req_id' => $requirement_id,
+            'user_id' => $_SESSION['user_id'],
+            'file_id' => $submission_file_id,
+            'link' => $drive_link,
+            'division_id' => $division_id,
+            'office_id' => $office_id
+        ]);
+        $new_sub_id = $db->lastInsertId();
+
+        if ($bridge_id) {
+            $stmt = $db->prepare("UPDATE document_bridge SET submission_id = :sub_id WHERE bridge_id = :bridge_id");
+            $stmt->execute([
+                'sub_id' => $new_sub_id,
+                'bridge_id' => $bridge_id
+            ]);
+        }
+    }
+
+    logActivity($db, $_SESSION['user_id'], "Uploaded file(s) for proof compliance of requirement ID: $requirement_id" . ($bridge_id ? " (Bridge ID: $bridge_id)" : ""));
+    echo json_encode(['success' => true, 'message' => "Successfully uploaded $success_count file(s) and tracked compliance!"]);
 } else {
     echo json_encode(['success' => false, 'message' => 'Upload failed. Check Drive permissions.']);
 }

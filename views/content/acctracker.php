@@ -22,31 +22,27 @@ if ($selected_id) {
     $stmt->execute(['acc_id' => $selected_id]);
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch requirement counts per category
-    $stmt = $db->prepare("
-        SELECT category_id, COUNT(*) as count 
-        FROM accreditation_requirement 
-        GROUP BY category_id
-    ");
-    $stmt->execute();
-    $direct_counts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
-    // Fetch approved requirement counts per category
-    $stmt = $db->prepare("
-        SELECT r.category_id, COUNT(*) as count 
-        FROM accreditation_requirement r
-        JOIN accreditation_requirement_submissions s ON r.requirement_id = s.requirement_id
-        WHERE s.status = 'Approved'
-        GROUP BY r.category_id
-    ");
-    $stmt->execute();
-    $direct_approved = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
     // Group categories by parent
     $categories_by_parent = [];
     foreach ($categories as $cat) {
         $parent_id = $cat['parent_category_id'] ?? 0;
         $categories_by_parent[$parent_id][] = $cat;
+    }
+
+    // Fetch all requirements for this accreditation
+    $stmt = $db->prepare("
+        SELECT r.* 
+        FROM accreditation_requirement r
+        JOIN accreditation_categories c ON r.category_id = c.category_id
+        WHERE c.accreditation_id = :acc_id
+    ");
+    $stmt->execute(['acc_id' => $selected_id]);
+    $all_requirements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Group requirements by category_id
+    $requirements_by_category = [];
+    foreach ($all_requirements as $req) {
+        $requirements_by_category[$req['category_id']][] = $req;
     }
 
     // Fetch submissions for this accreditation
@@ -68,6 +64,35 @@ if ($selected_id) {
         $submissions[$row['requirement_id']] = $row;
     }
 
+    // Fetch document bridges/proofs of compliance for this accreditation
+    $stmt = $db->prepare("
+        SELECT b.*, doc.doc_code, doc.category as doc_category, doc.purpose as doc_purpose,
+               s.status as sub_status, s.google_drive_link as sub_link, s.file_path as sub_path,
+               s.google_drive_file_id, s.remarks as sub_remarks, s.user_id as sub_user_id,
+               u.fname as uploader_fname, u.lname as uploader_lname,
+               m.fname as reviewer_fname, m.lname as reviewer_lname
+        FROM document_bridge b
+        LEFT JOIN documents doc ON b.document_id = doc.doc_id
+        LEFT JOIN accreditation_requirement_submissions s ON b.submission_id = s.submission_id
+        LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN users m ON s.marked_by = m.user_id
+        JOIN accreditation_requirement r ON b.requirement_id = r.requirement_id
+        JOIN accreditation_categories c ON r.category_id = c.category_id
+        WHERE c.accreditation_id = :acc_id
+    ");
+    $stmt->execute(['acc_id' => $selected_id]);
+    $document_bridges = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Group bridges by requirement_id
+    $bridges_by_requirement = [];
+    foreach ($document_bridges as $bridge) {
+        $bridges_by_requirement[$bridge['requirement_id']][] = $bridge;
+    }
+
+    // Fetch institutional documents for selection
+    $stmt = $db->query("SELECT doc_id, doc_code, category, purpose FROM documents ORDER BY doc_code ASC");
+    $all_inst_docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     // Robust QAO check
     $stmt = $db->prepare("
         SELECT o.name 
@@ -80,25 +105,86 @@ if ($selected_id) {
 
     $is_qao = (stripos($user_office_name ?? '', 'Quality Assurance') !== false) || (($_SESSION['user_office_id'] ?? 0) == 4);
 
+    // Helper to calculate requirement compliance status and percentage progress
+    function getRequirementProgress($req_id, $bridges_by_req, $submission_legacy) {
+        if (!isset($bridges_by_req[$req_id]) || empty($bridges_by_req[$req_id])) {
+            // Legacy mode: check if the requirement has an approved submission
+            if ($submission_legacy && $submission_legacy['status'] === 'Approved') {
+                return ['total' => 1, 'approved' => 1, 'percentage' => 100, 'status' => 'Approved'];
+            }
+            if ($submission_legacy) {
+                return ['total' => 1, 'approved' => 0, 'percentage' => 0, 'status' => $submission_legacy['status']];
+            }
+            return ['total' => 1, 'approved' => 0, 'percentage' => 0, 'status' => 'Missing'];
+        }
+
+        $total = count($bridges_by_req[$req_id]);
+        $approved = 0;
+        $has_pending = false;
+        $has_disapproved = false;
+
+        foreach ($bridges_by_req[$req_id] as $b) {
+            if ($b['document_id'] !== null) {
+                $approved++;
+            } elseif ($b['submission_id'] !== null) {
+                if ($b['sub_status'] === 'Approved') {
+                    $approved++;
+                } elseif ($b['sub_status'] === 'Pending') {
+                    $has_pending = true;
+                } elseif ($b['sub_status'] === 'Disapproved' || $b['sub_status'] === 'Returned') {
+                    $has_disapproved = true;
+                }
+            }
+        }
+
+        $percentage = round(($approved / $total) * 100);
+        
+        $status = 'Missing';
+        if ($approved === $total) {
+            $status = 'Approved';
+        } elseif ($has_pending) {
+            $status = 'Pending';
+        } elseif ($has_disapproved) {
+            $status = 'Returned';
+        }
+
+        return [
+            'total' => $total,
+            'approved' => $approved,
+            'percentage' => $percentage,
+            'status' => $status
+        ];
+    }
+
     // Helper to calculate total and approved requirements (including nested)
     $category_stats = [];
-    function calculateStats($parent_id, $categories_by_parent, $direct_counts, $direct_approved, &$category_stats)
-    {
-        if (!isset($categories_by_parent[$parent_id]))
+    function calculateStats($parent_id, $categories_by_parent, $requirements_by_category, $bridges_by_requirement, $submissions, &$category_stats) {
+        if (!isset($categories_by_parent[$parent_id])) {
             return ['total' => 0, 'approved' => 0];
+        }
 
         $sum_total = 0;
         $sum_approved = 0;
 
         foreach ($categories_by_parent[$parent_id] as $cat) {
             $cat_id = $cat['category_id'];
-            $direct_t = $direct_counts[$cat_id] ?? 0;
-            $direct_a = $direct_approved[$cat_id] ?? 0;
+            
+            $direct_total = 0;
+            $direct_approved = 0;
+            if (isset($requirements_by_category[$cat_id])) {
+                foreach ($requirements_by_category[$cat_id] as $req) {
+                    $direct_total++;
+                    $progress = getRequirementProgress($req['requirement_id'], $bridges_by_requirement, $submissions[$req['requirement_id']] ?? null);
+                    if ($progress['status'] === 'Approved') {
+                        $direct_approved++;
+                    }
+                }
+            }
 
-            $sub_stats = calculateStats($cat_id, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
+            $sub_stats = calculateStats($cat_id, $categories_by_parent, $requirements_by_category, $bridges_by_requirement, $submissions, $category_stats);
 
-            $total = $direct_t + $sub_stats['total'];
-            $approved = $direct_a + $sub_stats['approved'];
+            $total = $direct_total + $sub_stats['total'];
+            $approved = $direct_approved + $sub_stats['approved'];
 
             $category_stats[$cat_id] = ['total' => $total, 'approved' => $approved];
 
@@ -108,18 +194,29 @@ if ($selected_id) {
 
         return ['total' => $sum_total, 'approved' => $sum_approved];
     }
-    $overall_stats = calculateStats(0, $categories_by_parent, $direct_counts, $direct_approved, $category_stats);
+    $overall_stats = calculateStats(0, $categories_by_parent, $requirements_by_category, $bridges_by_requirement, $submissions, $category_stats);
 }
 
 function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, $cat_id, $cat_name, $depth = 0)
 {
+    global $bridges_by_requirement;
     if (!isset($reqs_by_parent[$parent_id])) return;
 
     foreach ($reqs_by_parent[$parent_id] as $req) {
         $req_id = $req['requirement_id'];
         $sub = $submissions[$req_id] ?? null;
-        $is_approved = ($sub && $sub['status'] === 'Approved');
-        $cb_color = $sub ? ($sub['status'] === 'Approved' ? '#22c55e' : ($sub['status'] === 'Disapproved' ? '#ef4444' : '#3b82f6')) : '#e2e8f0';
+        
+        $progress = getRequirementProgress($req_id, $bridges_by_requirement, $sub);
+        $is_approved = ($progress['status'] === 'Approved');
+        
+        $cb_color = '#e2e8f0';
+        if ($progress['status'] === 'Approved') {
+            $cb_color = '#22c55e';
+        } elseif ($progress['status'] === 'Pending') {
+            $cb_color = '#3b82f6';
+        } elseif ($progress['status'] === 'Returned') {
+            $cb_color = '#ef4444';
+        }
         ?>
         <div style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
@@ -130,7 +227,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
 
                     <div
                         style="width: 18px; height: 18px; border: 2px solid <?= $cb_color ?>; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: <?= $is_approved ? $cb_color : 'transparent' ?>; margin-top: 2px; flex-shrink: 0;">
-                        <?php if ($sub): ?>
+                        <?php if ($progress['approved'] > 0): ?>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                                 stroke="<?= $is_approved ? 'white' : $cb_color ?>" stroke-width="4" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -138,7 +235,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
                             </svg>
                         <?php endif; ?>
                     </div>
-                    <div onclick="handleRequirementClick(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)"
+                    <div onclick="openComplianceTracker(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($bridges_by_requirement[$req_id] ?? [])) ?>)"
                         style="cursor: pointer; display: flex; flex-direction: column;" onmouseover="this.style.textDecoration='underline'"
                         onmouseout="this.style.textDecoration='none'">
                         <div>
@@ -148,6 +245,9 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
                             <?php endif; ?>
                             <span
                                 style="<?= $is_approved ? 'opacity: 0.7;' : '' ?>"><?= htmlspecialchars($req['name']) ?></span>
+                            <?php if (isset($bridges_by_requirement[$req_id]) && count($bridges_by_requirement[$req_id]) > 0): ?>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-left: 5px;">(<?= $progress['approved'] ?>/<?= $progress['total'] ?> proofs)</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -897,6 +997,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
         <form id="uploadForm" onsubmit="handleFileUpload(event)">
             <input type="hidden" name="requirement_id" id="upload_req_id">
+            <input type="hidden" name="bridge_id" id="upload_bridge_id">
 
             <div id="dropZone"
                 style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; margin-bottom: 1.5rem; cursor: pointer; transition: all 0.3s;"
@@ -1009,9 +1110,57 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
     </div>
 </div>
 
+<!-- Compliance Tracker Modal -->
+<div id="complianceTrackerModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div>
+                <span id="comp_req_codename" style="font-weight: 700; color: var(--accent-blue); font-size: 0.9rem;"></span>
+                <h2 id="comp_req_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Compliance Checklist</h2>
+            </div>
+            <button onclick="document.getElementById('complianceTrackerModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
+            <!-- Progress Section -->
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                <div style="font-weight: 600; font-size: 0.9rem; color: var(--accent-blue);">Overall Requirement Compliance</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 150px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                        <div id="comp_progress_bar" style="width: 0%; height: 100%; background: #22c55e; transition: width 0.3s;"></div>
+                    </div>
+                    <span id="comp_progress_text" style="font-weight: 700; font-size: 0.85rem; color: #22c55e;">0%</span>
+                </div>
+            </div>
+
+            <!-- QAO: Add Proof Form -->
+            <?php if ($is_qao): ?>
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed var(--border-color); margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.85rem; margin: 0 0 0.8rem 0; color: var(--accent-blue);">Add Required Proof of Compliance</h3>
+                <form action="../api/accreditation.php?action=add_proof" method="POST" style="display: flex; gap: 10px;">
+                    <input type="hidden" name="accreditation_id" value="<?= $selected_id ?>">
+                    <input type="hidden" name="requirement_id" id="add_proof_req_id">
+                    <input type="text" name="proof_name" required placeholder="e.g. Syllabus, Class Schedule, OBE Curriculum Map" class="form-control" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem;">
+                    <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Add Proof</button>
+                </form>
+            </div>
+            <?php endif; ?>
+
+            <!-- Proofs Checklist -->
+            <div id="proofs_container" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Cards will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let currentRequirement = null;
     const currentUserId = <?= $_SESSION['user_id'] ?? 0 ?>;
+    const currentSubmissions = <?= json_encode($submissions) ?>;
+    const allInstitutionalDocs = <?= json_encode($all_inst_docs) ?>;
+    const isQAOGlobal = <?= json_encode($is_qao) ?>;
 
     function handleRequirementClick(id, name, codename, sub) {
         currentRequirement = { id, name, codename, sub };
@@ -1019,6 +1168,267 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             openReviewModal(sub, name);
         } else {
             openUploadModal(id, name, codename);
+        }
+    }
+
+    function openComplianceTracker(reqId, reqName, reqCodename, bridges) {
+        currentRequirement = { id: reqId, name: reqName, codename: reqCodename };
+        
+        document.getElementById('comp_req_codename').textContent = reqCodename ? reqCodename + ':' : '';
+        document.getElementById('comp_req_title').textContent = reqName;
+        
+        if (document.getElementById('add_proof_req_id')) {
+            document.getElementById('add_proof_req_id').value = reqId;
+        }
+
+        const container = document.getElementById('proofs_container');
+        container.innerHTML = '';
+
+        let approvedCount = 0;
+        let totalCount = bridges.length;
+
+        if (totalCount === 0) {
+            // Legacy / general submission mode
+            const sub = currentSubmissions[reqId] || null;
+            totalCount = 1;
+            if (sub && sub.status === 'Approved') approvedCount = 1;
+
+            let statusHTML = '';
+            let detailsHTML = '';
+            let actionsHTML = '';
+
+            if (sub) {
+                const statusColor = sub.status === 'Approved' ? '#22c55e' : (sub.status === 'Disapproved' || sub.status === 'Returned' ? '#ef4444' : '#3b82f6');
+                statusHTML = `<span class="user-badge" style="background: ${statusColor}; color: white; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">${sub.status}</span>`;
+                detailsHTML = `
+                    <div style="font-size: 0.85rem; margin-top: 5px; color: var(--text-secondary);">
+                        Uploaded by: <strong>${sub.fname} ${sub.lname}</strong><br>
+                        Link: <a href="${sub.google_drive_link}" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">View File on Google Drive</a>
+                    </div>
+                `;
+                actionsHTML = `
+                    <button class="btn btn-secondary" onclick="openReviewModalFromTracker(${JSON.stringify(sub).replace(/"/g, '&quot;')})" style="padding: 4px 8px; font-size: 0.75rem;">View & Review</button>
+                `;
+            } else {
+                statusHTML = `<span class="user-badge" style="background: #cbd5e1; color: var(--text-primary); padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">Missing</span>`;
+                detailsHTML = `<p style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">No general submission has been uploaded yet.</p>`;
+                actionsHTML = `
+                    <button class="btn btn-primary" onclick="triggerUpload(null)" style="padding: 4px 8px; font-size: 0.75rem;">Upload File</button>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="qa-card" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 0.95rem; color: var(--accent-blue);">General Submission</h4>
+                            ${detailsHTML}
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                            ${statusHTML}
+                            <div style="display: flex; gap: 5px;">
+                                ${actionsHTML}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Render specific compliance proofs
+            bridges.forEach(b => {
+                let statusColor = '#cbd5e1';
+                let statusLabel = 'Missing';
+                let detailsHTML = '';
+                let actionsHTML = '';
+
+                if (b.document_id) {
+                    approvedCount++;
+                    statusColor = '#10b981';
+                    statusLabel = 'Institutional Document';
+                    detailsHTML = `
+                        <div style="font-size: 0.85rem; margin-top: 5px; color: var(--text-secondary);">
+                            Mapped to Masterlist: <strong>${b.doc_code}</strong> (${b.doc_category})<br>
+                            Purpose: <em>${b.doc_purpose || 'N/A'}</em>
+                        </div>
+                    `;
+                    actionsHTML = `
+                        <button class="btn btn-secondary" onclick="unlinkProof(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Unlink</button>
+                    `;
+                } else if (b.submission_id) {
+                    statusLabel = b.sub_status;
+                    if (b.sub_status === 'Approved') {
+                        approvedCount++;
+                        statusColor = '#22c55e';
+                    } else if (b.sub_status === 'Pending') {
+                        statusColor = '#3b82f6';
+                    } else {
+                        statusColor = '#ef4444';
+                    }
+
+                    detailsHTML = `
+                        <div style="font-size: 0.85rem; margin-top: 5px; color: var(--text-secondary);">
+                            File Submission by: <strong>${b.uploader_fname} ${b.uploader_lname}</strong><br>
+                            Link: <a href="${b.sub_link}" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">View File</a>
+                            ${b.sub_remarks ? `<div style="margin-top: 3px; padding: 4px; background: #f8fafc; border-left: 3px solid ${statusColor}; font-size: 0.75rem;">Remarks: ${b.sub_remarks}</div>` : ''}
+                        </div>
+                    `;
+
+                    // Parse sub details to pass to review modal
+                    const mockSub = {
+                        submission_id: b.submission_id,
+                        requirement_id: b.requirement_id,
+                        status: b.sub_status,
+                        google_drive_link: b.sub_link,
+                        google_drive_file_id: b.google_drive_file_id,
+                        file_path: b.sub_path,
+                        remarks: b.sub_remarks,
+                        user_id: b.sub_user_id,
+                        fname: b.uploader_fname,
+                        lname: b.uploader_lname,
+                        marker_fname: b.reviewer_fname,
+                        marker_lname: b.reviewer_lname
+                    };
+
+                    actionsHTML = `
+                        <button class="btn btn-secondary" onclick="openReviewModalFromTracker(${JSON.stringify(mockSub).replace(/"/g, '&quot;')})" style="padding: 4px 8px; font-size: 0.75rem;">View & Review</button>
+                        <button class="btn btn-secondary" onclick="unlinkProof(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Unlink</button>
+                    `;
+                } else {
+                    detailsHTML = `<p style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">No file uploaded or institutional document linked.</p>`;
+                    
+                    // Create dropdown option tags
+                    let docOptions = `<option value="">-- Link Institutional Doc --</option>`;
+                    allInstitutionalDocs.forEach(d => {
+                        const purposeTrunc = d.purpose ? d.purpose.substring(0, 45) + (d.purpose.length > 45 ? '...' : '') : 'No purpose';
+                        docOptions += `<option value="${d.doc_id}">${d.doc_code} - ${d.category} (${purposeTrunc})</option>`;
+                    });
+
+                    actionsHTML = `
+                        <select class="form-control" onchange="linkInstitutionalDoc(${b.bridge_id}, this.value)" style="width: auto; max-width: 220px; font-size: 0.75rem; padding: 4px 6px; height: auto; display: inline-block;">
+                            ${docOptions}
+                        </select>
+                        <button class="btn btn-primary" onclick="triggerUpload(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem;">Upload File</button>
+                    `;
+                }
+
+                // Delete button for QAO
+                let deleteBtnHTML = '';
+                if (isQAOGlobal) {
+                    deleteBtnHTML = `
+                        <button onclick="deleteProof(${b.bridge_id})" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: #ef4444; border-radius: 4px; margin-left: 5px;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'" title="Delete proof requirement">
+                            &times;
+                        </button>
+                    `;
+                }
+
+                container.innerHTML += `
+                    <div class="qa-card" style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1; padding-right: 15px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <h4 style="margin: 0; font-size: 0.95rem; color: var(--accent-blue);">${b.proof_name}</h4>
+                                    ${deleteBtnHTML}
+                                </div>
+                                ${detailsHTML}
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0;">
+                                <span class="user-badge" style="background: ${statusColor}; color: ${statusColor === '#cbd5e1' ? 'var(--text-primary)' : 'white'}; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">${statusLabel}</span>
+                                <div style="display: flex; gap: 5px; align-items: center;">
+                                    ${actionsHTML}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        const percentage = Math.round((approvedCount / totalCount) * 100);
+        document.getElementById('comp_progress_bar').style.width = `${percentage}%`;
+        document.getElementById('comp_progress_text').textContent = `${percentage}%`;
+
+        openModal('complianceTrackerModal');
+    }
+
+    function openReviewModalFromTracker(sub) {
+        document.getElementById('complianceTrackerModal').style.display = 'none';
+        openReviewModal(sub, currentRequirement.name);
+    }
+
+    function triggerUpload(bridgeId) {
+        document.getElementById('complianceTrackerModal').style.display = 'none';
+        document.getElementById('upload_bridge_id').value = bridgeId || '';
+        openUploadModal(currentRequirement.id, currentRequirement.name, currentRequirement.codename || '');
+    }
+
+    async function linkInstitutionalDoc(bridgeId, docId) {
+        if (!docId) return;
+        try {
+            const response = await fetch('../api/accreditation.php?action=link_document', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `bridge_id=${bridgeId}&document_id=${docId}`
+            });
+            const result = await response.json();
+            if (result.success) {
+                showConfirmation({
+                    title: 'Linked',
+                    message: 'Institutional document linked successfully!',
+                    type: 'success',
+                    onConfirm: () => window.location.reload()
+                });
+            } else {
+                showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
+            }
+        } catch (error) {
+            console.error('Link error:', error);
+            showConfirmation({ title: 'Error', message: 'Failed to link document.', type: 'danger' });
+        }
+    }
+
+    async function unlinkProof(bridgeId) {
+        if (!confirm('Are you sure you want to unlink the document or file from this compliance proof?')) return;
+        try {
+            const response = await fetch('../api/accreditation.php?action=unlink_proof', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `bridge_id=${bridgeId}`
+            });
+            const result = await response.json();
+            if (result.success) {
+                showConfirmation({
+                    title: 'Unlinked',
+                    message: 'Compliance proof unlinked successfully!',
+                    type: 'success',
+                    onConfirm: () => window.location.reload()
+                });
+            } else {
+                showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
+            }
+        } catch (error) {
+            console.error('Unlink error:', error);
+            showConfirmation({ title: 'Error', message: 'Failed to unlink proof.', type: 'danger' });
+        }
+    }
+
+    async function deleteProof(bridgeId) {
+        if (!confirm('Are you sure you want to delete this compliance proof requirement?')) return;
+        try {
+            const response = await fetch(`../api/accreditation.php?action=delete_proof&bridge_id=${bridgeId}`);
+            const result = await response.json();
+            if (result.success) {
+                showConfirmation({
+                    title: 'Deleted',
+                    message: 'Compliance proof requirement deleted successfully!',
+                    type: 'success',
+                    onConfirm: () => window.location.reload()
+                });
+            } else {
+                showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            showConfirmation({ title: 'Error', message: 'Failed to delete compliance proof.', type: 'danger' });
         }
     }
 
@@ -1482,6 +1892,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         }
         formData.append('requirement_id', reqId);
         formData.append('codename', codename);
+        
+        const bridgeId = document.getElementById('upload_bridge_id').value;
+        if (bridgeId) {
+            formData.append('bridge_id', bridgeId);
+        }
 
         btn.disabled = true;
         btn.innerHTML = '<span>Uploading...</span>';
