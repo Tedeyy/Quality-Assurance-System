@@ -536,7 +536,7 @@ $confidentiality_levels = [
 </div>
 
 <!-- View Document Details Modal -->
-<div id="viewDocModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
+<div id="viewDocModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2100; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
     <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
             <div>
@@ -588,11 +588,14 @@ $confidentiality_levels = [
         </div>
 
         <!-- Target Info -->
-        <div style="background: rgba(0, 28, 87, 0.03); border: 1px dashed rgba(0, 28, 87, 0.2); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="background: rgba(0, 28, 87, 0.03); border: 1px dashed rgba(0, 28, 87, 0.2); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-right: 28px;">
                 <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Comparing Source Document</span>
                 <span id="target_conf_badge" style="font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px;">Public</span>
             </div>
+            <button id="target_view_details_btn" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 50%; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
             <h3 id="target_code" style="margin: 0 0 4px 0; color: var(--accent-blue); font-size: 1.2rem; font-weight: 800;">CODE-101</h3>
             <div style="font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 4px;"><span id="target_office">Office</span> | <span id="target_category" style="color: var(--accent-gold);">Category</span></div>
             <p id="target_purpose" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); font-style: italic; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">No purpose details.</p>
@@ -747,6 +750,7 @@ $confidentiality_levels = [
                 document.getElementById('target_office').textContent = target.office_of_origin;
                 document.getElementById('target_category').textContent = target.category;
                 document.getElementById('target_purpose').textContent = target.purpose || 'No purpose recorded.';
+                document.getElementById('target_view_details_btn').onclick = () => viewDetails(target.doc_id);
                 
                 // Populate list
                 let resultsHTML = '';
@@ -771,8 +775,11 @@ $confidentiality_levels = [
                         const breakID = `breakdown-${doc.doc_id}`;
                         
                         resultsHTML += `
-                            <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; transition: transform 0.2s;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div style="background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.2rem; transition: transform 0.2s; position: relative;" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                                <button onclick="viewDetails(${doc.doc_id})" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 50%; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                </button>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-right: 28px;">
                                     <div>
                                         <h4 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">${escapeHtml(doc.doc_code)}</h4>
                                         <span style="font-size:0.75rem; color:#64748b;">${escapeHtml(doc.office_of_origin)} | <b style="color:var(--accent-blue);">${escapeHtml(doc.category)}</b></span>
