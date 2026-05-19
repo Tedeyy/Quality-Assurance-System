@@ -16,8 +16,11 @@ $stmt = $db->query($query);
 $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch distinct categories for the dropdown and tabs
-$cat_stmt = $db->query("SELECT DISTINCT category FROM documents ORDER BY category ASC");
-$categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
+$cat_stmt = $db->query("SELECT DISTINCT category FROM documents WHERE category IS NOT NULL AND category != '' ORDER BY category ASC");
+$db_categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
+$default_categories = ['Policy', 'Manual', 'Guidelines', 'SOP', 'Form', 'Report', 'Minutes', 'Contract'];
+$categories = array_unique(array_merge($default_categories, $db_categories));
+sort($categories);
 
 // Fetch distinct offices for the dropdown filter
 $office_stmt = $db->query("SELECT DISTINCT office_of_origin FROM documents ORDER BY office_of_origin ASC");
@@ -395,16 +398,15 @@ $confidentiality_levels = [
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Category *</label>
-                    <select name="category" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="Policy">Policy</option>
-                        <option value="Manual">Manual</option>
-                        <option value="Guidelines">Guidelines</option>
-                        <option value="SOP">Standard Operating Procedure (SOP)</option>
-                        <option value="Form">Form / Checklist</option>
-                        <option value="Report">Official Report</option>
-                        <option value="Minutes">Minutes of Meeting</option>
-                        <option value="Contract">Contracts & Memorandums</option>
+                    <select name="category" required onchange="handleCategoryChange(this, 'add_new_category_container')" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <?php endforeach; ?>
+                        <option value="__NEW__">-- Add New Category --</option>
                     </select>
+                    <div id="add_new_category_container" style="display: none; margin-top: 0.5rem;">
+                        <input type="text" name="new_category" placeholder="Enter new category name..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    </div>
                 </div>
                 
                 <div>
@@ -481,16 +483,15 @@ $confidentiality_levels = [
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Category *</label>
-                    <select name="category" id="edit_category" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="Policy">Policy</option>
-                        <option value="Manual">Manual</option>
-                        <option value="Guidelines">Guidelines</option>
-                        <option value="SOP">Standard Operating Procedure (SOP)</option>
-                        <option value="Form">Form / Checklist</option>
-                        <option value="Report">Official Report</option>
-                        <option value="Minutes">Minutes of Meeting</option>
-                        <option value="Contract">Contracts & Memorandums</option>
+                    <select name="category" id="edit_category" required onchange="handleCategoryChange(this, 'edit_new_category_container')" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <?php endforeach; ?>
+                        <option value="__NEW__">-- Add New Category --</option>
                     </select>
+                    <div id="edit_new_category_container" style="display: none; margin-top: 0.5rem;">
+                        <input type="text" name="new_category" id="edit_new_category" placeholder="Enter new category name..." style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    </div>
                 </div>
                 
                 <div>
@@ -841,6 +842,9 @@ $confidentiality_levels = [
                 document.getElementById('edit_doc_code').value = doc.doc_code;
                 document.getElementById('edit_office_of_origin').value = doc.office_of_origin;
                 document.getElementById('edit_category').value = doc.category;
+                document.getElementById('edit_new_category_container').style.display = 'none';
+                document.getElementById('edit_new_category').required = false;
+                document.getElementById('edit_new_category').value = '';
                 document.getElementById('edit_confidentiality').value = doc.confidentiality;
                 document.getElementById('edit_purpose').value = doc.purpose || '';
                 
@@ -898,6 +902,20 @@ $confidentiality_levels = [
             btn.closest('.tag-input-row').remove();
         } else {
             btn.closest('.tag-input-row').querySelector('input').value = '';
+        }
+    }
+
+    function handleCategoryChange(selectElement, containerId) {
+        const container = document.getElementById(containerId);
+        const input = container.querySelector('input');
+        if (selectElement.value === '__NEW__') {
+            container.style.display = 'block';
+            input.required = true;
+            input.focus();
+        } else {
+            container.style.display = 'none';
+            input.required = false;
+            input.value = '';
         }
     }
 
