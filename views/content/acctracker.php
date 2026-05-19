@@ -1470,7 +1470,6 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
     }
 
     async function deleteProof(bridgeId) {
-        if (!confirm('Are you sure you want to delete this compliance proof requirement?')) return;
         try {
             const response = await fetch(`../api/accreditation.php?action=delete_proof&bridge_id=${bridgeId}`);
             const result = await response.json();
