@@ -26,6 +26,8 @@ if (isset($_SESSION['user_id'])) {
         require_once __DIR__ . '/content/acctracker.php';
     } elseif ($action === 'accmasterlist') {
         require_once __DIR__ . '/content/accmasterlist.php';
+    } elseif ($action === 'accmapping') {
+        require_once __DIR__ . '/content/accmapping.php';
     } elseif ($action === 'activity') {
         require_once __DIR__ . '/content/ame.php';
     } elseif ($action === 'actmasterlist') {
