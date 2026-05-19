@@ -240,11 +240,16 @@ $confidentiality_levels = [
         </div>
 
         <!-- Dynamic Category Tabs -->
-        <div style="display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;">
-            <button class="category-tab active" onclick="filterByCategory('all', this)">All Categories</button>
-            <?php foreach ($categories as $c): ?>
-                <button class="category-tab" onclick="filterByCategory('<?= htmlspecialchars(addslashes($c)) ?>', this)"><?= htmlspecialchars($c) ?></button>
-            <?php endforeach; ?>
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <button class="category-tab active" id="all-categories-tab" onclick="filterByCategory('all', this)">All Categories</button>
+            <div style="width: 250px;">
+                <select id="categoryFilterDropdown" onchange="filterByCategoryDropdown(this.value)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); outline: none; background: white; cursor: pointer; transition: all 0.2s ease;" onfocus="this.style.borderColor='var(--accent-blue)';" onblur="this.style.borderColor='var(--border-color)';">
+                    <option value="">Select Category...</option>
+                    <?php foreach ($categories as $c): ?>
+                        <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
 
         <!-- Filters Block -->
@@ -623,7 +628,31 @@ $confidentiality_levels = [
     function filterByCategory(category, btn) {
         currentCategoryFilter = category;
         document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) {
+            btn.classList.add('active');
+        }
+        if (category === 'all') {
+            const select = document.getElementById('categoryFilterDropdown');
+            if (select) {
+                select.value = '';
+            }
+        }
+        searchDocuments();
+    }
+
+    function filterByCategoryDropdown(category) {
+        const allTab = document.getElementById('all-categories-tab');
+        if (category === '') {
+            currentCategoryFilter = 'all';
+            if (allTab) {
+                allTab.classList.add('active');
+            }
+        } else {
+            currentCategoryFilter = category;
+            if (allTab) {
+                allTab.classList.remove('active');
+            }
+        }
         searchDocuments();
     }
 

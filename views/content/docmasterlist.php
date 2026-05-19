@@ -232,11 +232,16 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
         <!-- Filters Section -->
         <div style="padding: 1.5rem 2rem; border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.4);">
             <!-- Category Tabs -->
-            <div class="month-tabs-container">
-                <button class="month-tab active" onclick="filterByCategoryTab('all', this)">All Categories</button>
-                <?php foreach ($categories as $cat): ?>
-                    <button class="month-tab" onclick="filterByCategoryTab('<?= $cat ?>', this)"><?= $cat ?></button>
-                <?php endforeach; ?>
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap;">
+                <button class="month-tab active" id="all-categories-tab" onclick="filterByCategoryTab('all', this)">All Categories</button>
+                <div style="width: 250px;">
+                    <select id="categoryFilterDropdown" onchange="filterByCategoryDropdown(this.value)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); outline: none; background: white; cursor: pointer; transition: all 0.2s ease;" onfocus="this.style.borderColor='var(--accent-blue)';" onblur="this.style.borderColor='var(--border-color)';">
+                        <option value="">Select Category...</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -244,11 +249,11 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
                     <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); display: flex; align-items: center;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </span>
-                    <input type="text" id="documentSearch" oninput="searchDocuments()" placeholder="Search by code, purpose, office or tags..." style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.8rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <input type="text" id="documentSearch" oninput="resetPageAndSearch()" placeholder="Search by code, purpose, office or tags..." style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.8rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
                 </div>
 
                 <div style="width: 250px;">
-                    <select id="confidentialityFilter" onchange="searchDocuments()" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; cursor: pointer; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <select id="confidentialityFilter" onchange="resetPageAndSearch()" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; cursor: pointer; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
                         <option value="all">All Confidentiality Levels</option>
                         <option value="1">Level 1 - Public</option>
                         <option value="2">Level 2 - Internal</option>
@@ -372,12 +377,8 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
             </table>
             
             <div style="padding: 1.2rem 2rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 16px 16px;">
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">Showing <b id="showing-count"><?= count($documents) ?></b> documents</div>
-                <div style="display: flex; gap: 5px;">
-                    <button class="btn" style="padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px;">Previous</button>
-                    <button class="btn" style="padding: 5px 12px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem; border-radius: 6px;">1</button>
-                    <button class="btn" style="padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px;">Next</button>
-                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);" id="showing-count-container">Showing <b id="showing-count"><?= count($documents) ?></b> documents</div>
+                <div id="pagination-controls" style="display: flex; gap: 5px;"></div>
             </div>
         </div>
     </div>
@@ -599,11 +600,44 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     let currentCategoryTab = 'all';
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    function resetPageAndSearch() {
+        currentPage = 1;
+        searchDocuments();
+    }
 
     function filterByCategoryTab(cat, btn) {
         currentCategoryTab = cat;
+        currentPage = 1;
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) {
+            btn.classList.add('active');
+        }
+        if (cat === 'all') {
+            const select = document.getElementById('categoryFilterDropdown');
+            if (select) {
+                select.value = '';
+            }
+        }
+        searchDocuments();
+    }
+
+    function filterByCategoryDropdown(category) {
+        currentPage = 1;
+        const allTab = document.getElementById('all-categories-tab');
+        if (category === '') {
+            currentCategoryTab = 'all';
+            if (allTab) {
+                allTab.classList.add('active');
+            }
+        } else {
+            currentCategoryTab = category;
+            if (allTab) {
+                allTab.classList.remove('active');
+            }
+        }
         searchDocuments();
     }
 
@@ -612,29 +646,115 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
         const confFilter = document.getElementById('confidentialityFilter').value;
         const rows = document.querySelectorAll('.doc-row');
         
-        let visibleCount = 0;
+        let matchingRows = [];
         
         rows.forEach(row => {
             const code = row.getAttribute('data-code').toLowerCase();
             const office = row.getAttribute('data-office').toLowerCase();
             const category = row.getAttribute('data-category');
-            const purpose = row.getAttribute('data-purpose').toLowerCase();
+            const purpose = (row.getAttribute('data-purpose') || '').toLowerCase();
             const confidentiality = row.getAttribute('data-confidentiality');
-            const tags = row.getAttribute('data-tags').toLowerCase();
+            const tags = (row.getAttribute('data-tags') || '').toLowerCase();
             
             const matchesSearch = code.includes(searchTerm) || office.includes(searchTerm) || purpose.includes(searchTerm) || tags.includes(searchTerm);
             const matchesConf = confFilter === 'all' || confidentiality === confFilter;
             const matchesTab = currentCategoryTab === 'all' || category === currentCategoryTab;
             
             if (matchesSearch && matchesConf && matchesTab) {
-                row.style.display = '';
-                visibleCount++;
+                matchingRows.push(row);
             } else {
                 row.style.display = 'none';
             }
         });
         
-        document.getElementById('showing-count').textContent = visibleCount;
+        const totalItems = matchingRows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+        
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+        if (currentPage < 1) {
+            currentPage = 1;
+        }
+        
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        
+        matchingRows.forEach((row, index) => {
+            if (index >= startIndex && index < endIndex) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        const actualStart = totalItems === 0 ? 0 : startIndex + 1;
+        const actualEnd = Math.min(endIndex, totalItems);
+        
+        const countContainer = document.getElementById('showing-count-container');
+        if (countContainer) {
+            countContainer.innerHTML = `Showing <b>${actualStart} - ${actualEnd}</b> of <b>${totalItems}</b> documents`;
+        }
+        
+        updatePaginationUI(totalPages);
+    }
+
+    function updatePaginationUI(totalPages) {
+        const controls = document.getElementById('pagination-controls');
+        if (!controls) return;
+        
+        controls.innerHTML = '';
+        
+        // Previous Button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'btn';
+        prevBtn.innerText = 'Previous';
+        prevBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+        if (currentPage === 1) {
+            prevBtn.disabled = true;
+            prevBtn.style.opacity = '0.5';
+            prevBtn.style.cursor = 'default';
+        } else {
+            prevBtn.onclick = () => {
+                currentPage--;
+                searchDocuments();
+            };
+        }
+        controls.appendChild(prevBtn);
+        
+        // Page Number Buttons
+        for (let i = 1; i <= totalPages; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'btn';
+            pageBtn.innerText = i;
+            if (i === currentPage) {
+                pageBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem; border-radius: 6px; cursor: default;';
+            } else {
+                pageBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    searchDocuments();
+                };
+            }
+            controls.appendChild(pageBtn);
+        }
+        
+        // Next Button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'btn';
+        nextBtn.innerText = 'Next';
+        nextBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+        if (currentPage === totalPages) {
+            nextBtn.disabled = true;
+            nextBtn.style.opacity = '0.5';
+            nextBtn.style.cursor = 'default';
+        } else {
+            nextBtn.onclick = () => {
+                currentPage++;
+                searchDocuments();
+            };
+        }
+        controls.appendChild(nextBtn);
     }
 
     function escapeHtml(string) {
@@ -818,6 +938,8 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
             window.location.href = `../api/documents.php?action=delete&doc_id=${id}&redirect_url=../views/feed.php?action=docmasterlist`;
         }
     }
+
+    searchDocuments();
 
     // Close action menus when clicking outside
     document.addEventListener('click', () => {
