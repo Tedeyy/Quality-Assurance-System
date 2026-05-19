@@ -125,7 +125,7 @@ if ($selected_id) {
 
         foreach ($bridges_by_req[$req_id] as $b) {
             if ($b['document_id'] !== null) {
-                $approved++;
+                // Linked institutional documents do not count as approved/completed progress
             } elseif ($b['submission_id'] !== null) {
                 if ($b['sub_status'] === 'Approved') {
                     $approved++;
@@ -235,7 +235,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
                             </svg>
                         <?php endif; ?>
                     </div>
-                    <div onclick="handleRequirementClick(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>)"
+                    <div onclick="handleRequirementClick(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($sub)) ?>, <?= htmlspecialchars(json_encode($bridges_by_requirement[$req_id] ?? [])) ?>)"
                         style="cursor: pointer; display: flex; flex-direction: column;" onmouseover="this.style.textDecoration='underline'"
                         onmouseout="this.style.textDecoration='none'">
                         <div>
@@ -1011,41 +1011,62 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <input type="hidden" name="requirement_id" id="upload_req_id">
             <input type="hidden" name="bridge_id" id="upload_bridge_id">
 
-            <div id="dropZone"
-                style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; margin-bottom: 1.5rem; cursor: pointer; transition: all 0.3s;"
-                onmouseover="this.style.borderColor='var(--accent-blue)'; this.style.background='#f8fafc'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.background='transparent'"
-                onclick="document.getElementById('fileInput').click()">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-                <p style="margin: 0; font-weight: 500;">Click to select or drag and drop</p>
-                <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">PDF files only
-                    (Multiple allowed)</p>
-                <input type="file" id="fileInput" name="files[]" multiple accept="application/pdf"
-                    style="display: none;" onchange="updateFileInfo(this)">
-            </div>
-
-            <div id="fileInfo"
-                style="display: none; margin-bottom: 1.5rem; padding: 0.8rem; background: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 0.9rem; color: #1e40af;">
-                <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <div
-                        style="display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 5px; border-bottom: 1px solid #bfdbfe; padding-bottom: 5px;">
-                        <span>Selected Files:</span>
-                        <button type="button" onclick="clearFile()"
-                            style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">&times;</button>
-                    </div>
-                    <div id="fileList"></div>
+            <!-- Step 1: Selection (only shown if proofs exist) -->
+            <div id="upload_step_1" style="display: none; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                <div id="upload_proof_container">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-primary);">Select Proof Requirement</label>
+                    <select id="upload_proof_select" class="form-control" style="width: 100%; padding: 0.6rem 0.8rem; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
+                        <!-- populated dynamically -->
+                    </select>
                 </div>
+                <button type="button" id="upload_next_btn" class="btn btn-primary" style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center;" onclick="goToUploadStep2()">
+                    Start Uploading
+                </button>
             </div>
 
-            <button type="submit" id="uploadBtn" class="btn btn-primary"
-                style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <span>Start Upload</span>
-            </button>
+            <!-- Step 2: Drag & Drop (shown instantly if no proofs/preselected) -->
+            <div id="upload_step_2" style="display: none; flex-direction: column; gap: 1rem;">
+                <div id="dropZone"
+                    style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.3s;"
+                    onmouseover="this.style.borderColor='var(--accent-blue)'; this.style.background='#f8fafc'"
+                    onmouseout="this.style.borderColor='var(--border-color)'; this.style.background='transparent'"
+                    onclick="document.getElementById('fileInput').click()">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p style="margin: 0; font-weight: 500;">Click to select or drag and drop</p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">PDF files only
+                        (Multiple allowed)</p>
+                    <input type="file" id="fileInput" name="files[]" multiple accept="application/pdf"
+                        style="display: none;" onchange="updateFileInfo(this)">
+                </div>
+
+                <div id="fileInfo"
+                    style="display: none; padding: 0.8rem; background: #eff6ff; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 0.9rem; color: #1e40af;">
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <div
+                            style="display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-bottom: 5px; border-bottom: 1px solid #bfdbfe; padding-bottom: 5px;">
+                            <span>Selected Files:</span>
+                            <button type="button" onclick="clearFile()"
+                                style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-weight: bold;">&times;</button>
+                        </div>
+                        <div id="fileList"></div>
+                    </div>
+                </div>
+
+                <!-- Back button to change choice -->
+                <button type="button" id="upload_back_btn" class="btn btn-secondary" style="width: 100%; padding: 0.6rem; display: none; align-items: center; justify-content: center; font-size: 0.85rem;" onclick="goToUploadStep1()">
+                    ← Select Different Proof
+                </button>
+
+                <button type="submit" id="uploadBtn" class="btn btn-primary"
+                    style="width: 100%; padding: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <span>Start Upload</span>
+                </button>
+            </div>
         </form>
     </div>
 </div>
@@ -1215,22 +1236,20 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
 <script>
     let currentRequirement = null;
+    let activeRequirementBridges = [];
     const currentUserId = <?= $_SESSION['user_id'] ?? 0 ?>;
     const currentSubmissions = <?= json_encode($submissions) ?>;
     const allInstitutionalDocs = <?= json_encode($all_inst_docs) ?>;
     const isQAOGlobal = <?= json_encode($is_qao) ?>;
 
-    function handleRequirementClick(id, name, codename, sub) {
+    function handleRequirementClick(id, name, codename, sub, bridges) {
         currentRequirement = { id, name, codename, sub };
-        if (sub) {
-            openReviewModal(sub, name);
-        } else {
-            openUploadModal(id, name, codename);
-        }
+        openUploadModal(id, name, codename, bridges);
     }
 
     function openComplianceTracker(reqId, reqName, reqCodename, bridges) {
         currentRequirement = { id: reqId, name: reqName, codename: reqCodename };
+        activeRequirementBridges = bridges || [];
         sessionStorage.setItem('active_tracker_req_id', reqId);
         
         document.getElementById('comp_req_codename').textContent = reqCodename ? reqCodename + ':' : '';
@@ -1311,7 +1330,6 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 let actionsHTML = '';
 
                 if (b.document_id) {
-                    approvedCount++;
                     statusColor = '#10b981';
                     statusLabel = 'Institutional Document';
                     detailsHTML = `
@@ -1417,8 +1435,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
     function triggerUpload(bridgeId) {
         document.getElementById('complianceTrackerModal').style.display = 'none';
-        document.getElementById('upload_bridge_id').value = bridgeId || '';
-        openUploadModal(currentRequirement.id, currentRequirement.name, currentRequirement.codename || '');
+        openUploadModal(currentRequirement.id, currentRequirement.name, currentRequirement.codename || '', activeRequirementBridges, bridgeId);
     }
 
     async function linkInstitutionalDoc(bridgeId, docId) {
@@ -1431,12 +1448,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             });
             const result = await response.json();
             if (result.success) {
-                showConfirmation({
-                    title: 'Linked',
-                    message: 'Institutional document linked successfully!',
-                    type: 'success',
-                    onConfirm: () => window.location.reload()
-                });
+                window.location.reload();
             } else {
                 showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
             }
@@ -1447,7 +1459,6 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
     }
 
     async function unlinkProof(bridgeId) {
-        if (!confirm('Are you sure you want to unlink the document or file from this compliance proof?')) return;
         try {
             const response = await fetch('../api/accreditation.php?action=unlink_proof', {
                 method: 'POST',
@@ -1456,12 +1467,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             });
             const result = await response.json();
             if (result.success) {
-                showConfirmation({
-                    title: 'Unlinked',
-                    message: 'Compliance proof unlinked successfully!',
-                    type: 'success',
-                    onConfirm: () => window.location.reload()
-                });
+                window.location.reload();
             } else {
                 showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
             }
@@ -1970,12 +1976,98 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         handleCascadingSelect(firstSelect, containerId, inputId);
     }
 
-    function openUploadModal(id, name, codename = '') {
+    let currentBridges = []; // to store bridges for the active upload modal
+
+    function openUploadModal(id, name, codename = '', bridges = [], selectedBridgeId = null) {
         document.getElementById('upload_req_id').value = id;
         document.getElementById('upload_req_title').textContent = name;
         document.getElementById('upload_req_title').dataset.codename = codename;
+        
+        const step1 = document.getElementById('upload_step_1');
+        const step2 = document.getElementById('upload_step_2');
+        const select = document.getElementById('upload_proof_select');
+        const bridgeInput = document.getElementById('upload_bridge_id');
+        const backBtn = document.getElementById('upload_back_btn');
+        
+        currentBridges = bridges || [];
+        
+        select.onchange = (e) => {
+            const val = e.target.value;
+            if (val) {
+                bridgeInput.value = val === 'general' ? '' : val;
+                document.getElementById('upload_next_btn').disabled = false;
+                document.getElementById('upload_next_btn').style.opacity = '1';
+                document.getElementById('upload_next_btn').style.cursor = 'pointer';
+            } else {
+                bridgeInput.value = '';
+                document.getElementById('upload_next_btn').disabled = true;
+                document.getElementById('upload_next_btn').style.opacity = '0.5';
+                document.getElementById('upload_next_btn').style.cursor = 'not-allowed';
+            }
+        };
+        
+        if (currentBridges.length > 0) {
+            select.innerHTML = '<option value="" disabled selected>-- Select Proof Requirement to Upload For --</option>';
+            currentBridges.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.bridge_id;
+                let suffix = '';
+                if (b.document_id) {
+                    suffix = ' (Linked: ' + b.doc_code + ')';
+                } else if (b.submission_id) {
+                    suffix = ' (Uploaded File)';
+                }
+                opt.textContent = b.proof_name + suffix;
+                select.appendChild(opt);
+            });
+            
+            const generalOpt = document.createElement('option');
+            generalOpt.value = 'general';
+            generalOpt.textContent = '-- General Upload (No specific proof) --';
+            select.appendChild(generalOpt);
+            
+            if (selectedBridgeId) {
+                // Pre-selected from compliance checklist modal (skip Step 1)
+                select.value = selectedBridgeId;
+                bridgeInput.value = selectedBridgeId;
+                
+                step1.style.display = 'none';
+                step2.style.display = 'flex';
+                backBtn.style.display = 'flex';
+            } else {
+                // Open from requirement heading click - show step 1, hide step 2
+                select.value = "";
+                bridgeInput.value = "";
+                
+                step1.style.display = 'flex';
+                step2.style.display = 'none';
+                backBtn.style.display = 'none';
+                
+                document.getElementById('upload_next_btn').disabled = true;
+                document.getElementById('upload_next_btn').style.opacity = '0.5';
+                document.getElementById('upload_next_btn').style.cursor = 'not-allowed';
+            }
+        } else {
+            // No proofs defined, skip Step 1
+            step1.style.display = 'none';
+            step2.style.display = 'flex';
+            backBtn.style.display = 'none';
+            bridgeInput.value = selectedBridgeId || '';
+        }
+        
         clearFile();
         openModal('uploadRequirementModal');
+    }
+
+    function goToUploadStep2() {
+        document.getElementById('upload_step_1').style.display = 'none';
+        document.getElementById('upload_step_2').style.display = 'flex';
+        document.getElementById('upload_back_btn').style.display = 'flex';
+    }
+
+    function goToUploadStep1() {
+        document.getElementById('upload_step_1').style.display = 'flex';
+        document.getElementById('upload_step_2').style.display = 'none';
     }
 
     function updateFileInfo(input) {
