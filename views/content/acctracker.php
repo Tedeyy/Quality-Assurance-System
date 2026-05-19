@@ -1123,7 +1123,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
 <!-- Compliance Tracker Modal -->
 <div id="complianceTrackerModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
-    <div class="modal-content" style="max-width: 800px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-content" style="max-width: 1100px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <div>
                 <span id="comp_req_codename" style="font-weight: 700; color: var(--accent-blue); font-size: 0.9rem;"></span>
@@ -1173,6 +1173,40 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <!-- Proofs Checklist -->
             <div id="proofs_container" style="display: flex; flex-direction: column; gap: 1rem;">
                 <!-- Cards will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Link Document Selector Modal -->
+<div id="linkDocumentModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 10000;">
+    <div class="modal-content" style="max-width: 800px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Select Institutional Document</h2>
+            <button onclick="document.getElementById('linkDocumentModal').style.display='none'"
+                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <input type="text" id="doc_selector_search" placeholder="Search documents by code, category, or purpose..." class="form-control" oninput="filterSelectorDocs()" style="padding: 0.6rem 1rem;">
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
+            <table class="qa-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid var(--border-color); text-align: left;">
+                        <th style="padding: 12px 8px;">Code</th>
+                        <th style="padding: 12px 8px;">Category</th>
+                        <th style="padding: 12px 8px;">Purpose</th>
+                        <th style="padding: 12px 8px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="doc_selector_rows">
+                    <!-- Dynamic rows -->
+                </tbody>
+            </table>
+            <div id="doc_selector_empty" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">
+                No matching documents found.
             </div>
         </div>
     </div>
@@ -1329,18 +1363,9 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 } else {
                     detailsHTML = `<p style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">No file uploaded or institutional document linked.</p>`;
                     
-                    // Create dropdown option tags
-                    let docOptions = `<option value="">-- Link Institutional Doc --</option>`;
-                    allInstitutionalDocs.forEach(d => {
-                        const purposeTrunc = d.purpose ? d.purpose.substring(0, 45) + (d.purpose.length > 45 ? '...' : '') : 'No purpose';
-                        docOptions += `<option value="${d.doc_id}">${d.doc_code} - ${d.category} (${purposeTrunc})</option>`;
-                    });
-
                     actionsHTML = `
-                        <select class="form-control" onchange="linkInstitutionalDoc(${b.bridge_id}, this.value)" style="width: auto; max-width: 220px; font-size: 0.75rem; padding: 4px 6px; height: auto; display: inline-block;">
-                            ${docOptions}
-                        </select>
-                        <button class="btn btn-primary" onclick="triggerUpload(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem;">Upload File</button>
+                        <button class="btn btn-secondary" onclick="openLinkDocumentSelector(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem; background: transparent; border: 1px solid var(--accent-blue); color: var(--accent-blue); display: inline-block; margin-right: 5px;">Link Document</button>
+                        <button class="btn btn-primary" onclick="triggerUpload(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem; display: inline-block;">Upload File</button>
                     `;
                 }
 
@@ -1477,6 +1502,70 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <button type="button" onclick="this.parentElement.remove()" style="background: transparent; border: none; font-size: 1.25rem; color: #ef4444; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">&times;</button>
         `;
         container.appendChild(row);
+    }
+
+    let currentBridgeIdToLink = null;
+
+    function openLinkDocumentSelector(bridgeId) {
+        currentBridgeIdToLink = bridgeId;
+        document.getElementById('doc_selector_search').value = '';
+        renderSelectorDocs();
+        openModal('linkDocumentModal');
+    }
+
+    function renderSelectorDocs() {
+        const query = document.getElementById('doc_selector_search').value.toLowerCase();
+        const container = document.getElementById('doc_selector_rows');
+        const emptyMsg = document.getElementById('doc_selector_empty');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const filtered = allInstitutionalDocs.filter(d => {
+            const code = (d.doc_code || '').toLowerCase();
+            const category = (d.category || '').toLowerCase();
+            const purpose = (d.purpose || '').toLowerCase();
+            return code.includes(query) || category.includes(query) || purpose.includes(query);
+        });
+
+        if (filtered.length === 0) {
+            emptyMsg.style.display = 'block';
+        } else {
+            emptyMsg.style.display = 'none';
+            filtered.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border-color)';
+                
+                const purposeTrunc = d.purpose ? d.purpose.substring(0, 80) + (d.purpose.length > 80 ? '...' : '') : 'N/A';
+                
+                tr.innerHTML = `
+                    <td style="padding: 10px 8px; font-weight: 600; color: var(--accent-blue);">${escapeHTML(d.doc_code)}</td>
+                    <td style="padding: 10px 8px;">${escapeHTML(d.category)}</td>
+                    <td style="padding: 10px 8px; color: var(--text-secondary); max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(d.purpose || '')}">${escapeHTML(purposeTrunc)}</td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        <button class="btn btn-primary" onclick="selectDocForBridge(${d.doc_id})" style="padding: 4px 10px; font-size: 0.75rem;">Select</button>
+                    </td>
+                `;
+                container.appendChild(tr);
+            });
+        }
+    }
+
+    function filterSelectorDocs() {
+        renderSelectorDocs();
+    }
+
+    function selectDocForBridge(docId) {
+        document.getElementById('linkDocumentModal').style.display = 'none';
+        linkInstitutionalDoc(currentBridgeIdToLink, docId);
+    }
+
+    function escapeHTML(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#039;');
     }
 
     function openReviewModal(sub, name) {
@@ -2044,6 +2133,11 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         if (event.target == editCatModal) editCatModal.style.display = "none";
         if (event.target == editReqModal) editReqModal.style.display = "none";
         if (event.target == importModal) importModal.style.display = "none";
+        
+        const compModal = document.getElementById('complianceTrackerModal');
+        const linkDocModal = document.getElementById('linkDocumentModal');
+        if (event.target == compModal) compModal.style.display = "none";
+        if (event.target == linkDocModal) linkDocModal.style.display = "none";
 
         if (actionMenu && !actionMenu.contains(event.target)) {
             actionMenu.style.display = 'none';
