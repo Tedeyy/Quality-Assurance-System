@@ -278,6 +278,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
                                 Edit
                             </button>
                             <button
+                                id="manage_proofs_btn_<?= $req_id ?>"
                                 onclick="openComplianceTracker(<?= $req_id ?>, '<?= addslashes($req['name']) ?>', '<?= addslashes($req['codename'] ?? '') ?>', <?= htmlspecialchars(json_encode($bridges_by_requirement[$req_id] ?? [])) ?>)"
                                 style="width: 100%; padding: 0.5rem 0.7rem; border: none; background: transparent; text-align: left; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;"
                                 onmouseover="this.style.background='#f8fafc'"
@@ -1129,7 +1130,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 <span id="comp_req_codename" style="font-weight: 700; color: var(--accent-blue); font-size: 0.9rem;"></span>
                 <h2 id="comp_req_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Compliance Checklist</h2>
             </div>
-            <button onclick="document.getElementById('complianceTrackerModal').style.display='none'"
+            <button onclick="closeComplianceTrackerModal()"
                 style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
         </div>
 
@@ -1230,6 +1231,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
     function openComplianceTracker(reqId, reqName, reqCodename, bridges) {
         currentRequirement = { id: reqId, name: reqName, codename: reqCodename };
+        sessionStorage.setItem('active_tracker_req_id', reqId);
         
         document.getElementById('comp_req_codename').textContent = reqCodename ? reqCodename + ':' : '';
         document.getElementById('comp_req_title').textContent = reqName;
@@ -1474,12 +1476,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             const response = await fetch(`../api/accreditation.php?action=delete_proof&bridge_id=${bridgeId}`);
             const result = await response.json();
             if (result.success) {
-                showConfirmation({
-                    title: 'Deleted',
-                    message: 'Compliance proof requirement deleted successfully!',
-                    type: 'success',
-                    onConfirm: () => window.location.reload()
-                });
+                window.location.reload();
             } else {
                 showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
             }
@@ -2135,7 +2132,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         
         const compModal = document.getElementById('complianceTrackerModal');
         const linkDocModal = document.getElementById('linkDocumentModal');
-        if (event.target == compModal) compModal.style.display = "none";
+        if (event.target == compModal) closeComplianceTrackerModal();
         if (event.target == linkDocModal) linkDocModal.style.display = "none";
 
         if (actionMenu && !actionMenu.contains(event.target)) {
@@ -2373,10 +2370,46 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             link.href = `../context/${templates[val].file}`;
             text.innerText = `Download ${templates[val].name} Template`;
             container.style.display = 'block';
-        } else {
-            container.style.display = 'none';
         }
     }
+
+    function closeComplianceTrackerModal() {
+        document.getElementById('complianceTrackerModal').style.display = 'none';
+        sessionStorage.removeItem('active_tracker_req_id');
+    }
+
+    document.addEventListener('submit', async (e) => {
+        if (e.target && e.target.id === 'addProofForm') {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    form.submit();
+                }
+            } catch (error) {
+                console.error('Error submitting proofs:', error);
+                form.submit();
+            }
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const autoOpenReqId = sessionStorage.getItem('active_tracker_req_id');
+        if (autoOpenReqId) {
+            const btn = document.getElementById(`manage_proofs_btn_${autoOpenReqId}`);
+            if (btn) {
+                // Ensure dropdown menu contains it, we may need to temporarily show req_menu or click directly
+                btn.click();
+            }
+        }
+    });
 </script>
 
 <!-- Import Accreditation Modal -->
