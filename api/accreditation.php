@@ -54,11 +54,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log activity
             logActivity($db, $_SESSION['user_id'], "Added new accreditation: $name ($code)");
 
-            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $db->lastInsertId());
+            $redirect = $_POST['redirect_url'] ?? '';
+            if (empty($redirect)) $redirect = '../views/feed.php?action=accreditation&accreditation_id=' . $db->lastInsertId();
+            header("Location: " . $redirect);
             exit;
         } catch (PDOException $e) {
             $_SESSION['error'] = 'Failed to add accreditation: ' . $e->getMessage();
-            header('Location: ../views/feed.php?action=accreditation');
+            $redirect = $_POST['redirect_url'] ?? '';
+            if (empty($redirect)) $redirect = '../views/feed.php?action=accreditation';
+            header("Location: " . $redirect);
             exit;
         }
     } elseif ($action === 'edit') {
@@ -87,11 +91,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log activity
             logActivity($db, $_SESSION['user_id'], "Updated accreditation: $name ($code)");
 
-            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            $redirect = $_POST['redirect_url'] ?? '';
+            if (empty($redirect)) $redirect = '../views/feed.php?action=accreditation&accreditation_id=' . $acc_id;
+            header("Location: " . $redirect);
             exit;
         } catch (PDOException $e) {
             $_SESSION['error'] = 'Failed to update accreditation: ' . $e->getMessage();
-            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            $redirect = $_POST['redirect_url'] ?? '';
+            if (empty($redirect)) $redirect = '../views/feed.php?action=accreditation&accreditation_id=' . $acc_id;
+            header("Location: " . $redirect);
             exit;
         }
     } elseif ($action === 'add_category') {

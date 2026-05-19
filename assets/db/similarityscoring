@@ -1,0 +1,6 @@
+Score =
+  (Office Match × 25)
++ (Category Match × 20)
++ (Tag Overlap × 30)
++ (Purpose Similarity × 20)
++ (Confidentiality Compatibility × 5)

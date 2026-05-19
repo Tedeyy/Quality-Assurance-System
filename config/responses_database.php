@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/env.php';
+
 class ResponsesDatabase {
     private $host;
     private $db_name;

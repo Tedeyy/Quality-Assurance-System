@@ -24,12 +24,18 @@ if (isset($_SESSION['user_id'])) {
         require_once __DIR__ . '/content/dashboard.php';
     } elseif ($action === 'accreditation') {
         require_once __DIR__ . '/content/acctracker.php';
+    } elseif ($action === 'accmasterlist') {
+        require_once __DIR__ . '/content/accmasterlist.php';
     } elseif ($action === 'activity') {
         require_once __DIR__ . '/content/ame.php';
+    } elseif ($action === 'actmasterlist') {
+        require_once __DIR__ . '/content/actmasterlist.php';
     } elseif ($action === 'view_activity') {
         require_once __DIR__ . '/content/activitypane.php';
     } elseif ($action === 'document') {
         require_once __DIR__ . '/content/doctracker.php';
+    } elseif ($action === 'docmasterlist') {
+        require_once __DIR__ . '/content/docmasterlist.php';
     } else {
         require_once __DIR__ . '/content/dashboard.php';
     }

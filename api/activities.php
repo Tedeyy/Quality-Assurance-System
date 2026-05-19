@@ -322,12 +322,16 @@ if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $db->commit();
+        $redirect = $_POST['redirect_url'] ?? '';
+        if (empty($redirect)) $redirect = '../views/feed.php?action=activity';
         $_SESSION['success'] = "Activity updated successfully!";
-        header("Location: ../views/feed.php?action=activity");
+        header("Location: " . $redirect);
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         $_SESSION['error'] = "Error updating activity: " . $e->getMessage();
-        header("Location: ../views/feed.php?action=activity");
+        $redirect = $_POST['redirect_url'] ?? '';
+        if (empty($redirect)) $redirect = '../views/feed.php?action=activity';
+        header("Location: " . $redirect);
     }
     exit;
 }
@@ -370,12 +374,16 @@ if ($action === 'delete' && isset($_GET['id'])) {
         }
 
         $db->commit();
+        $redirect = $_GET['redirect_url'] ?? '';
+        if (empty($redirect)) $redirect = '../views/feed.php?action=activity';
         $_SESSION['success'] = "Activity and all related evaluation data deleted successfully!";
-        header("Location: ../views/feed.php?action=activity");
+        header("Location: " . $redirect);
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         $_SESSION['error'] = "Error deleting activity: " . $e->getMessage();
-        header("Location: ../views/feed.php?action=activity");
+        $redirect = $_GET['redirect_url'] ?? '';
+        if (empty($redirect)) $redirect = '../views/feed.php?action=activity';
+        header("Location: " . $redirect);
     }
     exit;
 }
