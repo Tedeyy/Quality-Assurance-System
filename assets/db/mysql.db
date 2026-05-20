@@ -20,7 +20,7 @@ CREATE TABLE `accreditation_requirement` (
   `requirement_id` int(11) NOT NULL AUTO_INCREMENT,
   `category_id` int(11) DEFAULT NULL,
   `name` text NOT NULL,
-  `codename` int(11) DEFAULT NULL,
+  `codename` varchar(255) DEFAULT NULL,
   `parent_requirement_id` int(11) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),

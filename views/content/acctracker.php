@@ -2334,8 +2334,12 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             if (Array.isArray(items)) {
                 // Requirements
                 items.forEach(req => {
+                    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                    const proofPart = req.proofs
+                        ? ` <span style="color:#64748b;font-size:0.8rem;">(H: ${esc(req.proofs)})</span>`
+                        : '';
                     innerHtml += `<div style="margin-left: ${depth * 1.5}rem; color: #475569; font-size: 0.85rem; margin-top: 4px;">
-                        • ${req.code} ${req.name}
+                        • ${req.code} ${req.name}${proofPart}
                     </div>`;
                 });
             } else {
@@ -2524,7 +2528,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     <option value="aaccup_institution">AACCUP Institution Standard (Area -> Parameter -> Section)</option>
                     <option value="aaccup_program">AACCUP Program Standard (Area -> Parameter -> Section)</option>
                     <option value="copc">COPC Standard (Category -> Requirement)</option>
-                    <option value="suc">SUC Standard (KRA -> Requirement)</option>
+                    <option value="suc">SUC Standard (A=KRA, C=code, E=name, H=proofs)</option>
                     <option value="ched" disabled>CHED Standard (Coming Soon)</option>
                     <option value="iso" disabled>ISO Standard (Coming Soon)</option>
                 </select>
