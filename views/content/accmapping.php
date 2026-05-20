@@ -482,11 +482,6 @@ foreach ($raw_requirements as $req) {
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             View Details
                                         </button>
-                                        <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
-                                        <button class="dropdown-item" onclick="openEditModal(<?= $req['req_id'] ?>)">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                                            Edit Mapping
-                                        </button>
                                         <button class="dropdown-item delete" onclick="deleteRequirement(<?= $req['req_id'] ?>)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                             Delete Mapping
@@ -570,67 +565,6 @@ foreach ($raw_requirements as $req) {
     </div>
 </div>
 
-<!-- Edit Requirement Modal -->
-<div id="editReqModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
-    <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; max-height: 90vh; overflow-y: auto; scrollbar-width: thin; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
-            <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem; font-weight: 800;">Edit Requirement Mapping</h2>
-            <button onclick="document.getElementById('editReqModal').style.display='none'" style="background: transparent; border: none; font-size: 1.8rem; cursor: pointer; color: #94a3b8; line-height: 1; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</button>
-        </div>
-
-        <form onsubmit="event.preventDefault(); alert('Demo Mode: Edit requirement is not wired yet as the database schema is in development.'); document.getElementById('editReqModal').style.display='none';" style="display: flex; flex-direction: column; gap: 1.2rem;">
-            <div>
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Requirement Code *</label>
-                <input type="text" id="edit_req_code" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-            </div>
-
-            <div>
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Requirement Title *</label>
-                <input type="text" id="edit_req_title" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-            </div>
-
-            <div>
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Department/Office *</label>
-                <select id="edit_req_office" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                    <?php foreach ($sys_offices as $so): ?>
-                        <option value="<?= $so['name'] ?>"><?= htmlspecialchars($so['name']) ?> (<?= htmlspecialchars($so['acronym']) ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Area / Category *</label>
-                    <select id="edit_req_category" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <?php foreach ($categories as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Compliance Status *</label>
-                    <select id="edit_req_status" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; background: white;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="Pending">Pending</option>
-                        <option value="Under Review">Under Review</option>
-                        <option value="Approved">Approved</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Requirement Description / Details</label>
-                <textarea id="edit_req_desc" rows="3" style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; resize: vertical;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'"></textarea>
-            </div>
-
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.2rem;">
-                <button type="button" onclick="document.getElementById('editReqModal').style.display='none'" class="btn" style="padding: 10px 20px; font-weight: 600; border: 1px solid var(--border-color); background: white; color: #475569; border-radius: 8px; cursor: pointer;">Cancel</button>
-                <button type="submit" class="btn btn-primary" style="padding: 10px 24px; font-weight: 700; border-radius: 8px; cursor: pointer; border: none; background: var(--accent-blue); color: white;">Save Changes</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <!-- View Requirement Details Modal -->
 <div id="viewReqModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2100; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
     <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
@@ -646,11 +580,6 @@ foreach ($raw_requirements as $req) {
             <div>
                 <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Area / Category</span>
                 <span id="view_req_category" style="font-size: 0.9rem; font-weight: 700; color: #0f172a;">Area I: Governance & Management</span>
-            </div>
-
-            <div>
-                <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Description / Guidelines</span>
-                <p id="view_req_desc" style="margin: 0; font-size: 0.9rem; color: #334155; line-height: 1.5; white-space: pre-wrap; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto; scrollbar-width: thin;">Requirement details...</p>
             </div>
 
             <div>
@@ -1301,7 +1230,7 @@ foreach ($raw_requirements as $req) {
         renderSelectorDocs();
     }
 
-    // --- View / Edit / Delete ---
+    // --- View / Delete ---
     function viewDetails(id) {
         const req = allRequirements.find(r => r.req_id == id);
         if (!req) return;
@@ -1309,7 +1238,6 @@ foreach ($raw_requirements as $req) {
         document.getElementById('view_req_title').textContent = req.title;
         document.getElementById('view_req_code').textContent = 'CODE: ' + req.req_code;
         document.getElementById('view_req_category').textContent = req.category;
-        document.getElementById('view_req_desc').textContent = req.description || 'No description recorded.';
 
         const proofsEl = document.getElementById('view_req_proofs');
         const proofs = req.proofs || [];
@@ -1329,20 +1257,6 @@ foreach ($raw_requirements as $req) {
         }
 
         document.getElementById('viewReqModal').style.display = 'flex';
-    }
-
-    function openEditModal(id) {
-        const req = allRequirements.find(r => r.req_id == id);
-        if (!req) return;
-
-        document.getElementById('edit_req_code').value = req.req_code;
-        document.getElementById('edit_req_title').value = req.title;
-        document.getElementById('edit_req_desc').value = req.description;
-        if (document.getElementById('edit_req_category')) {
-            document.getElementById('edit_req_category').value = req.category;
-        }
-
-        document.getElementById('editReqModal').style.display = 'flex';
     }
 
     function deleteRequirement(id) {
