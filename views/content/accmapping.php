@@ -14,18 +14,85 @@ $all_accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $db->query("SELECT category_id, name, parent_category_id, accreditation_id FROM accreditation_categories ORDER BY parent_category_id ASC, name ASC");
 $all_categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch all requirements grouped to avoid duplicates, grabbing the latest status from submissions
+// Fetch document bridges (proofs) with linked document or submission office
+$stmt = $db->query("
+    SELECT b.*,
+           doc.doc_code, doc.category AS doc_category, doc.purpose AS doc_purpose,
+           s.status AS sub_status, s.google_drive_link AS sub_link,
+           do.name AS office_name, do.acronym AS office_acronym
+    FROM document_bridge b
+    LEFT JOIN documents doc ON b.document_id = doc.doc_id
+    LEFT JOIN accreditation_requirement_submissions s ON b.submission_id = s.submission_id
+    LEFT JOIN divisions_offices do ON s.office_id = do.office_id
+    ORDER BY b.requirement_id ASC, b.proof_name ASC
+");
+$all_bridges_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$bridges_by_requirement = [];
+foreach ($all_bridges_raw as $bridge) {
+    $bridges_by_requirement[$bridge['requirement_id']][] = $bridge;
+}
+
+// Institutional documents for linking proofs
+$stmt = $db->query("SELECT doc_id, doc_code, category, purpose FROM documents ORDER BY doc_code ASC");
+$all_inst_docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// QAO check for add/delete proof
+$stmt = $db->prepare("
+    SELECT o.name
+    FROM users u
+    LEFT JOIN divisions_offices o ON u.office_id = o.office_id
+    WHERE u.user_id = :id
+");
+$stmt->execute(['id' => $_SESSION['user_id'] ?? 0]);
+$user_office_name = $stmt->fetchColumn();
+$is_qao = (stripos($user_office_name ?? '', 'Quality Assurance') !== false) || (($_SESSION['user_office_id'] ?? 0) == 4);
+
+function getProofDisplayMeta(array $bridge): array {
+    if (!empty($bridge['document_id'])) {
+        return [
+            'status' => 'Linked',
+            'status_color' => '#10b981',
+            'status_bg' => '#ecfdf5',
+            'detail' => $bridge['doc_code'] ?? 'Document',
+            'office' => null,
+        ];
+    }
+    if (!empty($bridge['submission_id'])) {
+        $status = $bridge['sub_status'] ?? 'Pending';
+        $colors = [
+            'Approved' => ['#10b981', '#ecfdf5'],
+            'Pending' => ['#3b82f6', '#eff6ff'],
+            'Uploaded' => ['#3b82f6', '#eff6ff'],
+            'Returned' => ['#ef4444', '#fef2f2'],
+        ];
+        [$color, $bg] = $colors[$status] ?? ['#f59e0b', '#fef3c7'];
+        return [
+            'status' => $status,
+            'status_color' => $color,
+            'status_bg' => $bg,
+            'detail' => 'File submission',
+            'office' => $bridge['office_name'] ?? null,
+        ];
+    }
+    return [
+        'status' => 'Missing',
+        'status_color' => '#94a3b8',
+        'status_bg' => '#f1f5f9',
+        'detail' => null,
+        'office' => null,
+    ];
+}
+
+// Fetch all requirements
 $req_query = "
-    SELECT 
-        r.requirement_id as req_id, 
-        r.codename as req_code, 
-        r.name as title, 
-        '' as description, 
+    SELECT
+        r.requirement_id AS req_id,
+        r.codename AS req_code,
+        r.name AS title,
+        '' AS description,
         r.category_id,
-        c.name as category,
-        (SELECT COUNT(*) FROM accreditation_requirement_submissions s WHERE s.requirement_id = r.requirement_id) as sub_count,
-        (SELECT do.name FROM accreditation_requirement_submissions s JOIN divisions_offices do ON s.office_id = do.office_id WHERE s.requirement_id = r.requirement_id ORDER BY s.updated_at DESC LIMIT 1) as assigned_office,
-        (SELECT s.status FROM accreditation_requirement_submissions s WHERE s.requirement_id = r.requirement_id ORDER BY s.updated_at DESC LIMIT 1) as latest_status
+        c.name AS category,
+        c.accreditation_id
     FROM accreditation_requirement r
     LEFT JOIN accreditation_categories c ON r.category_id = c.category_id
     ORDER BY c.name ASC, r.name ASC
@@ -35,25 +102,23 @@ $raw_requirements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $requirements = [];
 foreach ($raw_requirements as $req) {
+    $req_id = $req['req_id'];
+    $proofs = $bridges_by_requirement[$req_id] ?? [];
     $requirements[] = [
-        'req_id' => $req['req_id'],
-        'req_code' => (!empty($req['req_code']) ? $req['req_code'] : 'REQ-' . $req['req_id']),
+        'req_id' => $req_id,
+        'req_code' => (!empty($req['req_code']) ? $req['req_code'] : 'REQ-' . $req_id),
         'title' => $req['title'],
         'description' => $req['description'],
         'category_id' => $req['category_id'],
         'category' => (!empty($req['category']) ? $req['category'] : 'Uncategorized'),
-        'assigned_office' => (!empty($req['assigned_office']) ? $req['assigned_office'] : 'Unassigned'),
-        'status' => (!empty($req['latest_status']) ? $req['latest_status'] : 'Pending'),
-        'tags_list' => '',
-        'has_submission' => $req['sub_count'] > 0
+        'accreditation_id' => $req['accreditation_id'],
+        'proofs' => $proofs,
+        'proof_count' => count($proofs),
+        'proof_linked' => count(array_filter($proofs, function ($p) {
+            return !empty($p['document_id']) || !empty($p['submission_id']);
+        })),
     ];
 }
-
-$status_levels = [
-    'Approved' => ['label' => 'Approved', 'color' => '#10b981', 'bg' => '#ecfdf5', 'icon' => '✅'],
-    'Under Review' => ['label' => 'Under Review', 'color' => '#3b82f6', 'bg' => '#eff6ff', 'icon' => '⏳'],
-    'Pending' => ['label' => 'Pending', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => '📥']
-];
 ?>
 
 <style>
@@ -235,6 +300,70 @@ $status_levels = [
         font-weight: 600;
         color: var(--text-secondary);
     }
+
+    .proof-list-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-width: 360px;
+    }
+
+    .proof-chip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        background: #f8fafc;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 0.78rem;
+    }
+
+    .proof-chip-name {
+        font-weight: 700;
+        color: #1e293b;
+        flex: 1;
+        min-width: 100px;
+    }
+
+    .proof-chip-status {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 0.7rem;
+        white-space: nowrap;
+    }
+
+    .proof-chip-office {
+        width: 100%;
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    .proof-empty {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(6px);
+        z-index: 3000;
+    }
+
+    .modal-overlay .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+        margin: auto;
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem; padding-bottom: 3rem;">
@@ -252,9 +381,6 @@ $status_levels = [
                 <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; font-weight: 500;">
                     Map, organize, and monitor accreditation standards and requirements compliance across departments.
                 </p>
-                <div style="margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 20px; background: #fffbeb; border: 1px solid #fde68a; font-size: 0.75rem; font-weight: 700; color: #b45309;">
-                    <span>⚠️ Layout Preview: Backend Database Integration in Development</span>
-                </div>
             </div>
             
             <button onclick="document.getElementById('addReqModal').style.display='flex'" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; background: var(--accent-blue); color: white; font-weight: 700; font-size: 0.85rem; padding: 12px 24px; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 10px rgba(0, 28, 87, 0.2); transition: all 0.2s;">
@@ -281,25 +407,6 @@ $status_levels = [
                     <input type="text" id="requirementSearch" oninput="resetPageAndSearch()" placeholder="Search requirements by code, title, tags..." style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.8rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; transition: border 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
                 </div>
 
-                <!-- Office Filter -->
-                <div style="width: 230px;">
-                    <select id="officeFilter" onchange="resetPageAndSearch()" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; cursor: pointer;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="all">All Offices</option>
-                        <?php foreach ($offices as $o): ?>
-                            <option value="<?= htmlspecialchars($o) ?>"><?= htmlspecialchars($o) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <!-- Status Filter -->
-                <div style="width: 200px;">
-                    <select id="statusFilter" onchange="resetPageAndSearch()" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; cursor: pointer;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="all">All Statuses</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Under Review">Under Review</option>
-                        <option value="Pending">Pending</option>
-                    </select>
-                </div>
             </div>
         </div>
 
@@ -315,25 +422,18 @@ $status_levels = [
                     <tr style="background: #f8fafc; border-bottom: 2px solid var(--border-color);">
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Req Code</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Requirement Title / Category</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Assigned Office</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Compliance Status</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Submission</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Proofs of Compliance</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 80px; text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="req-table-body">
                     <?php foreach ($requirements as $req): ?>
-                        <?php 
-                            $status = $req['status'];
-                            $sData = $status_levels[$status] ?? ['label' => 'Pending', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => '📥'];
-                        ?>
-                        <tr class="req-row" 
+                        <tr class="req-row"
                             data-code="<?= htmlspecialchars($req['req_code']) ?>"
                             data-title="<?= htmlspecialchars($req['title']) ?>"
                             data-desc="<?= htmlspecialchars($req['description']) ?>"
                             data-category-id="<?= htmlspecialchars($req['category_id']) ?>"
-                            data-office="<?= htmlspecialchars($req['assigned_office']) ?>"
-                            data-status="<?= htmlspecialchars($req['status']) ?>">
+                            data-accreditation-id="<?= htmlspecialchars($req['accreditation_id'] ?? '') ?>">
                             
                             <td style="padding: 1.2rem; font-weight: 800; color: var(--accent-blue); font-size: 0.95rem;">
                                 <?= htmlspecialchars($req['req_code']) ?>
@@ -344,23 +444,27 @@ $status_levels = [
                                 <span style="font-size: 0.75rem; background: rgba(0, 28, 87, 0.05); color: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;"><?= htmlspecialchars($req['category']) ?></span>
                             </td>
 
-                            <td style="padding: 1.2rem; font-weight: 600; color: #475569; font-size: 0.85rem;">
-                                <?= htmlspecialchars($req['assigned_office']) ?>
-                            </td>
-
                             <td style="padding: 1.2rem;">
-                                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; color: <?= $sData['color'] ?>; background: <?= $sData['bg'] ?>;">
-                                    <span><?= $sData['icon'] ?></span>
-                                    <span><?= $sData['label'] ?></span>
-                                </span>
-                            </td>
-
-                            <td style="padding: 1.2rem;">
-                                <?php if ($req['has_submission']): ?>
-                                    <span style="background: #ecfdf5; color: #10b981; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">True</span>
-                                <?php else: ?>
-                                    <span style="background: #fef2f2; color: #ef4444; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">False</span>
-                                <?php endif; ?>
+                                <div class="proof-list-cell">
+                                    <?php if (empty($req['proofs'])): ?>
+                                        <span class="proof-empty">No proofs defined</span>
+                                    <?php else: ?>
+                                        <?php foreach ($req['proofs'] as $proof):
+                                            $meta = getProofDisplayMeta($proof);
+                                        ?>
+                                        <div class="proof-chip">
+                                            <span class="proof-chip-name"><?= htmlspecialchars($proof['proof_name']) ?></span>
+                                            <span class="proof-chip-status" style="color: <?= $meta['status_color'] ?>; background: <?= $meta['status_bg'] ?>;"><?= htmlspecialchars($meta['status']) ?></span>
+                                            <?php if ($meta['detail']): ?>
+                                                <span class="proof-chip-office"><?= htmlspecialchars($meta['detail']) ?></span>
+                                            <?php endif; ?>
+                                            <?php if ($meta['office']): ?>
+                                                <span class="proof-chip-office">Office: <?= htmlspecialchars($meta['office']) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
                             </td>
 
                             <td style="padding: 1.2rem; text-align: right;">
@@ -369,6 +473,11 @@ $status_levels = [
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                     </button>
                                     <div id="dropdown-<?= $req['req_id'] ?>" class="dropdown-menu">
+                                        <button class="dropdown-item" onclick="openManageProofs(<?= (int)$req['req_id'] ?>)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            Manage Proofs
+                                        </button>
+                                        <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
                                         <button class="dropdown-item" onclick="viewDetails(<?= $req['req_id'] ?>)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             View Details
@@ -527,7 +636,6 @@ $status_levels = [
     <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
             <div>
-                <span id="view_req_status_badge" style="padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; margin-bottom: 8px;">Pending</span>
                 <h2 id="view_req_title" style="margin: 0; color: #0f172a; font-size: 1.5rem; font-weight: 800; line-height: 1.3;">Requirement Title</h2>
                 <p id="view_req_code" style="color: var(--accent-blue); font-size: 0.75rem; font-weight: 800; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 0.5px;">CODE: REQ-GOV-01</p>
             </div>
@@ -535,14 +643,6 @@ $status_levels = [
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 1.2rem;">
-            <div>
-                <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Assigned Department / Office</span>
-                <div id="view_req_office" style="font-size: 0.95rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                    <span>Quality Assurance Office</span>
-                </div>
-            </div>
-
             <div>
                 <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px;">Area / Category</span>
                 <span id="view_req_category" style="font-size: 0.9rem; font-weight: 700; color: #0f172a;">Area I: Governance & Management</span>
@@ -554,10 +654,8 @@ $status_levels = [
             </div>
 
             <div>
-                <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 6px;">Associated Tags</span>
-                <div id="view_req_tags" style="display: flex; flex-wrap: wrap; gap: 4px;">
-                    <!-- tags -->
-                </div>
+                <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 6px;">Proofs of Compliance</span>
+                <div id="view_req_proofs" style="display: flex; flex-direction: column; gap: 8px;"></div>
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.2rem;">
@@ -567,12 +665,82 @@ $status_levels = [
     </div>
 </div>
 
+<!-- Compliance Tracker Modal (proofs) -->
+<div id="complianceTrackerModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 900px; width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div>
+                <span id="comp_req_codename" style="font-weight: 700; color: var(--accent-blue); font-size: 0.9rem;"></span>
+                <h2 id="comp_req_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Proofs of Compliance</h2>
+            </div>
+            <button type="button" onclick="closeComplianceTrackerModal()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                <div style="font-weight: 600; font-size: 0.9rem; color: var(--accent-blue);">Proof completion</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 150px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                        <div id="comp_progress_bar" style="width: 0%; height: 100%; background: #22c55e; transition: width 0.3s;"></div>
+                    </div>
+                    <span id="comp_progress_text" style="font-weight: 700; font-size: 0.85rem; color: #22c55e;">0%</span>
+                </div>
+            </div>
+            <?php if ($is_qao): ?>
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed var(--border-color); margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.85rem; margin: 0 0 0.8rem 0; color: var(--accent-blue);">Add Required Proof of Compliance</h3>
+                <form action="../api/accreditation.php?action=add_proof" method="POST" id="addProofForm" style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="hidden" name="accreditation_id" id="add_proof_acc_id" value="">
+                    <input type="hidden" name="requirement_id" id="add_proof_req_id">
+                    <div id="add_proof_fields_container" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px;">
+                            <div style="width: 28px;"></div>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                        <button type="button" onclick="addProofField()" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; background: transparent; border: 1px solid var(--accent-blue); color: var(--accent-blue); border-radius: 6px; cursor: pointer;">+ Add Another Proof</button>
+                        <button type="submit" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: var(--accent-blue); color: white; border: none; border-radius: 6px; cursor: pointer;">Save Proofs</button>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
+            <div id="proofs_container" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Link Document Modal -->
+<div id="linkDocumentModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Select Institutional Document</h2>
+            <button type="button" onclick="document.getElementById('linkDocumentModal').style.display='none'" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <input type="text" id="doc_selector_search" placeholder="Search documents..." oninput="filterSelectorDocs()" style="width: 100%; padding: 0.6rem 1rem; margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
+        <div style="flex: 1; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid var(--border-color); text-align: left;">
+                        <th style="padding: 12px 8px;">Code</th>
+                        <th style="padding: 12px 8px;">Category</th>
+                        <th style="padding: 12px 8px;">Purpose</th>
+                        <th style="padding: 12px 8px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="doc_selector_rows"></tbody>
+            </table>
+            <p id="doc_selector_empty" style="display: none; text-align: center; color: var(--text-secondary); padding: 2rem;">No documents found.</p>
+        </div>
+    </div>
+</div>
+
 <script>
     // --- Data from PHP ---
     const allAccreditations = <?= json_encode($all_accreditations) ?>;
     const allCategories = <?= json_encode($all_categories) ?>;
     const allRequirements = <?= json_encode($requirements) ?>;
-    const statusLevels = <?= json_encode($status_levels) ?>;
+    const allInstitutionalDocs = <?= json_encode($all_inst_docs) ?>;
+    const isQAOGlobal = <?= json_encode($is_qao) ?>;
 
     // --- State ---
     let selectedAccreditationId = null;
@@ -777,8 +945,6 @@ $status_levels = [
     // --- Main search/filter/paginate ---
     function searchRequirements() {
         const searchTerm = document.getElementById('requirementSearch').value.toLowerCase();
-        const officeFilter = document.getElementById('officeFilter').value;
-        const statusFilter = document.getElementById('statusFilter').value;
         
         // Determine which category_ids to match
         let allowedCategoryIds = null; // null means all
@@ -797,15 +963,11 @@ $status_levels = [
             const title = (row.getAttribute('data-title') || '').toLowerCase();
             const desc = (row.getAttribute('data-desc') || '').toLowerCase();
             const catId = row.getAttribute('data-category-id');
-            const office = row.getAttribute('data-office');
-            const status = row.getAttribute('data-status');
 
             const matchesSearch = !searchTerm || code.includes(searchTerm) || title.includes(searchTerm) || desc.includes(searchTerm);
-            const matchesOffice = officeFilter === 'all' || office === officeFilter;
-            const matchesStatus = statusFilter === 'all' || status === statusFilter;
             const matchesCategory = allowedCategoryIds === null || allowedCategoryIds.includes(String(catId));
 
-            if (matchesSearch && matchesOffice && matchesStatus && matchesCategory) {
+            if (matchesSearch && matchesCategory) {
                 matchingRows.push(row);
             } else {
                 row.style.display = 'none';
@@ -925,24 +1087,246 @@ $status_levels = [
         controls.appendChild(nextBtn);
     }
 
+    // --- Proofs of compliance ---
+    let currentRequirement = null;
+    let activeRequirementBridges = [];
+    let currentBridgeIdToLink = null;
+
+    function getProofMeta(b) {
+        if (b.document_id) {
+            return { status: 'Linked', color: '#10b981', bg: '#ecfdf5', detail: (b.doc_code || 'Document') + (b.doc_category ? ' · ' + b.doc_category : ''), office: null };
+        }
+        if (b.submission_id) {
+            const status = b.sub_status || 'Pending';
+            const colors = { Approved: ['#10b981', '#ecfdf5'], Pending: ['#3b82f6', '#eff6ff'], Uploaded: ['#3b82f6', '#eff6ff'], Returned: ['#ef4444', '#fef2f2'] };
+            const [color, bg] = colors[status] || ['#f59e0b', '#fef3c7'];
+            return { status, color, bg, detail: b.sub_link ? 'File uploaded' : 'Submission on file', office: b.office_name || null };
+        }
+        return { status: 'Missing', color: '#94a3b8', bg: '#f1f5f9', detail: null, office: null };
+    }
+
+    function openManageProofs(reqId) {
+        const req = allRequirements.find(r => r.req_id == reqId);
+        if (!req) return;
+        openComplianceTracker(req.req_id, req.title, req.req_code, req.proofs || [], req.accreditation_id);
+    }
+
+    function openComplianceTracker(reqId, reqName, reqCodename, bridges, accreditationId) {
+        currentRequirement = { id: reqId, name: reqName, codename: reqCodename, accreditationId };
+        activeRequirementBridges = bridges || [];
+
+        document.getElementById('comp_req_codename').textContent = reqCodename ? reqCodename + ':' : '';
+        document.getElementById('comp_req_title').textContent = reqName;
+
+        const accInput = document.getElementById('add_proof_acc_id');
+        const reqInput = document.getElementById('add_proof_req_id');
+        if (accInput) accInput.value = accreditationId || '';
+        if (reqInput) reqInput.value = reqId;
+
+        const fieldsContainer = document.getElementById('add_proof_fields_container');
+        if (fieldsContainer) {
+            fieldsContainer.innerHTML = `
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px;">
+                    <div style="width: 28px;"></div>
+                </div>
+            `;
+        }
+
+        const container = document.getElementById('proofs_container');
+        container.innerHTML = '';
+
+        let linkedCount = 0;
+        const totalCount = bridges.length;
+
+        if (totalCount === 0) {
+            container.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">No proofs defined yet. Use the form above to add required proofs of compliance.</p>';
+        } else {
+            bridges.forEach(b => {
+                const meta = getProofMeta(b);
+                if (b.document_id || (b.submission_id && b.sub_status === 'Approved')) linkedCount++;
+
+                let detailsHTML = '';
+                if (b.document_id) {
+                    detailsHTML = `<div style="font-size: 0.85rem; margin-top: 5px; color: var(--text-secondary);">Mapped to: <strong>${escapeHtml(b.doc_code || '')}</strong> (${escapeHtml(b.doc_category || '')})</div>`;
+                } else if (b.submission_id) {
+                    detailsHTML = `<div style="font-size: 0.85rem; margin-top: 5px; color: var(--text-secondary);">
+                        ${b.office_name ? `Office: <strong>${escapeHtml(b.office_name)}</strong><br>` : ''}
+                        ${b.sub_link ? `<a href="${escapeHtml(b.sub_link)}" target="_blank" style="color: var(--accent-blue);">View uploaded file</a>` : 'Submission recorded'}
+                    </div>`;
+                } else {
+                    detailsHTML = '<p style="margin: 5px 0 0; font-size: 0.85rem; color: var(--text-secondary);">No document linked or file uploaded.</p>';
+                }
+
+                let actionsHTML = '';
+                if (b.document_id || b.submission_id) {
+                    actionsHTML = `<button type="button" onclick="unlinkProof(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer;">Unlink</button>`;
+                } else {
+                    actionsHTML = `
+                        <button type="button" onclick="openLinkDocumentSelector(${b.bridge_id})" style="padding: 4px 8px; font-size: 0.75rem; background: white; border: 1px solid var(--accent-blue); color: var(--accent-blue); border-radius: 6px; cursor: pointer; margin-right: 5px;">Link Document</button>
+                    `;
+                }
+
+                const deleteBtn = isQAOGlobal ? `<button type="button" onclick="deleteProof(${b.bridge_id})" title="Delete proof" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; line-height: 1;">&times;</button>` : '';
+
+                container.innerHTML += `
+                    <div style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <h4 style="margin: 0; font-size: 0.95rem; color: var(--accent-blue);">${escapeHtml(b.proof_name)}</h4>
+                                    ${deleteBtn}
+                                </div>
+                                ${detailsHTML}
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0;">
+                                <span style="background: ${meta.bg}; color: ${meta.color}; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; font-weight: 700;">${escapeHtml(meta.status)}</span>
+                                ${actionsHTML}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        const pct = totalCount ? Math.round((linkedCount / totalCount) * 100) : 0;
+        document.getElementById('comp_progress_bar').style.width = pct + '%';
+        document.getElementById('comp_progress_text').textContent = pct + '%';
+
+        document.getElementById('complianceTrackerModal').style.display = 'flex';
+    }
+
+    function closeComplianceTrackerModal() {
+        document.getElementById('complianceTrackerModal').style.display = 'none';
+    }
+
+    async function linkInstitutionalDoc(bridgeId, docId) {
+        if (!docId) return;
+        try {
+            const response = await fetch('../api/accreditation.php?action=link_document', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `bridge_id=${bridgeId}&document_id=${docId}`
+            });
+            const result = await response.json();
+            if (result.success) window.location.reload();
+            else alert(result.message || 'Failed to link document.');
+        } catch (e) {
+            alert('Failed to link document.');
+        }
+    }
+
+    async function unlinkProof(bridgeId) {
+        if (!confirm('Unlink this proof from its document or submission?')) return;
+        try {
+            const response = await fetch('../api/accreditation.php?action=unlink_proof', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `bridge_id=${bridgeId}`
+            });
+            const result = await response.json();
+            if (result.success) window.location.reload();
+            else alert(result.message || 'Failed to unlink proof.');
+        } catch (e) {
+            alert('Failed to unlink proof.');
+        }
+    }
+
+    async function deleteProof(bridgeId) {
+        if (!confirm('Delete this proof requirement?')) return;
+        try {
+            const response = await fetch(`../api/accreditation.php?action=delete_proof&bridge_id=${bridgeId}`);
+            const result = await response.json();
+            if (result.success) window.location.reload();
+            else alert(result.message || 'Failed to delete proof.');
+        } catch (e) {
+            alert('Failed to delete proof.');
+        }
+    }
+
+    function addProofField() {
+        const container = document.getElementById('add_proof_fields_container');
+        if (!container) return;
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+        row.innerHTML = `
+            <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px;">
+            <button type="button" onclick="this.parentElement.remove()" style="background: transparent; border: none; font-size: 1.25rem; color: #ef4444; cursor: pointer;">&times;</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function openLinkDocumentSelector(bridgeId) {
+        currentBridgeIdToLink = bridgeId;
+        document.getElementById('doc_selector_search').value = '';
+        renderSelectorDocs();
+        document.getElementById('linkDocumentModal').style.display = 'flex';
+    }
+
+    function renderSelectorDocs() {
+        const query = (document.getElementById('doc_selector_search').value || '').toLowerCase();
+        const container = document.getElementById('doc_selector_rows');
+        const emptyMsg = document.getElementById('doc_selector_empty');
+        container.innerHTML = '';
+
+        const filtered = allInstitutionalDocs.filter(d => {
+            const code = (d.doc_code || '').toLowerCase();
+            const category = (d.category || '').toLowerCase();
+            const purpose = (d.purpose || '').toLowerCase();
+            return code.includes(query) || category.includes(query) || purpose.includes(query);
+        });
+
+        if (filtered.length === 0) {
+            emptyMsg.style.display = 'block';
+            return;
+        }
+        emptyMsg.style.display = 'none';
+        filtered.forEach(d => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            const purposeTrunc = d.purpose ? d.purpose.substring(0, 80) + (d.purpose.length > 80 ? '...' : '') : 'N/A';
+            tr.innerHTML = `
+                <td style="padding: 10px 8px; font-weight: 600; color: var(--accent-blue);">${escapeHtml(d.doc_code)}</td>
+                <td style="padding: 10px 8px;">${escapeHtml(d.category)}</td>
+                <td style="padding: 10px 8px;">${escapeHtml(purposeTrunc)}</td>
+                <td style="padding: 10px 8px; text-align: right;">
+                    <button type="button" onclick="linkInstitutionalDoc(${currentBridgeIdToLink}, ${d.doc_id})" style="padding: 4px 10px; font-size: 0.75rem; background: var(--accent-blue); color: white; border: none; border-radius: 6px; cursor: pointer;">Link</button>
+                </td>
+            `;
+            container.appendChild(tr);
+        });
+    }
+
+    function filterSelectorDocs() {
+        renderSelectorDocs();
+    }
+
     // --- View / Edit / Delete ---
     function viewDetails(id) {
         const req = allRequirements.find(r => r.req_id == id);
         if (!req) return;
 
-        const sData = statusLevels[req.status] || {label: req.status, color: '#64748b', bg: '#f1f5f9', icon: '❓'};
-        const badge = document.getElementById('view_req_status_badge');
-        badge.textContent = sData.label;
-        badge.style.cssText = `padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; margin-bottom: 8px; color: ${sData.color}; background: ${sData.bg};`;
-
         document.getElementById('view_req_title').textContent = req.title;
         document.getElementById('view_req_code').textContent = 'CODE: ' + req.req_code;
-        document.getElementById('view_req_office').querySelector('span').textContent = req.assigned_office;
         document.getElementById('view_req_category').textContent = req.category;
         document.getElementById('view_req_desc').textContent = req.description || 'No description recorded.';
 
-        const tagsContainer = document.getElementById('view_req_tags');
-        tagsContainer.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">No tags</span>';
+        const proofsEl = document.getElementById('view_req_proofs');
+        const proofs = req.proofs || [];
+        if (proofs.length === 0) {
+            proofsEl.innerHTML = '<span style="color:#94a3b8; font-size:0.85rem; font-style:italic;">No proofs defined</span>';
+        } else {
+            proofsEl.innerHTML = proofs.map(b => {
+                const meta = getProofMeta(b);
+                let officeLine = meta.office ? `<div style="font-size:0.75rem;color:#64748b;margin-top:2px;">Office: ${escapeHtml(meta.office)}</div>` : '';
+                return `<div class="proof-chip" style="margin:0;">
+                    <span class="proof-chip-name">${escapeHtml(b.proof_name)}</span>
+                    <span class="proof-chip-status" style="color:${meta.color};background:${meta.bg};">${escapeHtml(meta.status)}</span>
+                    ${meta.detail ? `<span class="proof-chip-office">${escapeHtml(meta.detail)}</span>` : ''}
+                    ${officeLine}
+                </div>`;
+            }).join('');
+        }
 
         document.getElementById('viewReqModal').style.display = 'flex';
     }
@@ -953,10 +1337,10 @@ $status_levels = [
 
         document.getElementById('edit_req_code').value = req.req_code;
         document.getElementById('edit_req_title').value = req.title;
-        document.getElementById('edit_req_office').value = req.assigned_office;
-        document.getElementById('edit_req_category').value = req.category;
-        document.getElementById('edit_req_status').value = req.status;
         document.getElementById('edit_req_desc').value = req.description;
+        if (document.getElementById('edit_req_category')) {
+            document.getElementById('edit_req_category').value = req.category;
+        }
 
         document.getElementById('editReqModal').style.display = 'flex';
     }
