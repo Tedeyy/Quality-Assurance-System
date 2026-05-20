@@ -349,7 +349,7 @@ $status_levels = [
             
             <div style="padding: 1.2rem 2rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px;">
                 <div style="font-size: 0.8rem; color: var(--text-secondary);" id="showing-count-container">Showing <b>0 - 0</b> of <b>0</b> requirements</div>
-                <div id="pagination-controls" style="display: flex; gap: 5px;"></div>
+                <div id="pagination-controls" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; justify-content: flex-end;"></div>
             </div>
         </div>
     </div>
@@ -794,14 +794,45 @@ $status_levels = [
         updatePaginationUI(totalPages);
     }
 
+    function getPaginationPages(current, total) {
+        if (total <= 6) {
+            return Array.from({ length: total }, (_, i) => i + 1);
+        }
+
+        if (current <= 4) {
+            const pages = [1, 2, 3, 4];
+            if (total > 5) {
+                pages.push('ellipsis');
+                pages.push(total);
+            } else {
+                pages.push(5);
+            }
+            return pages;
+        }
+
+        if (current >= total - 3) {
+            const pages = [1, 'ellipsis'];
+            for (let i = total - 3; i <= total; i++) {
+                pages.push(i);
+            }
+            return pages;
+        }
+
+        return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total];
+    }
+
     function updatePaginationUI(totalPages) {
         const controls = document.getElementById('pagination-controls');
         if (!controls) return;
         controls.innerHTML = '';
 
+        const btnBase = 'padding: 5px 10px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; min-width: 32px;';
+        const btnActive = btnBase + ' background: var(--accent-blue); color: white; cursor: default;';
+        const btnInactive = btnBase + ' cursor: pointer;';
+
         const prevBtn = document.createElement('button');
         prevBtn.innerText = 'Previous';
-        prevBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+        prevBtn.style.cssText = btnInactive;
         if (currentPage === 1) {
             prevBtn.disabled = true;
             prevBtn.style.opacity = '0.5';
@@ -811,21 +842,27 @@ $status_levels = [
         }
         controls.appendChild(prevBtn);
 
-        for (let i = 1; i <= totalPages; i++) {
+        getPaginationPages(currentPage, totalPages).forEach(item => {
+            if (item === 'ellipsis') {
+                const span = document.createElement('span');
+                span.textContent = '…';
+                span.style.cssText = 'padding: 5px 6px; font-size: 0.8rem; color: var(--text-secondary); user-select: none;';
+                controls.appendChild(span);
+                return;
+            }
+
             const pageBtn = document.createElement('button');
-            pageBtn.innerText = i;
-            if (i === currentPage) {
-                pageBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem; border-radius: 6px; cursor: default;';
-            } else {
-                pageBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
-                pageBtn.onclick = () => { currentPage = i; searchRequirements(); };
+            pageBtn.innerText = item;
+            pageBtn.style.cssText = item === currentPage ? btnActive : btnInactive;
+            if (item !== currentPage) {
+                pageBtn.onclick = () => { currentPage = item; searchRequirements(); };
             }
             controls.appendChild(pageBtn);
-        }
+        });
 
         const nextBtn = document.createElement('button');
         nextBtn.innerText = 'Next';
-        nextBtn.style.cssText = 'padding: 5px 12px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; cursor: pointer;';
+        nextBtn.style.cssText = btnInactive;
         if (currentPage === totalPages) {
             nextBtn.disabled = true;
             nextBtn.style.opacity = '0.5';
