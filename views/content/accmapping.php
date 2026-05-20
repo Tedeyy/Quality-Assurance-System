@@ -197,6 +197,44 @@ $status_levels = [
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+    #req-table-section.is-loading .req-table-content,
+    #req-table-section.is-loading .req-table-footer {
+        display: none;
+    }
+
+    .req-table-loader {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        min-height: 320px;
+        padding: 3rem 2rem;
+    }
+
+    #req-table-section.is-loading .req-table-loader {
+        display: flex;
+    }
+
+    .req-table-spinner {
+        width: 44px;
+        height: 44px;
+        border: 3px solid #e2e8f0;
+        border-top-color: var(--accent-blue);
+        border-radius: 50%;
+        animation: reqTableSpin 0.75s linear infinite;
+    }
+
+    @keyframes reqTableSpin {
+        to { transform: rotate(360deg); }
+    }
+
+    .req-table-loader-text {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem; padding-bottom: 3rem;">
@@ -266,7 +304,12 @@ $status_levels = [
         </div>
 
         <!-- Table Grid -->
-        <div style="background: white; border-radius: 12px; border: 1px solid var(--border-color); overflow: visible; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+        <div id="req-table-section" class="is-loading" style="background: white; border-radius: 12px; border: 1px solid var(--border-color); overflow: visible; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+            <div id="req-table-loading" class="req-table-loader" aria-live="polite" aria-busy="true">
+                <div class="req-table-spinner" aria-hidden="true"></div>
+                <p class="req-table-loader-text">Loading requirements…</p>
+            </div>
+            <div class="req-table-content">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid var(--border-color);">
@@ -346,8 +389,8 @@ $status_levels = [
                     <?php endforeach; ?>
                 </tbody>
             </table>
-            
-            <div style="padding: 1.2rem 2rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px;">
+            </div>
+            <div class="req-table-footer" style="padding: 1.2rem 2rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px;">
                 <div style="font-size: 0.8rem; color: var(--text-secondary);" id="showing-count-container">Showing <b>0 - 0</b> of <b>0</b> requirements</div>
                 <div id="pagination-controls" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; justify-content: flex-end;"></div>
             </div>
@@ -536,6 +579,7 @@ $status_levels = [
     let selectedCategoryIds = []; // Parent / child category selections after accreditation
     let currentPage = parseInt(sessionStorage.getItem('accmappingPage')) || 1;
     const itemsPerPage = 10;
+    let isTableInitialLoad = true;
 
     // --- Category helpers ---
     function isRootCategory(cat) {
@@ -792,6 +836,14 @@ $status_levels = [
         }
 
         updatePaginationUI(totalPages);
+
+        if (isTableInitialLoad) {
+            isTableInitialLoad = false;
+            const section = document.getElementById('req-table-section');
+            const loader = document.getElementById('req-table-loading');
+            if (section) section.classList.remove('is-loading');
+            if (loader) loader.setAttribute('aria-busy', 'false');
+        }
     }
 
     function getPaginationPages(current, total) {
@@ -923,11 +975,11 @@ $status_levels = [
     // --- Initialize ---
     window.addEventListener('DOMContentLoaded', () => {
         buildDropdowns();
-        searchRequirements();
+        // Defer pagination so the loading state paints before processing rows
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => searchRequirements());
+        });
     });
-
-    // Initialize search on load
-    searchRequirements();
 
     // Close action menus when clicking outside
     document.addEventListener('click', () => {
