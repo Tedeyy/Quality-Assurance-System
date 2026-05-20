@@ -301,6 +301,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'add_proof') {
         $acc_id = $_POST['accreditation_id'] ?? null;
         $req_id = $_POST['requirement_id'] ?? null;
+        $redirect = $_POST['redirect_url'] ?? '';
+        if (empty($redirect)) $redirect = '../views/feed.php?action=accreditation&accreditation_id=' . $acc_id;
+        $wants_json = (
+            strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest'
+            || strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false
+        );
         
         $proof_names = $_POST['proof_names'] ?? [];
         if (!is_array($proof_names)) {
@@ -315,30 +321,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($req_id) || empty($proof_names)) {
             $_SESSION['error'] = 'Requirement ID and Proof Name are required.';
-            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            if ($wants_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $_SESSION['error']]);
+                exit;
+            }
+            header('Location: ' . $redirect);
             exit;
         }
 
         try {
             $stmt = $db->prepare("INSERT INTO document_bridge (requirement_id, proof_name) VALUES (:req_id, :proof_name)");
+            $created_proofs = [];
             $db->beginTransaction();
             foreach ($proof_names as $proof_name) {
                 $stmt->execute([
                     'req_id' => $req_id,
                     'proof_name' => $proof_name
                 ]);
+                $created_proofs[] = [
+                    'bridge_id' => $db->lastInsertId(),
+                    'requirement_id' => $req_id,
+                    'proof_name' => $proof_name,
+                    'document_id' => null,
+                    'submission_id' => null,
+                    'doc_code' => null,
+                    'doc_category' => null,
+                    'doc_purpose' => null,
+                    'sub_status' => null,
+                    'sub_link' => null,
+                    'office_name' => null,
+                ];
                 logActivity($db, $_SESSION['user_id'], "Added proof of compliance '$proof_name' to requirement ID: $req_id");
             }
             $db->commit();
             $_SESSION['success'] = 'Proofs of compliance added successfully!';
-            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            if ($wants_json) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => $_SESSION['success'],
+                    'requirement_id' => $req_id,
+                    'proofs' => $created_proofs
+                ]);
+                exit;
+            }
+            header('Location: ' . $redirect);
             exit;
         } catch (PDOException $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
             $_SESSION['error'] = 'Failed to add proofs of compliance: ' . $e->getMessage();
-            header('Location: ../views/feed.php?action=accreditation&accreditation_id=' . $acc_id);
+            if ($wants_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $_SESSION['error']]);
+                exit;
+            }
+            header('Location: ' . $redirect);
             exit;
         }
     } elseif ($action === 'link_document') {

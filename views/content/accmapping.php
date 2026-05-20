@@ -19,10 +19,14 @@ $stmt = $db->query("
     SELECT b.*,
            doc.doc_code, doc.category AS doc_category, doc.purpose AS doc_purpose,
            s.status AS sub_status, s.google_drive_link AS sub_link,
+           s.google_drive_file_id, s.file_path AS sub_path, s.remarks AS sub_remarks,
+           s.user_id AS sub_user_id,
+           u.fname AS uploader_fname, u.lname AS uploader_lname,
            do.name AS office_name, do.acronym AS office_acronym
     FROM document_bridge b
     LEFT JOIN documents doc ON b.document_id = doc.doc_id
     LEFT JOIN accreditation_requirement_submissions s ON b.submission_id = s.submission_id
+    LEFT JOIN users u ON s.user_id = u.user_id
     LEFT JOIN divisions_offices do ON s.office_id = do.office_id
     ORDER BY b.requirement_id ASC, b.proof_name ASC
 ");
@@ -75,9 +79,9 @@ function getProofDisplayMeta(array $bridge): array {
         ];
     }
     return [
-        'status' => 'Missing',
-        'status_color' => '#94a3b8',
-        'status_bg' => '#f1f5f9',
+        'status' => null,
+        'status_color' => null,
+        'status_bg' => null,
         'detail' => null,
         'office' => null,
     ];
@@ -429,6 +433,7 @@ foreach ($raw_requirements as $req) {
                 <tbody id="req-table-body">
                     <?php foreach ($requirements as $req): ?>
                         <tr class="req-row"
+                            data-req-id="<?= htmlspecialchars($req['req_id']) ?>"
                             data-code="<?= htmlspecialchars($req['req_code']) ?>"
                             data-title="<?= htmlspecialchars($req['title']) ?>"
                             data-desc="<?= htmlspecialchars($req['description']) ?>"
@@ -445,7 +450,7 @@ foreach ($raw_requirements as $req) {
                             </td>
 
                             <td style="padding: 1.2rem;">
-                                <div class="proof-list-cell">
+                                <div class="proof-list-cell" id="proof-list-<?= (int)$req['req_id'] ?>">
                                     <?php if (empty($req['proofs'])): ?>
                                         <span class="proof-empty">No proofs defined</span>
                                     <?php else: ?>
@@ -454,7 +459,9 @@ foreach ($raw_requirements as $req) {
                                         ?>
                                         <div class="proof-chip">
                                             <span class="proof-chip-name"><?= htmlspecialchars($proof['proof_name']) ?></span>
-                                            <span class="proof-chip-status" style="color: <?= $meta['status_color'] ?>; background: <?= $meta['status_bg'] ?>;"><?= htmlspecialchars($meta['status']) ?></span>
+                                            <?php if ($meta['status']): ?>
+                                                <span class="proof-chip-status" style="color: <?= $meta['status_color'] ?>; background: <?= $meta['status_bg'] ?>;"><?= htmlspecialchars($meta['status']) ?></span>
+                                            <?php endif; ?>
                                             <?php if ($meta['detail']): ?>
                                                 <span class="proof-chip-office"><?= htmlspecialchars($meta['detail']) ?></span>
                                             <?php endif; ?>
@@ -567,7 +574,7 @@ foreach ($raw_requirements as $req) {
 
 <!-- View Requirement Details Modal -->
 <div id="viewReqModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2100; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.25s ease-out;">
-    <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 550px; max-width: 90vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
+    <div style="background: white; padding: 2.2rem; border-radius: 16px; width: 760px; max-width: 92vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
             <div>
                 <h2 id="view_req_title" style="margin: 0; color: #0f172a; font-size: 1.5rem; font-weight: 800; line-height: 1.3;">Requirement Title</h2>
@@ -585,6 +592,11 @@ foreach ($raw_requirements as $req) {
             <div>
                 <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 6px;">Proofs of Compliance</span>
                 <div id="view_req_proofs" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+
+            <div>
+                <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 6px;">Submissions</span>
+                <div id="view_req_submissions" style="display: flex; flex-direction: column; gap: 10px;"></div>
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.2rem;">
@@ -620,6 +632,7 @@ foreach ($raw_requirements as $req) {
                 <form action="../api/accreditation.php?action=add_proof" method="POST" id="addProofForm" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="hidden" name="accreditation_id" id="add_proof_acc_id" value="">
                     <input type="hidden" name="requirement_id" id="add_proof_req_id">
+                    <input type="hidden" name="redirect_url" value="../views/feed.php?action=accmapping">
                     <div id="add_proof_fields_container" style="display: flex; flex-direction: column; gap: 8px;">
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <input type="text" name="proof_names[]" required placeholder="e.g. Syllabus, Class Schedule" style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px;">
@@ -1031,7 +1044,43 @@ foreach ($raw_requirements as $req) {
             const [color, bg] = colors[status] || ['#f59e0b', '#fef3c7'];
             return { status, color, bg, detail: b.sub_link ? 'File uploaded' : 'Submission on file', office: b.office_name || null };
         }
-        return { status: 'Missing', color: '#94a3b8', bg: '#f1f5f9', detail: null, office: null };
+        return { status: null, color: null, bg: null, detail: null, office: null };
+    }
+
+    function renderProofChip(b) {
+        const meta = getProofMeta(b);
+        const statusHTML = meta.status ? `<span class="proof-chip-status" style="color: ${meta.color}; background: ${meta.bg};">${escapeHtml(meta.status)}</span>` : '';
+        const detailHTML = meta.detail ? `<span class="proof-chip-office">${escapeHtml(meta.detail)}</span>` : '';
+        const officeHTML = meta.office ? `<span class="proof-chip-office">Office: ${escapeHtml(meta.office)}</span>` : '';
+
+        return `
+            <div class="proof-chip">
+                <span class="proof-chip-name">${escapeHtml(b.proof_name)}</span>
+                ${statusHTML}
+                ${detailHTML}
+                ${officeHTML}
+            </div>
+        `;
+    }
+
+    function refreshRequirementProofs(reqId) {
+        const req = allRequirements.find(r => r.req_id == reqId);
+        if (!req) return;
+
+        req.proof_count = (req.proofs || []).length;
+        req.proof_linked = (req.proofs || []).filter(p => p.document_id || p.submission_id).length;
+
+        const proofList = document.getElementById(`proof-list-${reqId}`);
+        if (proofList) {
+            proofList.innerHTML = req.proofs.length
+                ? req.proofs.map(renderProofChip).join('')
+                : '<span class="proof-empty">No proofs defined</span>';
+        }
+
+        activeRequirementBridges = req.proofs || [];
+        if (currentRequirement && currentRequirement.id == reqId) {
+            openComplianceTracker(req.req_id, req.title, req.req_code, req.proofs || [], req.accreditation_id);
+        }
     }
 
     function openManageProofs(reqId) {
@@ -1097,6 +1146,7 @@ foreach ($raw_requirements as $req) {
                 }
 
                 const deleteBtn = isQAOGlobal ? `<button type="button" onclick="deleteProof(${b.bridge_id})" title="Delete proof" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 1.1rem; line-height: 1;">&times;</button>` : '';
+                const statusHTML = meta.status ? `<span style="background: ${meta.bg}; color: ${meta.color}; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; font-weight: 700;">${escapeHtml(meta.status)}</span>` : '';
 
                 container.innerHTML += `
                     <div style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: white;">
@@ -1109,7 +1159,7 @@ foreach ($raw_requirements as $req) {
                                 ${detailsHTML}
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0;">
-                                <span style="background: ${meta.bg}; color: ${meta.color}; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; font-weight: 700;">${escapeHtml(meta.status)}</span>
+                                ${statusHTML}
                                 ${actionsHTML}
                             </div>
                         </div>
@@ -1185,6 +1235,51 @@ foreach ($raw_requirements as $req) {
         container.appendChild(row);
     }
 
+    async function handleAddProofSubmit(event) {
+        event.preventDefault();
+
+        const form = event.currentTarget;
+        const reqId = form.querySelector('[name="requirement_id"]')?.value;
+        const req = allRequirements.find(r => r.req_id == reqId);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.textContent : '';
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+        }
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            });
+            const result = await response.json();
+
+            if (!result.success) {
+                alert(result.message || 'Failed to add proofs.');
+                return;
+            }
+
+            if (req) {
+                req.proofs = req.proofs || [];
+                req.proofs.push(...(result.proofs || []));
+                refreshRequirementProofs(req.req_id);
+            }
+        } catch (error) {
+            alert('Failed to add proofs.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+    }
+
     function openLinkDocumentSelector(bridgeId) {
         currentBridgeIdToLink = bridgeId;
         document.getElementById('doc_selector_search').value = '';
@@ -1230,6 +1325,12 @@ foreach ($raw_requirements as $req) {
         renderSelectorDocs();
     }
 
+    function getDrivePreviewUrl(link) {
+        if (!link) return '';
+        if (link.includes('/folders/')) return '';
+        return link.includes('/view') ? link.replace('/view', '/preview') : link;
+    }
+
     // --- View / Delete ---
     function viewDetails(id) {
         const req = allRequirements.find(r => r.req_id == id);
@@ -1247,12 +1348,43 @@ foreach ($raw_requirements as $req) {
             proofsEl.innerHTML = proofs.map(b => {
                 const meta = getProofMeta(b);
                 let officeLine = meta.office ? `<div style="font-size:0.75rem;color:#64748b;margin-top:2px;">Office: ${escapeHtml(meta.office)}</div>` : '';
+                const statusBadge = meta.status ? `<span class="proof-chip-status" style="color:${meta.color};background:${meta.bg};">${escapeHtml(meta.status)}</span>` : '';
                 return `<div class="proof-chip" style="margin:0;">
                     <span class="proof-chip-name">${escapeHtml(b.proof_name)}</span>
-                    <span class="proof-chip-status" style="color:${meta.color};background:${meta.bg};">${escapeHtml(meta.status)}</span>
+                    ${statusBadge}
                     ${meta.detail ? `<span class="proof-chip-office">${escapeHtml(meta.detail)}</span>` : ''}
                     ${officeLine}
                 </div>`;
+            }).join('');
+        }
+
+        const submissionsEl = document.getElementById('view_req_submissions');
+        const submissions = proofs.filter(b => b.submission_id);
+        if (submissions.length === 0) {
+            submissionsEl.innerHTML = '<span style="color:#94a3b8; font-size:0.85rem; font-style:italic;">No submissions yet</span>';
+        } else {
+            submissionsEl.innerHTML = submissions.map(b => {
+                const meta = getProofMeta(b);
+                const uploader = [b.uploader_fname, b.uploader_lname].filter(Boolean).join(' ');
+                const previewUrl = getDrivePreviewUrl(b.sub_link || '');
+                const previewHTML = previewUrl
+                    ? `<iframe src="${escapeHtml(previewUrl)}" title="${escapeHtml(b.proof_name)} preview" style="width:100%; height:260px; border:1px solid var(--border-color); border-radius:8px; background:#f8fafc;"></iframe>`
+                    : `<div style="padding: 1rem; border: 1px dashed var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 0.85rem;">Preview is unavailable for this submission. ${b.sub_link ? `<a href="${escapeHtml(b.sub_link)}" target="_blank" style="color: var(--accent-blue); font-weight: 700;">Open document</a>` : ''}</div>`;
+
+                return `
+                    <div style="border:1px solid var(--border-color); border-radius:8px; padding:12px; background:#fff;">
+                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:10px;">
+                            <div>
+                                <div style="font-size:0.75rem; color:#64748b; font-weight:700; text-transform:uppercase;">Type of Proof</div>
+                                <div style="font-size:0.95rem; color:var(--accent-blue); font-weight:800;">${escapeHtml(b.proof_name)}</div>
+                                ${uploader ? `<div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">Submitted by ${escapeHtml(uploader)}</div>` : ''}
+                                ${b.office_name ? `<div style="font-size:0.8rem; color:var(--text-secondary);">Office: ${escapeHtml(b.office_name)}</div>` : ''}
+                            </div>
+                            ${meta.status ? `<span class="proof-chip-status" style="color:${meta.color};background:${meta.bg};">${escapeHtml(meta.status)}</span>` : ''}
+                        </div>
+                        ${previewHTML}
+                    </div>
+                `;
             }).join('');
         }
 
@@ -1277,6 +1409,11 @@ foreach ($raw_requirements as $req) {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => searchRequirements());
         });
+
+        const addProofForm = document.getElementById('addProofForm');
+        if (addProofForm) {
+            addProofForm.addEventListener('submit', handleAddProofSubmit);
+        }
     });
 
     // Close action menus when clicking outside
