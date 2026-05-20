@@ -7,7 +7,10 @@ $stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER
 $sys_offices = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $offices = array_column($sys_offices, 'name');
 
-// Fetch all categories for JS hierarchical dropdowns
+// Fetch accreditations and categories for JS hierarchical dropdowns
+$stmt = $db->query("SELECT accreditation_id, name, code FROM accreditations ORDER BY name ASC");
+$all_accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 $stmt = $db->query("SELECT category_id, name, parent_category_id, accreditation_id FROM accreditation_categories ORDER BY parent_category_id ASC, name ASC");
 $all_categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -523,47 +526,107 @@ $status_levels = [
 
 <script>
     // --- Data from PHP ---
+    const allAccreditations = <?= json_encode($all_accreditations) ?>;
     const allCategories = <?= json_encode($all_categories) ?>;
     const allRequirements = <?= json_encode($requirements) ?>;
     const statusLevels = <?= json_encode($status_levels) ?>;
 
     // --- State ---
-    let selectedCategoryIds = []; // Array of selected category_id at each dropdown level
+    let selectedAccreditationId = null;
+    let selectedCategoryIds = []; // Parent / child category selections after accreditation
     let currentPage = parseInt(sessionStorage.getItem('accmappingPage')) || 1;
     const itemsPerPage = 10;
 
     // --- Category helpers ---
+    function isRootCategory(cat) {
+        const pid = cat.parent_category_id;
+        return pid === null || pid === '' || pid === 0 || pid === '0';
+    }
+
+    function getParentCategories(accreditationId) {
+        return allCategories.filter(c =>
+            String(c.accreditation_id) === String(accreditationId) && isRootCategory(c)
+        );
+    }
+
     function getChildCategories(parentId) {
-        if (parentId === null) {
-            return allCategories.filter(c => c.parent_category_id === null || c.parent_category_id === '');
-        }
         return allCategories.filter(c => String(c.parent_category_id) === String(parentId));
+    }
+
+    function getCategoryIdsForAccreditation(accreditationId) {
+        return allCategories
+            .filter(c => String(c.accreditation_id) === String(accreditationId))
+            .map(c => String(c.category_id));
     }
 
     function getDescendantCategoryIds(categoryId) {
         let ids = [String(categoryId)];
-        const children = allCategories.filter(c => String(c.parent_category_id) === String(categoryId));
-        children.forEach(child => {
+        getChildCategories(categoryId).forEach(child => {
             ids = ids.concat(getDescendantCategoryIds(child.category_id));
         });
         return ids;
     }
 
-    // --- Cascading dropdowns ---
+    // --- Cascading dropdowns: accreditation → parent category → child categories ---
     function buildDropdowns() {
         const container = document.getElementById('dynamic-dropdowns');
         container.innerHTML = '';
 
-        // Level 0: root categories
-        const roots = getChildCategories(null);
-        if (roots.length === 0) return;
+        if (allAccreditations.length === 0) return;
 
-        addDropdownLevel(container, roots, 0);
+        addAccreditationDropdown(container);
+
+        if (selectedAccreditationId) {
+            const parents = getParentCategories(selectedAccreditationId);
+            if (parents.length > 0) {
+                addCategoryDropdownLevel(container, parents, 0);
+            }
+        }
     }
 
-    function addDropdownLevel(container, options, level) {
+    function addAccreditationDropdown(container) {
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'min-width: 220px;';
+        wrapper.setAttribute('data-dropdown-type', 'accreditation');
+
+        const select = document.createElement('select');
+        select.style.cssText = 'width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); outline: none; background: white; cursor: pointer; transition: all 0.2s ease;';
+        select.addEventListener('focus', () => select.style.borderColor = 'var(--accent-blue)');
+        select.addEventListener('blur', () => select.style.borderColor = 'var(--border-color)');
+
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Select Accreditation...';
+        select.appendChild(defaultOpt);
+
+        allAccreditations.forEach(acc => {
+            const opt = document.createElement('option');
+            opt.value = acc.accreditation_id;
+            opt.textContent = acc.code ? `${acc.name} (${acc.code})` : acc.name;
+            select.appendChild(opt);
+        });
+
+        if (selectedAccreditationId) {
+            select.value = selectedAccreditationId;
+        }
+
+        select.addEventListener('change', function() {
+            selectedAccreditationId = this.value === '' ? null : this.value;
+            selectedCategoryIds = [];
+            currentPage = 1;
+            updateAllTabState();
+            buildDropdowns();
+            searchRequirements();
+        });
+
+        wrapper.appendChild(select);
+        container.appendChild(wrapper);
+    }
+
+    function addCategoryDropdownLevel(container, options, level) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'min-width: 220px;';
+        wrapper.setAttribute('data-dropdown-type', 'category');
         wrapper.setAttribute('data-dropdown-level', level);
 
         const select = document.createElement('select');
@@ -583,7 +646,6 @@ $status_levels = [
             select.appendChild(opt);
         });
 
-        // Restore selection if previously selected
         if (selectedCategoryIds[level]) {
             select.value = selectedCategoryIds[level];
         }
@@ -591,19 +653,15 @@ $status_levels = [
         select.addEventListener('change', function() {
             const val = this.value;
 
-            // Remove any deeper-level dropdowns
-            const allWrappers = container.querySelectorAll('[data-dropdown-level]');
-            allWrappers.forEach(w => {
+            container.querySelectorAll('[data-dropdown-type="category"]').forEach(w => {
                 if (parseInt(w.getAttribute('data-dropdown-level')) > level) {
                     w.remove();
                 }
             });
 
-            // Update state
             selectedCategoryIds = selectedCategoryIds.slice(0, level);
 
             if (val === '') {
-                // Nothing selected at this level; filter by parent if exists
                 currentPage = 1;
                 updateAllTabState();
                 searchRequirements();
@@ -614,10 +672,9 @@ $status_levels = [
             currentPage = 1;
             updateAllTabState();
 
-            // Check if children exist
             const children = getChildCategories(val);
             if (children.length > 0) {
-                addDropdownLevel(container, children, level + 1);
+                addCategoryDropdownLevel(container, children, level + 1);
             }
 
             searchRequirements();
@@ -625,11 +682,18 @@ $status_levels = [
 
         wrapper.appendChild(select);
         container.appendChild(wrapper);
+
+        if (selectedCategoryIds[level]) {
+            const children = getChildCategories(selectedCategoryIds[level]);
+            if (children.length > 0 && selectedCategoryIds.length > level + 1) {
+                addCategoryDropdownLevel(container, children, level + 1);
+            }
+        }
     }
 
     function updateAllTabState() {
         const allTab = document.getElementById('all-categories-tab');
-        if (selectedCategoryIds.length > 0) {
+        if (selectedAccreditationId || selectedCategoryIds.length > 0) {
             allTab.classList.remove('active');
         } else {
             allTab.classList.add('active');
@@ -637,6 +701,7 @@ $status_levels = [
     }
 
     function resetCategoryFilters() {
+        selectedAccreditationId = null;
         selectedCategoryIds = [];
         currentPage = 1;
         const allTab = document.getElementById('all-categories-tab');
@@ -676,6 +741,8 @@ $status_levels = [
         if (selectedCategoryIds.length > 0) {
             const deepest = selectedCategoryIds[selectedCategoryIds.length - 1];
             allowedCategoryIds = getDescendantCategoryIds(deepest);
+        } else if (selectedAccreditationId) {
+            allowedCategoryIds = getCategoryIdsForAccreditation(selectedAccreditationId);
         }
 
         const rows = document.querySelectorAll('.req-row');
