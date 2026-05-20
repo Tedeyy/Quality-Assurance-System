@@ -492,6 +492,17 @@ usort($months, function($a, $b) {
         if (editId) {
             editActivity(editId, '../views/feed.php?action=actmasterlist');
         }
+        
+        const savedMonth = sessionStorage.getItem('actmasterlistMonth');
+        if (savedMonth && savedMonth !== 'all') {
+            document.querySelectorAll('.month-tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.innerText.trim() === savedMonth) {
+                    t.classList.add('active');
+                }
+            });
+        }
+        
         searchActivities();
     });
 
@@ -660,12 +671,13 @@ usort($months, function($a, $b) {
         }
     }
 
-    let currentMonthFilter = 'all';
+    let currentMonthFilter = sessionStorage.getItem('actmasterlistMonth') || 'all';
 
     function filterByMonth(month, btn) {
         currentMonthFilter = month;
+        sessionStorage.setItem('actmasterlistMonth', month);
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) btn.classList.add('active');
         searchActivities();
     }
 

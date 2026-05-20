@@ -717,6 +717,17 @@ $organizer_ratings = $db->query("
         if (editId) {
             editActivity(editId);
         }
+        
+        const savedMonth = sessionStorage.getItem('ameMonthFilter');
+        if (savedMonth && savedMonth !== 'all') {
+            document.querySelectorAll('.month-tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.innerText.trim() === savedMonth) {
+                    t.classList.add('active');
+                }
+            });
+        }
+        
         searchActivities(); // Initialize rankings and counts
     });
 
@@ -730,13 +741,16 @@ $organizer_ratings = $db->query("
         }
     }
 
-    let currentMonthFilter = 'all';
+    let currentMonthFilter = sessionStorage.getItem('ameMonthFilter') || 'all';
 
     function filterByMonth(month, btn) {
         currentMonthFilter = month;
+        sessionStorage.setItem('ameMonthFilter', month);
         // Update active tab
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) {
+            btn.classList.add('active');
+        }
         
         searchActivities(); // Trigger general filter
     }

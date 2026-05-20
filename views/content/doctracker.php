@@ -623,7 +623,7 @@ $confidentiality_levels = [
     }
 
     let currentCategoryFilter = 'all';
-    let currentPage = 1;
+    let currentPage = parseInt(sessionStorage.getItem('doctrackerPage')) || 1;
     const itemsPerPage = 10;
 
     function resetPageAndSearch() {
@@ -699,6 +699,8 @@ $confidentiality_levels = [
         if (currentPage < 1) {
             currentPage = 1;
         }
+        
+        sessionStorage.setItem('doctrackerPage', currentPage);
         
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;

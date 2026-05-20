@@ -583,7 +583,7 @@ $status_levels = [
 <script>
     // Local Javascript state for demo layout mapping
     let currentCategoryFilter = 'all';
-    let currentPage = 1;
+    let currentPage = parseInt(sessionStorage.getItem('accmappingPage')) || 1;
     const itemsPerPage = 10;
     
     const mockRequirements = <?= json_encode($requirements) ?>;
@@ -679,6 +679,8 @@ $status_levels = [
         if (currentPage < 1) {
             currentPage = 1;
         }
+
+        sessionStorage.setItem('accmappingPage', currentPage);
 
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
