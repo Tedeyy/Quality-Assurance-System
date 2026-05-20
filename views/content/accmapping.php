@@ -1,106 +1,28 @@
 <?php
-// Mock categories for accreditation requirements
-$categories = [
-    'Area I: Governance & Management',
-    'Area II: Curriculum & Instruction',
-    'Area III: Student Services',
-    'Area IV: Faculty & Staff',
-    'Area V: Research & Extension',
-    'Area VI: Library & Learning Resources',
-    'Area VII: Physical Plant & Facilities',
-    'Area VIII: Laboratories'
-];
+require_once __DIR__ . '/../../config/database.php';
+$db = (new Database())->getConnection();
 
-$offices = [
-    'Academic Affairs Office',
-    'Human Resources Division',
-    'Library Services Office',
-    'Office of the President',
-    'Physical Plant Office',
-    'Quality Assurance Office',
-    'Research & Development Center'
-];
+// Fetch categories for cascading filter
+$stmt = $db->query("SELECT category_id, name, parent_category_id FROM accreditation_categories ORDER BY name ASC");
+$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$sys_offices = [
-    ['office_id' => 1, 'name' => 'Academic Affairs Office', 'acronym' => 'AAO'],
-    ['office_id' => 2, 'name' => 'Human Resources Division', 'acronym' => 'HRD'],
-    ['office_id' => 3, 'name' => 'Library Services Office', 'acronym' => 'LSO'],
-    ['office_id' => 4, 'name' => 'Office of the President', 'acronym' => 'OP'],
-    ['office_id' => 5, 'name' => 'Physical Plant Office', 'acronym' => 'PPO'],
-    ['office_id' => 6, 'name' => 'Quality Assurance Office', 'acronym' => 'QAO'],
-    ['office_id' => 7, 'name' => 'Research & Development Center', 'acronym' => 'RDC']
-];
-
-$existing_tags = [
-    'Strategic Plan', 'Board Resolution', 'OBE', 'Curriculum', 'Syllabus',
-    'Handbook', 'Student Affairs', 'Faculty Profile', 'Degrees', 'HR',
-    'Library holdings', 'Books', 'E-Journals', 'Physical Facilities', 'Laboratory Inventory'
-];
-
-// Mock accreditation requirements list
-$requirements = [
-    [
-        'req_id' => 1,
-        'req_code' => 'REQ-GOV-01',
-        'title' => 'Institutional Development Plan',
-        'description' => 'Updated 5-year strategic institutional development plan approved by the Board of Trustees.',
-        'category' => 'Area I: Governance & Management',
-        'assigned_office' => 'Office of the President',
-        'status' => 'Approved',
-        'tags_list' => 'Strategic Plan, Board Resolution, Governance',
-        'compliance_score' => 95
-    ],
-    [
-        'req_id' => 2,
-        'req_code' => 'REQ-CUR-02',
-        'title' => 'Curriculum Mapping Matrices',
-        'description' => 'Outcome-based education curriculum mapping and program flowcharts for all offered degrees.',
-        'category' => 'Area II: Curriculum & Instruction',
-        'assigned_office' => 'Academic Affairs Office',
-        'status' => 'Under Review',
-        'tags_list' => 'OBE, Curriculum, Syllabus',
-        'compliance_score' => 85
-    ],
-    [
-        'req_id' => 3,
-        'req_code' => 'REQ-STU-03',
-        'title' => 'Student Handbook 2025 Edition',
-        'description' => 'Approved student handbook detailing rights, responsibilities, and student support services.',
-        'category' => 'Area III: Student Services',
-        'assigned_office' => 'Quality Assurance Office',
-        'status' => 'Pending',
-        'tags_list' => 'Handbook, Student Affairs',
-        'compliance_score' => 60
-    ],
-    [
-        'req_id' => 4,
-        'req_code' => 'REQ-FAC-04',
-        'title' => 'Faculty Profile & Qualifications',
-        'description' => 'Complete profile of teaching faculty showing academic degrees, licensing, and workloads.',
-        'category' => 'Area IV: Faculty & Staff',
-        'assigned_office' => 'Human Resources Division',
-        'status' => 'Approved',
-        'tags_list' => 'Faculty, Degrees, HR',
-        'compliance_score' => 90
-    ],
-    [
-        'req_id' => 5,
-        'req_code' => 'REQ-LIB-05',
-        'title' => 'Library holdings inventory',
-        'description' => 'Comprehensive catalogue database registry including print and electronic resources count.',
-        'category' => 'Area VI: Library & Learning Resources',
-        'assigned_office' => 'Library Services Office',
-        'status' => 'Pending',
-        'tags_list' => 'Library, Books, E-Journals',
-        'compliance_score' => 45
-    ]
-];
-
-$status_levels = [
-    'Approved' => ['label' => 'Approved', 'color' => '#10b981', 'bg' => '#ecfdf5', 'icon' => '✅'],
-    'Under Review' => ['label' => 'Under Review', 'color' => '#3b82f6', 'bg' => '#eff6ff', 'icon' => '⏳'],
-    'Pending' => ['label' => 'Pending', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'icon' => '📥']
-];
+// Fetch requirements and their proofs
+$reqQuery = "
+    SELECT 
+        r.requirement_id, 
+        r.codename, 
+        r.name as title, 
+        r.category_id,
+        c.name as category_name,
+        GROUP_CONCAT(b.proof_name SEPARATOR '||') as proofs
+    FROM accreditation_requirement r
+    LEFT JOIN accreditation_categories c ON r.category_id = c.category_id
+    LEFT JOIN document_bridge b ON r.requirement_id = b.requirement_id
+    GROUP BY r.requirement_id
+    ORDER BY r.codename ASC, r.name ASC
+";
+$reqStmt = $db->query($reqQuery);
+$requirements = $reqStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
@@ -274,14 +196,9 @@ $status_levels = [
 
         <!-- Dynamic Category Tabs / Dropdown filter -->
         <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
-            <button class="category-tab active" id="all-categories-tab" onclick="filterByCategory('all', this)">All Areas</button>
-            <div style="width: 280px;">
-                <select id="categoryFilterDropdown" onchange="filterByCategoryDropdown(this.value)" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); outline: none; background: white; cursor: pointer; transition: all 0.2s ease;" onfocus="this.style.borderColor='var(--accent-blue)';" onblur="this.style.borderColor='var(--border-color)';">
-                    <option value="">Select Area/Category...</option>
-                    <?php foreach ($categories as $c): ?>
-                        <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <button class="category-tab active" id="all-categories-tab" onclick="resetCategoryFilter()">All Categories</button>
+            <div id="cascading-filters-container" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <!-- dynamic selects injected by JS -->
             </div>
         </div>
 
@@ -294,27 +211,7 @@ $status_levels = [
                     <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); display: flex;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </span>
-                    <input type="text" id="requirementSearch" oninput="resetPageAndSearch()" placeholder="Search requirements by code, title, tags..." style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.8rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; transition: border 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                </div>
-
-                <!-- Office Filter -->
-                <div style="width: 230px;">
-                    <select id="officeFilter" onchange="resetPageAndSearch()" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; cursor: pointer;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="all">All Offices</option>
-                        <?php foreach ($offices as $o): ?>
-                            <option value="<?= htmlspecialchars($o) ?>"><?= htmlspecialchars($o) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <!-- Status Filter -->
-                <div style="width: 200px;">
-                    <select id="statusFilter" onchange="resetPageAndSearch()" style="width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; background: white; cursor: pointer;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
-                        <option value="all">All Statuses</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Under Review">Under Review</option>
-                        <option value="Pending">Pending</option>
-                    </select>
+                    <input type="text" id="requirementSearch" oninput="resetPageAndSearch()" placeholder="Search requirements by code, title..." style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.8rem; border: 1px solid var(--border-color); border-radius: 10px; font-size: 0.9rem; outline: none; transition: border 0.2s;" onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border-color)'">
                 </div>
             </div>
         </div>
@@ -325,73 +222,68 @@ $status_levels = [
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid var(--border-color);">
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Req Code</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Requirement Title / Category</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Assigned Office</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Compliance Status</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Compliance Score</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Requirement Details</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Proofs</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; text-align: center;">Complied</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 80px; text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="req-table-body">
                     <?php foreach ($requirements as $req): ?>
                         <?php 
-                            $status = $req['status'];
-                            $sData = $status_levels[$status] ?? ['label' => 'Unknown', 'color' => '#64748b', 'bg' => '#f1f5f9', 'icon' => '❓'];
+                            $proofs = $req['proofs'] ? explode('||', $req['proofs']) : [];
+                            $is_complied = count($proofs) > 0;
                         ?>
                         <tr class="req-row" 
-                            data-code="<?= htmlspecialchars($req['req_code']) ?>"
-                            data-title="<?= htmlspecialchars($req['title']) ?>"
-                            data-desc="<?= htmlspecialchars($req['description']) ?>"
-                            data-category="<?= htmlspecialchars($req['category']) ?>"
-                            data-office="<?= htmlspecialchars($req['assigned_office']) ?>"
-                            data-status="<?= htmlspecialchars($req['status']) ?>"
-                            data-tags="<?= htmlspecialchars($req['tags_list']) ?>">
+                            data-code="<?= htmlspecialchars($req['codename'] ?? '') ?>"
+                            data-title="<?= htmlspecialchars($req['title'] ?? '') ?>"
+                            data-category-id="<?= htmlspecialchars($req['category_id'] ?? '') ?>">
                             
                             <td style="padding: 1.2rem; font-weight: 800; color: var(--accent-blue); font-size: 0.95rem;">
-                                <?= htmlspecialchars($req['req_code']) ?>
+                                <?= htmlspecialchars($req['codename'] ?? 'N/A') ?>
                             </td>
                             
                             <td style="padding: 1.2rem;">
-                                <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem; margin-bottom: 4px;"><?= htmlspecialchars($req['title']) ?></div>
-                                <span style="font-size: 0.75rem; background: rgba(0, 28, 87, 0.05); color: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;"><?= htmlspecialchars($req['category']) ?></span>
+                                <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem; margin-bottom: 4px;"><?= htmlspecialchars($req['title'] ?? 'N/A') ?></div>
+                                <span style="font-size: 0.75rem; background: rgba(0, 28, 87, 0.05); color: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;"><?= htmlspecialchars($req['category_name'] ?? 'Uncategorized') ?></span>
                             </td>
 
                             <td style="padding: 1.2rem; font-weight: 600; color: #475569; font-size: 0.85rem;">
-                                <?= htmlspecialchars($req['assigned_office']) ?>
+                                <?php if (!empty($proofs)): ?>
+                                    <ul style="margin: 0; padding-left: 15px;">
+                                        <?php foreach($proofs as $proof): ?>
+                                            <li><?= htmlspecialchars($proof) ?></li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php else: ?>
+                                    <span style="color: #94a3b8; font-style: italic;">No proofs</span>
+                                <?php endif; ?>
                             </td>
 
-                            <td style="padding: 1.2rem;">
-                                <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; color: <?= $sData['color'] ?>; background: <?= $sData['bg'] ?>;">
-                                    <span><?= $sData['icon'] ?></span>
-                                    <span><?= $sData['label'] ?></span>
-                                </span>
-                            </td>
-
-                            <td style="padding: 1.2rem;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div style="font-weight: 800; font-size: 0.9rem; color: var(--accent-blue); width: 35px;"><?= $req['compliance_score'] ?>%</div>
-                                    <div style="flex: 1; min-width: 80px; height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
-                                        <div style="width: <?= $req['compliance_score'] ?>%; height: 100%; background: var(--accent-blue); border-radius: 4px;"></div>
-                                    </div>
-                                </div>
+                            <td style="padding: 1.2rem; text-align: center;">
+                                <?php if ($is_complied): ?>
+                                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #dcfce7; color: #166534; border-radius: 50%;" title="Complied">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </span>
+                                <?php else: ?>
+                                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #fee2e2; color: #991b1b; border-radius: 50%;" title="Not Complied">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </span>
+                                <?php endif; ?>
                             </td>
 
                             <td style="padding: 1.2rem; text-align: right;">
                                 <div class="action-dropdown">
-                                    <button class="three-dots-btn" onclick="toggleDropdown(<?= $req['req_id'] ?>)">
+                                    <button class="three-dots-btn" onclick="toggleDropdown(<?= $req['requirement_id'] ?>)">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                                     </button>
-                                    <div id="dropdown-<?= $req['req_id'] ?>" class="dropdown-menu">
-                                        <button class="dropdown-item" onclick="viewDetails(<?= $req['req_id'] ?>)">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                            View Details
-                                        </button>
-                                        <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
-                                        <button class="dropdown-item" onclick="openEditModal(<?= $req['req_id'] ?>)">
+                                    <div id="dropdown-<?= $req['requirement_id'] ?>" class="dropdown-menu">
+                                        <button class="dropdown-item">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                             Edit Mapping
                                         </button>
-                                        <button class="dropdown-item delete" onclick="deleteRequirement(<?= $req['req_id'] ?>)">
+                                        <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                                        <button class="dropdown-item delete">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                             Delete Mapping
                                         </button>
@@ -586,8 +478,7 @@ $status_levels = [
     let currentPage = parseInt(sessionStorage.getItem('accmappingPage')) || 1;
     const itemsPerPage = 10;
     
-    const mockRequirements = <?= json_encode($requirements) ?>;
-    const statusLevels = <?= json_encode($status_levels) ?>;
+    const categoriesData = <?= json_encode($categories) ?>;
 
     function toggleDropdown(id) {
         event.stopPropagation();
@@ -603,36 +494,75 @@ $status_levels = [
         menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
     }
 
-    function filterByCategory(category, btn) {
-        currentCategoryFilter = category;
-        currentPage = 1;
-        document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-        if (btn) {
-            btn.classList.add('active');
-        }
-        if (category === 'all') {
-            const select = document.getElementById('categoryFilterDropdown');
-            if (select) {
-                select.value = '';
-            }
-        }
-        searchRequirements();
+    function getCategoryChildren(parentId) {
+        return categoriesData.filter(c => c.parent_category_id == parentId);
     }
 
-    function filterByCategoryDropdown(category) {
-        currentPage = 1;
-        const allTab = document.getElementById('all-categories-tab');
-        if (category === '') {
-            currentCategoryFilter = 'all';
-            if (allTab) {
-                allTab.classList.add('active');
-            }
-        } else {
-            currentCategoryFilter = category;
-            if (allTab) {
-                allTab.classList.remove('active');
+    function getAllDescendantIds(categoryId, descendantIds = []) {
+        const children = getCategoryChildren(categoryId);
+        for (const child of children) {
+            descendantIds.push(child.category_id);
+            getAllDescendantIds(child.category_id, descendantIds);
+        }
+        return descendantIds;
+    }
+
+    let selectedCategoryPath = [];
+
+    function renderCascadingFilters() {
+        const container = document.getElementById('cascading-filters-container');
+        container.innerHTML = '';
+        
+        let currentParentId = null;
+        
+        for (let i = 0; i <= selectedCategoryPath.length; i++) {
+            const children = getCategoryChildren(currentParentId);
+            if (children.length === 0) break;
+            
+            const select = document.createElement('select');
+            select.style.cssText = "width: 200px; padding: 0.6rem 1rem; border: 1px solid var(--border-color); border-radius: 30px; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); outline: none; background: white; cursor: pointer;";
+            
+            select.innerHTML = '<option value="">Select Category...</option>';
+            children.forEach(c => {
+                const isSelected = selectedCategoryPath[i] == c.category_id;
+                select.innerHTML += `<option value="${c.category_id}" ${isSelected ? 'selected' : ''}>${escapeHtml(c.name)}</option>`;
+            });
+            
+            select.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val) {
+                    selectedCategoryPath = selectedCategoryPath.slice(0, i);
+                    selectedCategoryPath.push(Number(val));
+                } else {
+                    selectedCategoryPath = selectedCategoryPath.slice(0, i);
+                }
+                
+                if (selectedCategoryPath.length === 0) {
+                    document.getElementById('all-categories-tab').classList.add('active');
+                } else {
+                    document.getElementById('all-categories-tab').classList.remove('active');
+                }
+                
+                currentPage = 1;
+                renderCascadingFilters();
+                searchRequirements();
+            });
+            
+            container.appendChild(select);
+            
+            if (i < selectedCategoryPath.length) {
+                currentParentId = selectedCategoryPath[i];
+            } else {
+                break;
             }
         }
+    }
+
+    function resetCategoryFilter() {
+        selectedCategoryPath = [];
+        document.getElementById('all-categories-tab').classList.add('active');
+        currentPage = 1;
+        renderCascadingFilters();
         searchRequirements();
     }
 
@@ -643,8 +573,6 @@ $status_levels = [
 
     function searchRequirements() {
         const searchTerm = document.getElementById('requirementSearch').value.toLowerCase();
-        const officeFilter = document.getElementById('officeFilter').value;
-        const statusFilter = document.getElementById('statusFilter').value;
         
         const rows = document.querySelectorAll('.req-row');
         let matchingRows = [];
@@ -652,18 +580,19 @@ $status_levels = [
         rows.forEach(row => {
             const code = row.getAttribute('data-code').toLowerCase();
             const title = row.getAttribute('data-title').toLowerCase();
-            const desc = row.getAttribute('data-desc').toLowerCase();
-            const category = row.getAttribute('data-category');
-            const office = row.getAttribute('data-office');
-            const status = row.getAttribute('data-status');
-            const tags = row.getAttribute('data-tags').toLowerCase();
+            const rowCatId = Number(row.getAttribute('data-category-id'));
 
-            const matchesSearch = code.includes(searchTerm) || title.includes(searchTerm) || desc.includes(searchTerm) || tags.includes(searchTerm);
-            const matchesOffice = officeFilter === 'all' || office === officeFilter;
-            const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            const matchesCategory = currentCategoryFilter === 'all' || category === currentCategoryFilter;
+            const matchesSearch = code.includes(searchTerm) || title.includes(searchTerm);
+            
+            let activeCategoryId = selectedCategoryPath.length > 0 ? selectedCategoryPath[selectedCategoryPath.length - 1] : null;
+            let validCategoryIds = [];
+            if (activeCategoryId) {
+                validCategoryIds = [activeCategoryId, ...getAllDescendantIds(activeCategoryId)];
+            }
 
-            if (matchesSearch && matchesOffice && matchesStatus && matchesCategory) {
+            const matchesCategory = activeCategoryId ? validCategoryIds.includes(rowCatId) : true;
+
+            if (matchesSearch && matchesCategory) {
                 matchingRows.push(row);
             } else {
                 row.style.display = 'none';
@@ -760,51 +689,15 @@ $status_levels = [
     }
 
     function viewDetails(id) {
-        const req = mockRequirements.find(r => r.req_id === id);
-        if (!req) return;
-
-        const sData = statusLevels[req.status] || {label: req.status, color: '#64748b', bg: '#f1f5f9', icon: '❓'};
-        const badge = document.getElementById('view_req_status_badge');
-        badge.textContent = sData.label;
-        badge.style.cssText = `padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; margin-bottom: 8px; color: ${sData.color}; background: ${sData.bg};`;
-
-        document.getElementById('view_req_title').textContent = req.title;
-        document.getElementById('view_req_code').textContent = 'CODE: ' + req.req_code;
-        document.getElementById('view_req_office').querySelector('span').textContent = req.assigned_office;
-        document.getElementById('view_req_category').textContent = req.category;
-        document.getElementById('view_req_desc').textContent = req.description || 'No description recorded.';
-
-        let tagsHTML = '';
-        if (req.tags_list) {
-            req.tags_list.split(', ').forEach(t => {
-                tagsHTML += `<span class="tag-badge" style="background:#eff6ff; color:#1e40af; border-color:#dbeafe;">${escapeHtml(t)}</span>`;
-            });
-        } else {
-            tagsHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">No tags</span>';
-        }
-        document.getElementById('view_req_tags').innerHTML = tagsHTML;
-
-        document.getElementById('viewReqModal').style.display = 'flex';
+        // To be implemented
     }
 
     function openEditModal(id) {
-        const req = mockRequirements.find(r => r.req_id === id);
-        if (!req) return;
-
-        document.getElementById('edit_req_code').value = req.req_code;
-        document.getElementById('edit_req_title').value = req.title;
-        document.getElementById('edit_req_office').value = req.assigned_office;
-        document.getElementById('edit_req_category').value = req.category;
-        document.getElementById('edit_req_status').value = req.status;
-        document.getElementById('edit_req_desc').value = req.description;
-
-        document.getElementById('editReqModal').style.display = 'flex';
+        // To be implemented
     }
 
     function deleteRequirement(id) {
-        if (confirm('Are you sure you want to delete this accreditation requirement mapping?')) {
-            alert('Demo Mode: Delete action is clicked. This is not saved to the database as the schema is in development.');
-        }
+        // To be implemented
     }
 
     function escapeHtml(string) {
@@ -819,6 +712,7 @@ $status_levels = [
     }
 
     // Initialize search on load
+    renderCascadingFilters();
     searchRequirements();
 
     // Close action menus when clicking outside
