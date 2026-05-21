@@ -481,41 +481,6 @@ foreach ($rating_columns as $column) {
     .rating-chart-card .legend-label {
         min-width: 0;
     }
-    .global-table-wrap {
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        overflow: auto;
-        max-height: 560px;
-    }
-    .global-table {
-        border-collapse: collapse;
-        min-width: 980px;
-        width: 100%;
-    }
-    .global-table th,
-    .global-table td {
-        border-bottom: 1px solid #eef2f7;
-        padding: 0.85rem;
-        text-align: left;
-        vertical-align: top;
-    }
-    .global-table th {
-        background: #f8fafc;
-        color: #64748b;
-        font-size: 0.72rem;
-        font-weight: 900;
-        letter-spacing: 0.05em;
-        position: sticky;
-        text-transform: uppercase;
-        top: 0;
-        z-index: 1;
-    }
-    .global-table td {
-        color: #334155;
-        font-size: 0.84rem;
-        max-width: 260px;
-        min-width: 110px;
-    }
     .rating-pill {
         border-radius: 999px;
         color: white;
@@ -709,7 +674,6 @@ foreach ($rating_columns as $column) {
                             <h2>Global Responses</h2>
                             <div class="respondent-muted">All submitted records and distribution charts for every rated column.</div>
                         </div>
-                        <input type="search" id="globalSearch" class="respondent-search" placeholder="Search all responses..." oninput="filterGlobalResponses()">
                     </div>
 
                     <?php if (!empty($global_rating_charts)): ?>
@@ -732,37 +696,6 @@ foreach ($rating_columns as $column) {
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
-
-                    <div class="global-table-wrap">
-                        <table class="global-table">
-                            <thead>
-                                <tr>
-                                    <?php foreach ($all_columns as $column): ?>
-                                        <th><?= htmlspecialchars(pretty_field_name($column)) ?></th>
-                                    <?php endforeach; ?>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($responses as $response): ?>
-                                    <?php $search_blob = strtolower(implode(' ', array_map('strval', $response))); ?>
-                                    <tr class="global-response-row" data-search="<?= htmlspecialchars($search_blob) ?>">
-                                        <?php foreach ($all_columns as $column): ?>
-                                            <td>
-                                                <?php
-                                                    $value = $response[$column] ?? '';
-                                                    if (in_array($column, $rating_columns, true) && is_numeric($value)) {
-                                                        echo number_format((float)$value, 0) . '%';
-                                                    } else {
-                                                        echo htmlspecialchars((string)($value !== '' ? $value : 'N/A'));
-                                                    }
-                                                ?>
-                                            </td>
-                                        <?php endforeach; ?>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
 
                 <div id="individualPanel" class="response-panel">
@@ -850,13 +783,6 @@ foreach ($rating_columns as $column) {
         });
         document.querySelectorAll('.response-panel').forEach(panel => {
             panel.classList.toggle('active', panel.id === tabName + 'Panel');
-        });
-    }
-
-    function filterGlobalResponses() {
-        const query = document.getElementById('globalSearch').value.toLowerCase();
-        document.querySelectorAll('.global-response-row').forEach(row => {
-            row.style.display = row.dataset.search.includes(query) ? '' : 'none';
         });
     }
 
