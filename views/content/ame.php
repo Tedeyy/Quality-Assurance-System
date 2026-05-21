@@ -47,6 +47,26 @@ $sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(asg.activity_id) as count
                      ORDER BY s.sdg_id ASC";
 $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
 
+$sdg_descriptions = [
+    1 => 'End poverty in all its forms everywhere.',
+    2 => 'End hunger, achieve food security and improved nutrition, and promote sustainable agriculture.',
+    3 => 'Ensure healthy lives and promote well-being for all at all ages.',
+    4 => 'Ensure inclusive and equitable quality education and promote lifelong learning opportunities for all.',
+    5 => 'Achieve gender equality and empower all women and girls.',
+    6 => 'Ensure availability and sustainable management of water and sanitation for all.',
+    7 => 'Ensure access to affordable, reliable, sustainable, and modern energy for all.',
+    8 => 'Promote sustained, inclusive, and sustainable economic growth, full and productive employment, and decent work for all.',
+    9 => 'Build resilient infrastructure, promote inclusive and sustainable industrialization, and foster innovation.',
+    10 => 'Reduce inequality within and among countries.',
+    11 => 'Make cities and human settlements inclusive, safe, resilient, and sustainable.',
+    12 => 'Ensure sustainable consumption and production patterns.',
+    13 => 'Take urgent action to combat climate change and its impacts.',
+    14 => 'Conserve and sustainably use the oceans, seas, and marine resources for sustainable development.',
+    15 => 'Protect, restore, and promote sustainable use of terrestrial ecosystems, sustainably manage forests, combat desertification, halt and reverse land degradation, and halt biodiversity loss.',
+    16 => 'Promote peaceful and inclusive societies, provide access to justice for all, and build effective, accountable, and inclusive institutions.',
+    17 => 'Strengthen the means of implementation and revitalize the global partnership for sustainable development.'
+];
+
 // Fetch Speaker Ratings
 $speaker_ratings = $db->query("
     SELECT r.*, s.name, e.activity_id 
@@ -236,16 +256,25 @@ $organizer_ratings = $db->query("
         border-radius: 10px;
     }
     .sdg-card {
+        background: transparent;
+        border: 0;
+        cursor: pointer;
         flex: 0 1 auto;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 4px;
+        padding: 0;
         transition: transform 0.2s;
         min-width: 0;
     }
-    .sdg-card:hover {
+    .sdg-card:hover,
+    .sdg-card.active {
         transform: translateY(-3px);
+    }
+    .sdg-card.active .sdg-icon {
+        outline: 3px solid rgba(0, 28, 87, 0.18);
+        outline-offset: 3px;
     }
     .sdg-icon {
         width: 64px;
@@ -269,6 +298,38 @@ $organizer_ratings = $db->query("
     }
     .sdg-icon.active-icon {
         box-shadow: 0 0 15px rgba(37, 99, 235, 0.2);
+    }
+    .sdg-detail-panel {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-blue);
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        display: none;
+        margin: -1rem 0 2rem;
+        padding: 1.1rem 1.25rem;
+    }
+    .sdg-detail-panel.active {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    .sdg-detail-panel img {
+        border-radius: 4px;
+        flex: 0 0 auto;
+        height: 54px;
+        width: 54px;
+    }
+    .sdg-detail-panel h3 {
+        color: var(--accent-blue);
+        font-size: 1rem;
+        margin: 0 0 0.35rem;
+    }
+    .sdg-detail-panel p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.55;
+        margin: 0;
     }
 
     /* Ranking Section Styles */
@@ -490,15 +551,30 @@ $organizer_ratings = $db->query("
                     $icon_num = $sdg['sdg_id'];
                     $icon_path = "../assets/img/sdgs/SDG{$icon_num}.png";
                 ?>
-                <div class="sdg-card" title="<?= htmlspecialchars($sdg['title']) ?>" data-sdg-id="<?= $icon_num ?>">
+                <button type="button"
+                    class="sdg-card"
+                    title="<?= htmlspecialchars($sdg['title']) ?>"
+                    data-sdg-id="<?= $icon_num ?>"
+                    data-sdg-title="<?= htmlspecialchars($sdg['title']) ?>"
+                    data-sdg-description="<?= htmlspecialchars($sdg_descriptions[(int)$icon_num] ?? 'No description available for this Sustainable Development Goal.') ?>"
+                    data-sdg-icon="<?= $icon_path ?>"
+                    onclick="toggleSdgDescription(this)"
+                    aria-expanded="false">
                     <img src="<?= $icon_path ?>" 
                          alt="SDG <?= $icon_num ?>" 
                          class="sdg-icon <?= $has_activities ? 'active-icon' : 'inactive' ?>">
                     <span class="sdg-count-val" style="<?= $has_activities ? 'color: var(--accent-blue); background: #eff6ff;' : '' ?> font-size: 0.8rem; font-weight: 800; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">
                         <?= $sdg['count'] ?>
                     </span>
-                </div>
+                </button>
             <?php endforeach; ?>
+        </div>
+        <div class="sdg-detail-panel" id="sdgDetailPanel" aria-live="polite">
+            <img id="sdgDetailIcon" src="" alt="">
+            <div>
+                <h3 id="sdgDetailTitle"></h3>
+                <p id="sdgDetailDescription"></p>
+            </div>
         </div>
 
         <!-- Monthly Tabs -->
@@ -953,6 +1029,33 @@ $organizer_ratings = $db->query("
     function goToActivityPage(page) {
         currentActivityPage = page;
         searchActivities(false);
+    }
+
+    function toggleSdgDescription(card) {
+        const panel = document.getElementById('sdgDetailPanel');
+        const isActive = card.classList.contains('active');
+
+        document.querySelectorAll('.sdg-card').forEach(item => {
+            item.classList.remove('active');
+            item.setAttribute('aria-expanded', 'false');
+        });
+
+        if (isActive) {
+            panel.classList.remove('active');
+            return;
+        }
+
+        const title = card.dataset.sdgTitle || `SDG ${card.dataset.sdgId}`;
+        const icon = card.dataset.sdgIcon || '';
+
+        card.classList.add('active');
+        card.setAttribute('aria-expanded', 'true');
+
+        document.getElementById('sdgDetailIcon').src = icon;
+        document.getElementById('sdgDetailIcon').alt = title;
+        document.getElementById('sdgDetailTitle').textContent = `SDG ${card.dataset.sdgId}: ${title}`;
+        document.getElementById('sdgDetailDescription').textContent = card.dataset.sdgDescription;
+        panel.classList.add('active');
     }
 
     function updateRankings(activities) {
