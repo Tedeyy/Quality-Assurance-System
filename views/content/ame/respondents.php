@@ -753,6 +753,51 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
     .individual-rating-groups .rating-section {
         border-top-color: #e2e8f0;
     }
+    .feedback-summary {
+        border-top: 1px solid #eef2f7;
+        margin-top: 1.5rem;
+        padding-top: 1.25rem;
+    }
+    .feedback-summary h3 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 900;
+        margin: 0 0 0.9rem;
+    }
+    .feedback-summary-table-wrap {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .feedback-summary-table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+    .feedback-summary-table th,
+    .feedback-summary-table td {
+        border-bottom: 1px solid #eef2f7;
+        padding: 0.95rem;
+        text-align: left;
+        vertical-align: top;
+        width: 50%;
+    }
+    .feedback-summary-table th {
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .feedback-summary-table tr:last-child td {
+        border-bottom: 0;
+    }
+    .feedback-summary-table td {
+        color: #334155;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
     .empty-state {
         color: #64748b;
         padding: 3rem 1.5rem;
@@ -893,6 +938,34 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                             <p>The response table exists, but it does not contain rating columns for charting.</p>
                         </div>
                     <?php endif; ?>
+
+                    <section class="feedback-summary">
+                        <h3>Activity Feedback</h3>
+                        <div class="feedback-summary-table-wrap">
+                            <table class="feedback-summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>Most Liked</th>
+                                        <th>Least Liked / Could Be Improved</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($responses as $response): ?>
+                                        <?php
+                                            $most_liked = trim((string)($response['best_topics'] ?? ''));
+                                            $least_liked = trim((string)($response['improvements'] ?? ''));
+                                        ?>
+                                        <?php if ($most_liked !== '' || $least_liked !== ''): ?>
+                                            <tr>
+                                                <td><?= htmlspecialchars($most_liked !== '' ? $most_liked : 'No answer') ?></td>
+                                                <td><?= htmlspecialchars($least_liked !== '' ? $least_liked : 'No answer') ?></td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
 
                 <div id="individualPanel" class="response-panel">
