@@ -600,7 +600,7 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     let currentCategoryTab = 'all';
-    let currentPage = 1;
+    let currentPage = parseInt(sessionStorage.getItem('docmasterlistPage')) || 1;
     const itemsPerPage = 10;
 
     function resetPageAndSearch() {
@@ -676,6 +676,8 @@ $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
         if (currentPage < 1) {
             currentPage = 1;
         }
+        
+        sessionStorage.setItem('docmasterlistPage', currentPage);
         
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;

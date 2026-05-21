@@ -298,6 +298,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success' => false, 'message' => 'Failed to save review: ' . $e->getMessage()]);
             exit;
         }
+    } elseif ($action === 'add_proof') {
+        $acc_id = $_POST['accreditation_id'] ?? null;
+        $req_id = $_POST['requirement_id'] ?? null;
+        $redirect = $_POST['redirect_url'] ?? '';
+        if (empty($redirect)) $redirect = '../views/feed.php?action=accreditation&accreditation_id=' . $acc_id;
+        $wants_json = (
+            strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest'
+            || strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false
+        );
+        
+        $proof_names = $_POST['proof_names'] ?? [];
+        if (!is_array($proof_names)) {
+            $proof_names = [$proof_names];
+        }
+        if (isset($_POST['proof_name']) && trim($_POST['proof_name']) !== '') {
+            $proof_names[] = $_POST['proof_name'];
+        }
+
+        // Clean up empty values
+        $proof_names = array_filter(array_map('trim', $proof_names));
+
+        if (empty($req_id) || empty($proof_names)) {
+            $_SESSION['error'] = 'Requirement ID and Proof Name are required.';
+            if ($wants_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $_SESSION['error']]);
+                exit;
+            }
+            header('Location: ' . $redirect);
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare("INSERT INTO document_bridge (requirement_id, proof_name) VALUES (:req_id, :proof_name)");
+            $created_proofs = [];
+            $db->beginTransaction();
+            foreach ($proof_names as $proof_name) {
+                $stmt->execute([
+                    'req_id' => $req_id,
+                    'proof_name' => $proof_name
+                ]);
+                $created_proofs[] = [
+                    'bridge_id' => $db->lastInsertId(),
+                    'requirement_id' => $req_id,
+                    'proof_name' => $proof_name,
+                    'document_id' => null,
+                    'submission_id' => null,
+                    'doc_code' => null,
+                    'doc_category' => null,
+                    'doc_purpose' => null,
+                    'sub_status' => null,
+                    'sub_link' => null,
+                    'office_name' => null,
+                ];
+                logActivity($db, $_SESSION['user_id'], "Added proof of compliance '$proof_name' to requirement ID: $req_id");
+            }
+            $db->commit();
+            $_SESSION['success'] = 'Proofs of compliance added successfully!';
+            if ($wants_json) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => $_SESSION['success'],
+                    'requirement_id' => $req_id,
+                    'proofs' => $created_proofs
+                ]);
+                exit;
+            }
+            header('Location: ' . $redirect);
+            exit;
+        } catch (PDOException $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $_SESSION['error'] = 'Failed to add proofs of compliance: ' . $e->getMessage();
+            if ($wants_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $_SESSION['error']]);
+                exit;
+            }
+            header('Location: ' . $redirect);
+            exit;
+        }
+    } elseif ($action === 'link_document') {
+        header('Content-Type: application/json');
+        $bridge_id = $_POST['bridge_id'] ?? null;
+        $doc_id = $_POST['document_id'] ?? null;
+
+        if (empty($bridge_id) || empty($doc_id)) {
+            echo json_encode(['success' => false, 'message' => 'Bridge ID and Document ID are required.']);
+            exit;
+        }
+
+        try {
+            // Unlink any existing submission if we are linking an institutional document
+            $stmt = $db->prepare("UPDATE document_bridge SET document_id = :doc_id, submission_id = NULL WHERE bridge_id = :bridge_id");
+            $stmt->execute([
+                'doc_id' => $doc_id,
+                'bridge_id' => $bridge_id
+            ]);
+            logActivity($db, $_SESSION['user_id'], "Linked document ID: $doc_id to bridge ID: $bridge_id");
+            echo json_encode(['success' => true, 'message' => 'Document linked successfully!']);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Failed to link document: ' . $e->getMessage()]);
+            exit;
+        }
+    } elseif ($action === 'unlink_proof') {
+        header('Content-Type: application/json');
+        $bridge_id = $_POST['bridge_id'] ?? null;
+
+        if (empty($bridge_id)) {
+            echo json_encode(['success' => false, 'message' => 'Bridge ID is required.']);
+            exit;
+        }
+
+        try {
+            $stmt = $db->prepare("UPDATE document_bridge SET document_id = NULL, submission_id = NULL WHERE bridge_id = :bridge_id");
+            $stmt->execute(['bridge_id' => $bridge_id]);
+            logActivity($db, $_SESSION['user_id'], "Unlinked document/submission from bridge ID: $bridge_id");
+            echo json_encode(['success' => true, 'message' => 'Proof of compliance unlinked successfully!']);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Failed to unlink proof: ' . $e->getMessage()]);
+            exit;
+        }
     }
 }
 
@@ -371,6 +497,21 @@ if ($action === 'delete_submission') {
         exit;
     } catch (PDOException $e) {
         echo json_encode(['success' => false, 'message' => 'Failed to delete accreditation: ' . $e->getMessage()]);
+        exit;
+    }
+} elseif ($action === 'delete_proof') {
+    header('Content-Type: application/json');
+    $bridge_id = $_GET['bridge_id'] ?? null;
+
+    try {
+        $stmt = $db->prepare("DELETE FROM document_bridge WHERE bridge_id = :id");
+        $stmt->execute(['id' => $bridge_id]);
+
+        logActivity($db, $_SESSION['user_id'] ?? 0, "Deleted proof of compliance bridge ID: $bridge_id");
+        echo json_encode(['success' => true, 'message' => 'Proof of compliance deleted successfully!']);
+        exit;
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'message' => 'Failed to delete proof: ' . $e->getMessage()]);
         exit;
     }
 }

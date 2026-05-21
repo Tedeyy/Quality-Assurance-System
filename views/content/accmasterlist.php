@@ -526,12 +526,13 @@ $accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
         menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
     }
 
-    let currentStatusTab = 'all';
+    let currentStatusTab = sessionStorage.getItem('accmasterlistStatus') || 'all';
 
     function filterByStatusTab(status, btn) {
         currentStatusTab = status;
+        sessionStorage.setItem('accmasterlistStatus', status);
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) btn.classList.add('active');
         searchAccreditations();
     }
 
@@ -657,5 +658,18 @@ $accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     // Close action menus when clicking outside
     document.addEventListener('click', () => {
         document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedStatus = sessionStorage.getItem('accmasterlistStatus');
+        if (savedStatus && savedStatus !== 'all') {
+            document.querySelectorAll('.month-tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.innerText.trim() === savedStatus || (savedStatus === 'In Progress' && t.innerText.trim() === 'In Progress') || (savedStatus === 'Completed' && t.innerText.trim() === 'Completed') || (savedStatus === 'Inactive' && t.innerText.trim() === 'Inactive')) {
+                    t.classList.add('active');
+                }
+            });
+            searchAccreditations();
+        }
     });
 </script>

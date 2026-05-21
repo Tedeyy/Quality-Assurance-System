@@ -20,7 +20,7 @@ CREATE TABLE `accreditation_requirement` (
   `requirement_id` int(11) NOT NULL AUTO_INCREMENT,
   `category_id` int(11) DEFAULT NULL,
   `name` text NOT NULL,
-  `codename` int(11) DEFAULT NULL,
+  `codename` varchar(255) DEFAULT NULL,
   `parent_requirement_id` int(11) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -406,3 +406,32 @@ CREATE TABLE document_tags (
         REFERENCES tags(tag_id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE document_bridge (
+    bridge_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    requirement_id INT NOT NULL,
+    proof_name VARCHAR(255) NOT NULL,
+    document_id INT UNSIGNED DEFAULT NULL,
+    submission_id INT(11) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_requirement_id (requirement_id),
+    INDEX idx_document_id (document_id),
+    INDEX idx_submission_id (submission_id),
+    
+    CONSTRAINT fk_bridge_requirement 
+        FOREIGN KEY (requirement_id) 
+        REFERENCES accreditation_requirement(requirement_id)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT fk_bridge_document 
+        FOREIGN KEY (document_id) 
+        REFERENCES documents(doc_id)
+        ON DELETE SET NULL,
+    
+    CONSTRAINT fk_bridge_submission 
+        FOREIGN KEY (submission_id) 
+        REFERENCES accreditation_requirement_submissions(submission_id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
