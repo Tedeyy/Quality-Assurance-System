@@ -34,6 +34,8 @@ if (isset($_SESSION['user_id'])) {
         require_once __DIR__ . '/content/ame/actmasterlist.php';
     } elseif ($action === 'view_activity') {
         require_once __DIR__ . '/content/ame/activitypane.php';
+    } elseif ($action === 'respondents') {
+        require_once __DIR__ . '/content/ame/respondents.php';
     } elseif ($action === 'document') {
         require_once __DIR__ . '/content/document/doctracker.php';
     } elseif ($action === 'docmasterlist') {
