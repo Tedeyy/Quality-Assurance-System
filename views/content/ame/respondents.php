@@ -29,6 +29,7 @@ if (!$activity) {
 $responses = [];
 $table_exists = false;
 $rating_columns = [];
+$all_columns = [];
 $category_counts = [
     'Excellent' => 0,
     'Very Satisfactory' => 0,
@@ -45,10 +46,12 @@ if ($response_db) {
     $table_exists = $check && $check->rowCount() > 0;
 
     if ($table_exists) {
-        $responses = $response_db->query("SELECT * FROM `$table_name` ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        $quoted_table = "`" . str_replace("`", "``", $table_name) . "`";
+        $responses = $response_db->query("SELECT * FROM $quoted_table ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
         if (!empty($responses)) {
+            $all_columns = array_keys($responses[0]);
             $excluded = ['id', 'email', 'fullname', 'age', 'gender', 'contact', 'unit', 'best_topics', 'improvements', 'created_at', 'submitted_at'];
-            foreach (array_keys($responses[0]) as $column) {
+            foreach ($all_columns as $column) {
                 if (!in_array($column, $excluded, true)) {
                     $has_numeric = false;
                     foreach ($responses as $response) {
@@ -90,6 +93,18 @@ function rating_label(float $score): string
     return $score > 0 ? 'Poor' : 'No Rating';
 }
 
+function column_rating_label($value): string
+{
+    if (!is_numeric($value)) return 'No Rating';
+
+    $score = (float)$value;
+    if ($score >= 90) return 'Excellent';
+    if ($score >= 75) return 'Very Satisfactory';
+    if ($score >= 50) return 'Satisfactory';
+    if ($score >= 25) return 'Fair';
+    return 'Poor';
+}
+
 function rating_color(string $label): string
 {
     return [
@@ -106,14 +121,47 @@ function pretty_field_name(string $column): string
 {
     $labels = [
         'osr' => 'Overall Service Rating',
-        'oe' => 'Overall Experience'
+        'oe' => 'Overall Experience',
+        'eff' => 'Effectiveness',
+        'mot' => 'Mastery of Topic',
+        'atf' => 'Ability to Facilitate'
     ];
 
     if (isset($labels[$column])) return $labels[$column];
 
+    if (preg_match('/^fac_(\d+)_(eff|mot|atf)$/', $column, $matches)) {
+        return 'Facilitator ' . ((int)$matches[1] + 1) . ' - ' . $labels[$matches[2]];
+    }
+
+    if (preg_match('/^prog_(\d+)$/', $column, $matches)) {
+        return 'Program Evaluation ' . ((int)$matches[1] + 1);
+    }
+
+    if (preg_match('/^log_(\d+)$/', $column, $matches)) {
+        return 'Logistics Support ' . ((int)$matches[1] + 1);
+    }
+
     $name = preg_replace('/^(fac|prog|log)_/i', '', $column);
     $name = str_replace('_', ' ', $name);
     return ucwords($name);
+}
+
+function pie_background(array $counts, array $colors): string
+{
+    $total = array_sum($counts);
+    if ($total <= 0) return '#e2e8f0 0deg 360deg';
+
+    $segments = [];
+    $cursor = 0;
+    foreach ($counts as $label => $count) {
+        $degrees = ($count / $total) * 360;
+        if ($degrees > 0) {
+            $segments[] = $colors[$label] . ' ' . $cursor . 'deg ' . ($cursor + $degrees) . 'deg';
+            $cursor += $degrees;
+        }
+    }
+
+    return $segments ? implode(', ', $segments) : '#e2e8f0 0deg 360deg';
 }
 
 $respondent_rows = [];
@@ -147,16 +195,34 @@ $pie_colors = [
     'Fair' => '#ea580c',
     'Poor' => '#dc2626'
 ];
-$pie_segments = [];
-$cursor = 0;
-foreach ($category_counts as $label => $count) {
-    $degrees = $total_responses > 0 ? ($count / $total_responses) * 360 : 0;
-    if ($degrees > 0) {
-        $pie_segments[] = $pie_colors[$label] . ' ' . $cursor . 'deg ' . ($cursor + $degrees) . 'deg';
-        $cursor += $degrees;
+
+$overall_pie_background = pie_background($category_counts, $pie_colors);
+$global_rating_charts = [];
+
+foreach ($rating_columns as $column) {
+    $counts = [
+        'Excellent' => 0,
+        'Very Satisfactory' => 0,
+        'Satisfactory' => 0,
+        'Fair' => 0,
+        'Poor' => 0
+    ];
+
+    foreach ($responses as $response) {
+        $label = column_rating_label($response[$column] ?? null);
+        if (isset($counts[$label])) {
+            $counts[$label]++;
+        }
     }
+
+    $global_rating_charts[] = [
+        'column' => $column,
+        'title' => pretty_field_name($column),
+        'counts' => $counts,
+        'total' => array_sum($counts),
+        'background' => pie_background($counts, $pie_colors)
+    ];
 }
-$pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 360deg';
 ?>
 
 <style>
@@ -167,7 +233,7 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
     }
     .respondents-shell {
         margin: 0 auto;
-        max-width: 1200px;
+        max-width: 1240px;
     }
     .respondents-topbar {
         align-items: center;
@@ -253,25 +319,26 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
     }
     .pie-chart {
         align-items: center;
-        background: conic-gradient(<?= $pie_background ?>);
+        background: conic-gradient(var(--pie-bg));
         border-radius: 50%;
         display: flex;
-        height: 210px;
+        flex: 0 0 auto;
+        height: var(--pie-size, 210px);
         justify-content: center;
         margin-bottom: 1.2rem;
-        width: 210px;
+        width: var(--pie-size, 210px);
     }
     .pie-chart::after {
         background: white;
         border-radius: 50%;
         color: var(--accent-blue);
-        content: '<?= $total_responses ?>';
+        content: attr(data-total);
         display: grid;
-        font-size: 2.1rem;
+        font-size: var(--pie-number-size, 2.1rem);
         font-weight: 900;
-        height: 118px;
+        height: calc(var(--pie-size, 210px) * 0.56);
         place-items: center;
-        width: 118px;
+        width: calc(var(--pie-size, 210px) * 0.56);
     }
     .legend-grid {
         display: grid;
@@ -284,6 +351,7 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
         display: flex;
         font-size: 0.85rem;
         font-weight: 700;
+        gap: 1rem;
         justify-content: space-between;
     }
     .legend-label {
@@ -297,22 +365,56 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
         height: 10px;
         width: 10px;
     }
-    .respondent-panel {
+    .respondent-muted {
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+    .response-pane {
         background: #ffffff;
         border: 1px solid var(--border-color);
         border-radius: 14px;
         box-shadow: 0 14px 35px rgba(15, 23, 42, 0.05);
         overflow: hidden;
     }
-    .respondent-panel-header {
+    .response-tabs {
         align-items: center;
+        background: #f8fafc;
         border-bottom: 1px solid var(--border-color);
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+    .response-tab {
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        color: #64748b;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 850;
+        padding: 0.65rem 1rem;
+    }
+    .response-tab.active {
+        background: #ffffff;
+        border-color: var(--border-color);
+        color: var(--accent-blue);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+    .response-panel {
+        display: none;
+        padding: 1.5rem;
+    }
+    .response-panel.active {
+        display: block;
+    }
+    .pane-header {
+        align-items: center;
         display: flex;
         gap: 1rem;
         justify-content: space-between;
-        padding: 1rem 1.25rem;
+        margin-bottom: 1.35rem;
     }
-    .respondent-panel-header h2 {
+    .pane-header h2 {
         color: var(--accent-blue);
         font-size: 1.1rem;
         margin: 0;
@@ -326,36 +428,93 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
         padding: 0.7rem 0.9rem;
         width: 100%;
     }
-    .respondents-table-wrap {
-        overflow-x: auto;
+    .rating-chart-grid {
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        margin-bottom: 1.5rem;
     }
-    .respondents-table {
+    .rating-chart-card {
+        align-items: center;
+        background: #ffffff;
+        border: 0;
+        border-radius: 8px;
+        display: grid;
+        gap: 1.35rem;
+        grid-template-columns: 100px minmax(0, 1fr);
+        min-height: 150px;
+        padding: 1rem 0.9rem;
+    }
+    .rating-chart-card h3 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 900;
+        line-height: 1.3;
+        margin: 0 0 0.9rem;
+    }
+    .rating-chart-card .pie-chart {
+        --pie-size: 92px;
+        --pie-number-size: 1.1rem;
+        margin: 0;
+    }
+    .rating-chart-card .legend-grid {
+        gap: 0.42rem;
+        grid-template-columns: 1fr;
+    }
+    .rating-chart-card .legend-item {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        color: #475569;
+        font-size: 0.8rem;
+        font-weight: 850;
+        gap: 0.75rem;
+        min-height: 18px;
+        padding: 0;
+    }
+    .rating-chart-card .legend-item.is-zero {
+        color: #94a3b8;
+    }
+    .rating-chart-card .legend-item.is-zero .legend-dot {
+        opacity: 0.45;
+    }
+    .rating-chart-card .legend-label {
+        min-width: 0;
+    }
+    .global-table-wrap {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 560px;
+    }
+    .global-table {
         border-collapse: collapse;
-        min-width: 900px;
+        min-width: 980px;
         width: 100%;
     }
-    .respondents-table th,
-    .respondents-table td {
+    .global-table th,
+    .global-table td {
         border-bottom: 1px solid #eef2f7;
-        padding: 1rem;
+        padding: 0.85rem;
         text-align: left;
+        vertical-align: top;
     }
-    .respondents-table th {
+    .global-table th {
         background: #f8fafc;
         color: #64748b;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-weight: 900;
         letter-spacing: 0.05em;
+        position: sticky;
         text-transform: uppercase;
+        top: 0;
+        z-index: 1;
     }
-    .respondent-name {
-        color: #0f172a;
-        font-weight: 850;
-    }
-    .respondent-email,
-    .respondent-muted {
-        color: #64748b;
-        font-size: 0.82rem;
+    .global-table td {
+        color: #334155;
+        font-size: 0.84rem;
+        max-width: 260px;
+        min-width: 110px;
     }
     .rating-pill {
         border-radius: 999px;
@@ -366,6 +525,86 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
         padding: 5px 10px;
         white-space: nowrap;
     }
+    .individual-layout {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(260px, 0.38fr) minmax(0, 0.62fr);
+    }
+    .responder-list {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        max-height: 650px;
+        overflow: auto;
+    }
+    .responder-button {
+        background: #ffffff;
+        border: 0;
+        border-bottom: 1px solid #eef2f7;
+        cursor: pointer;
+        display: block;
+        padding: 0.95rem;
+        text-align: left;
+        width: 100%;
+    }
+    .responder-button:hover,
+    .responder-button.active {
+        background: #f8fafc;
+    }
+    .responder-name {
+        color: #0f172a;
+        font-weight: 850;
+        margin-bottom: 0.25rem;
+    }
+    .responder-detail {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        display: none;
+        padding: 1.2rem;
+    }
+    .responder-detail.active {
+        display: block;
+    }
+    .detail-head {
+        align-items: flex-start;
+        border-bottom: 1px solid #eef2f7;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+    .detail-head h3 {
+        color: #0f172a;
+        font-size: 1.25rem;
+        margin: 0 0 0.35rem;
+    }
+    .detail-grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .detail-field {
+        background: #f8fafc;
+        border: 1px solid #eef2f7;
+        border-radius: 8px;
+        padding: 0.85rem;
+    }
+    .detail-field span {
+        color: #64748b;
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.35rem;
+        text-transform: uppercase;
+    }
+    .detail-field strong,
+    .detail-field div {
+        color: #0f172a;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
     .empty-state {
         color: #64748b;
         padding: 3rem 1.5rem;
@@ -373,15 +612,22 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
     }
     @media (max-width: 900px) {
         .respondents-hero,
-        .response-stats {
+        .response-stats,
+        .individual-layout {
             grid-template-columns: 1fr;
         }
-        .respondent-panel-header {
+        .pane-header,
+        .detail-head {
             align-items: stretch;
             flex-direction: column;
         }
         .respondent-search {
             max-width: none;
+        }
+    }
+    @media (max-width: 560px) {
+        .rating-chart-card {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -403,7 +649,7 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
                 <span class="respondents-kicker">AME Respondents</span>
                 <h1 class="respondents-title"><?= htmlspecialchars($activity['title']) ?></h1>
                 <p class="respondents-subtitle">
-                    Review response analytics, rating distribution, and individual submissions for this activity evaluation.
+                    Review response analytics, rating distribution, and responder-level submissions for this activity evaluation.
                 </p>
 
                 <div class="response-stats">
@@ -428,7 +674,7 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
             </div>
 
             <div class="pie-card">
-                <div class="pie-chart" aria-label="Rating distribution pie chart"></div>
+                <div class="pie-chart" style="--pie-bg: <?= htmlspecialchars($overall_pie_background) ?>;" data-total="<?= $total_responses ?>" aria-label="Overall rating distribution pie chart"></div>
                 <div class="legend-grid">
                     <?php foreach ($category_counts as $label => $count): ?>
                         <div class="legend-item">
@@ -440,10 +686,10 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
             </div>
         </section>
 
-        <section class="respondent-panel">
-            <div class="respondent-panel-header">
-                <h2>Individual Responses</h2>
-                <input type="search" id="respondentSearch" class="respondent-search" placeholder="Search name, email, unit, feedback..." oninput="filterRespondents()">
+        <section class="response-pane">
+            <div class="response-tabs" role="tablist" aria-label="Response views">
+                <button type="button" class="response-tab active" data-tab="global" onclick="switchResponseTab('global')">Global</button>
+                <button type="button" class="response-tab" data-tab="individual" onclick="switchResponseTab('individual')">Individual</button>
             </div>
 
             <?php if (!$table_exists): ?>
@@ -457,65 +703,140 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
                     <p>Responses will appear here as soon as participants submit the evaluation form.</p>
                 </div>
             <?php else: ?>
-                <div class="respondents-table-wrap">
-                    <table class="respondents-table">
-                        <thead>
-                            <tr>
-                                <th>Respondent</th>
-                                <th>Profile</th>
-                                <th>Average Rating</th>
-                                <th>Key Ratings</th>
-                                <th>Feedback</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($respondent_rows as $response): ?>
+                <div id="globalPanel" class="response-panel active">
+                    <div class="pane-header">
+                        <div>
+                            <h2>Global Responses</h2>
+                            <div class="respondent-muted">All submitted records and distribution charts for every rated column.</div>
+                        </div>
+                        <input type="search" id="globalSearch" class="respondent-search" placeholder="Search all responses..." oninput="filterGlobalResponses()">
+                    </div>
+
+                    <?php if (!empty($global_rating_charts)): ?>
+                        <div class="rating-chart-grid">
+                            <?php foreach ($global_rating_charts as $chart): ?>
+                                <article class="rating-chart-card">
+                                    <div class="pie-chart" style="--pie-bg: <?= htmlspecialchars($chart['background']) ?>;" data-total="<?= (int)$chart['total'] ?>" aria-label="<?= htmlspecialchars($chart['title']) ?> distribution"></div>
+                                    <div>
+                                        <h3><?= htmlspecialchars($chart['title']) ?></h3>
+                                        <div class="legend-grid">
+                                            <?php foreach ($chart['counts'] as $label => $count): ?>
+                                                <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
+                                                    <span class="legend-label"><span class="legend-dot" style="background: <?= $pie_colors[$label] ?>"></span><?= $label ?></span>
+                                                    <span><?= $count ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="global-table-wrap">
+                        <table class="global-table">
+                            <thead>
+                                <tr>
+                                    <?php foreach ($all_columns as $column): ?>
+                                        <th><?= htmlspecialchars(pretty_field_name($column)) ?></th>
+                                    <?php endforeach; ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($responses as $response): ?>
+                                    <?php $search_blob = strtolower(implode(' ', array_map('strval', $response))); ?>
+                                    <tr class="global-response-row" data-search="<?= htmlspecialchars($search_blob) ?>">
+                                        <?php foreach ($all_columns as $column): ?>
+                                            <td>
+                                                <?php
+                                                    $value = $response[$column] ?? '';
+                                                    if (in_array($column, $rating_columns, true) && is_numeric($value)) {
+                                                        echo number_format((float)$value, 0) . '%';
+                                                    } else {
+                                                        echo htmlspecialchars((string)($value !== '' ? $value : 'N/A'));
+                                                    }
+                                                ?>
+                                            </td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="individualPanel" class="response-panel">
+                    <div class="pane-header">
+                        <div>
+                            <h2>Individual Responder</h2>
+                            <div class="respondent-muted">Select a responder to inspect their profile, ratings, and text feedback.</div>
+                        </div>
+                        <input type="search" id="individualSearch" class="respondent-search" placeholder="Search responder..." oninput="filterIndividuals()">
+                    </div>
+
+                    <div class="individual-layout">
+                        <div class="responder-list">
+                            <?php foreach ($respondent_rows as $index => $response): ?>
+                                <?php $search_blob = strtolower(implode(' ', array_map('strval', $response))); ?>
+                                <button type="button" class="responder-button <?= $index === 0 ? 'active' : '' ?>" data-search="<?= htmlspecialchars($search_blob) ?>" data-responder="<?= $index ?>" onclick="selectResponder(<?= $index ?>)">
+                                    <div class="responder-name"><?= htmlspecialchars($response['fullname'] ?? 'Unnamed respondent') ?></div>
+                                    <div class="respondent-muted"><?= htmlspecialchars($response['email'] ?? 'No email') ?></div>
+                                    <div class="respondent-muted"><?= htmlspecialchars($response['unit'] ?? 'Unit not provided') ?></div>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div>
+                            <?php foreach ($respondent_rows as $index => $response): ?>
                                 <?php
                                     $label = $response['_rating_label'];
                                     $rating_color = rating_color($label);
-                                    $rating_preview = array_slice($rating_columns, 0, 4);
-                                    $search_blob = strtolower(implode(' ', array_map('strval', $response)));
                                 ?>
-                                <tr class="respondent-row" data-search="<?= htmlspecialchars($search_blob) ?>">
-                                    <td>
-                                        <div class="respondent-name"><?= htmlspecialchars($response['fullname'] ?? 'Unnamed respondent') ?></div>
-                                        <div class="respondent-email"><?= htmlspecialchars($response['email'] ?? 'No email') ?></div>
-                                    </td>
-                                    <td>
-                                        <div><?= htmlspecialchars($response['unit'] ?? 'Unit not provided') ?></div>
-                                        <div class="respondent-muted">
-                                            <?= htmlspecialchars($response['gender'] ?? 'Gender N/A') ?>
-                                            <?= !empty($response['age']) ? ' · Age ' . htmlspecialchars($response['age']) : '' ?>
+                                <article class="responder-detail <?= $index === 0 ? 'active' : '' ?>" data-responder-detail="<?= $index ?>">
+                                    <div class="detail-head">
+                                        <div>
+                                            <h3><?= htmlspecialchars($response['fullname'] ?? 'Unnamed respondent') ?></h3>
+                                            <div class="respondent-muted"><?= htmlspecialchars($response['email'] ?? 'No email') ?></div>
                                         </div>
-                                    </td>
-                                    <td>
-                                        <span class="rating-pill" style="background: <?= $rating_color ?>;"><?= number_format((float)$response['_average'], 1) ?>%</span>
-                                        <div class="respondent-muted" style="margin-top: 5px;"><?= htmlspecialchars($label) ?></div>
-                                    </td>
-                                    <td>
-                                        <?php if (empty($rating_preview)): ?>
-                                            <span class="respondent-muted">No rating fields</span>
-                                        <?php else: ?>
-                                            <div style="display: grid; gap: 5px;">
-                                                <?php foreach ($rating_preview as $column): ?>
-                                                    <div class="respondent-muted">
-                                                        <strong><?= htmlspecialchars(pretty_field_name($column)) ?>:</strong>
-                                                        <?= isset($response[$column]) && is_numeric($response[$column]) ? number_format((float)$response[$column], 0) . '%' : 'N/A' ?>
-                                                    </div>
-                                                <?php endforeach; ?>
+                                        <div>
+                                            <span class="rating-pill" style="background: <?= $rating_color ?>;"><?= number_format((float)$response['_average'], 1) ?>%</span>
+                                            <div class="respondent-muted" style="margin-top: 5px; text-align: right;"><?= htmlspecialchars($label) ?></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-grid">
+                                        <div class="detail-field">
+                                            <span>Profile</span>
+                                            <div>
+                                                <?= htmlspecialchars($response['unit'] ?? 'Unit not provided') ?><br>
+                                                <?= htmlspecialchars($response['gender'] ?? 'Gender N/A') ?>
+                                                <?= !empty($response['age']) ? ', Age ' . htmlspecialchars($response['age']) : '' ?><br>
+                                                <?= htmlspecialchars($response['contact'] ?? 'No contact') ?>
                                             </div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <div style="max-width: 320px;">
-                                            <div class="respondent-muted"><strong>Best topics:</strong> <?= htmlspecialchars($response['best_topics'] ?? 'No answer') ?></div>
-                                            <div class="respondent-muted" style="margin-top: 6px;"><strong>Improvements:</strong> <?= htmlspecialchars($response['improvements'] ?? 'No answer') ?></div>
                                         </div>
-                                    </td>
-                                </tr>
+
+                                        <?php foreach ($rating_columns as $column): ?>
+                                            <div class="detail-field">
+                                                <span><?= htmlspecialchars(pretty_field_name($column)) ?></span>
+                                                <strong>
+                                                    <?= isset($response[$column]) && is_numeric($response[$column]) ? number_format((float)$response[$column], 0) . '%' : 'N/A' ?>
+                                                </strong>
+                                            </div>
+                                        <?php endforeach; ?>
+
+                                        <div class="detail-field">
+                                            <span>Best Topics / Insights</span>
+                                            <div><?= htmlspecialchars($response['best_topics'] ?? 'No answer') ?></div>
+                                        </div>
+                                        <div class="detail-field">
+                                            <span>Suggested Improvements</span>
+                                            <div><?= htmlspecialchars($response['improvements'] ?? 'No answer') ?></div>
+                                        </div>
+                                    </div>
+                                </article>
                             <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
         </section>
@@ -523,10 +844,45 @@ $pie_background = $pie_segments ? implode(', ', $pie_segments) : '#e2e8f0 0deg 3
 </main>
 
 <script>
-    function filterRespondents() {
-        const query = document.getElementById('respondentSearch').value.toLowerCase();
-        document.querySelectorAll('.respondent-row').forEach(row => {
+    function switchResponseTab(tabName) {
+        document.querySelectorAll('.response-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.response-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.id === tabName + 'Panel');
+        });
+    }
+
+    function filterGlobalResponses() {
+        const query = document.getElementById('globalSearch').value.toLowerCase();
+        document.querySelectorAll('.global-response-row').forEach(row => {
             row.style.display = row.dataset.search.includes(query) ? '' : 'none';
         });
+    }
+
+    function selectResponder(index) {
+        document.querySelectorAll('.responder-button').forEach(button => {
+            button.classList.toggle('active', button.dataset.responder === String(index));
+        });
+        document.querySelectorAll('.responder-detail').forEach(detail => {
+            detail.classList.toggle('active', detail.dataset.responderDetail === String(index));
+        });
+    }
+
+    function filterIndividuals() {
+        const query = document.getElementById('individualSearch').value.toLowerCase();
+        let firstVisible = null;
+
+        document.querySelectorAll('.responder-button').forEach(button => {
+            const visible = button.dataset.search.includes(query);
+            button.style.display = visible ? '' : 'none';
+            if (visible && firstVisible === null) {
+                firstVisible = Number(button.dataset.responder);
+            }
+        });
+
+        if (firstVisible !== null) {
+            selectResponder(firstVisible);
+        }
     }
 </script>
