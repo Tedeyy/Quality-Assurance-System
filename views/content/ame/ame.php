@@ -3,27 +3,54 @@ $sub = $_GET['sub'] ?? 'monitoring';
 require_once __DIR__ . '/../../../config/database.php';
 $db = (new Database())->getConnection();
 
-// Fetch activities with their ratings and SDGs
-$query = "SELECT a.*, s.overall_average, e.response_rate,
-                  GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles,
-                  GROUP_CONCAT(sdg.sdg_id SEPARATOR ',') as sdg_ids
-          FROM activities a 
-          LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
-          LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
-          LEFT JOIN activity_sdgs asg ON a.activity_id = asg.activity_id
-          LEFT JOIN SDGs sdg ON asg.sdg_id = sdg.sdg_id
-          GROUP BY a.activity_id
-          ORDER BY a.eventdate DESC";
-$stmt = $db->query($query);
-$activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$activities = [];
+$sdgs = [];
+$offices = [];
+$sdg_stats = [];
+$speaker_ratings = [];
+$organizer_ratings = [];
+
+// Fetch activities with their ratings and SDGs.
+// Use lowercase `sdgs`; table names are case-sensitive on Linux hosting.
+try {
+    $query = "SELECT a.*, s.overall_average, e.response_rate,
+                     (
+                        SELECT GROUP_CONCAT(sdg.title SEPARATOR ', ')
+                        FROM activity_sdgs asg
+                        JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
+                        WHERE asg.activity_id = a.activity_id
+                     ) AS sdg_titles,
+                     (
+                        SELECT GROUP_CONCAT(sdg.sdg_id SEPARATOR ',')
+                        FROM activity_sdgs asg
+                        JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
+                        WHERE asg.activity_id = a.activity_id
+                     ) AS sdg_ids
+              FROM activities a
+              LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
+              LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
+              ORDER BY a.eventdate DESC";
+    $stmt = $db->query($query);
+    $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("AME activities query failed: " . $e->getMessage());
+}
 
 // Fetch SDGs for the dropdown
-$sdg_stmt = $db->query("SELECT sdg_id, title FROM SDGs ORDER BY sdg_id ASC");
-$sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $sdg_stmt = $db->query("SELECT sdg_id, title FROM sdgs ORDER BY sdg_id ASC");
+    $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("AME SDG dropdown query failed: " . $e->getMessage());
+}
 
 // Fetch offices for the dropdown
-$office_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
-$offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $office_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
+    $offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("AME offices query failed: " . $e->getMessage());
+}
 
 $target_groups = ['Everyone', 'Student', 'Non-teaching Faculty', 'Teaching Faculty', 'Staff', 'Stakeholders', 'Out of School Youth', 'Guests', 'Others'];
 
@@ -41,11 +68,15 @@ usort($months, function($a, $b) {
 
 // Fetch all SDGs and their activity counts for the dashboard
 $sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(asg.activity_id) as count 
-                     FROM SDGs s 
+                     FROM sdgs s 
                      LEFT JOIN activity_sdgs asg ON s.sdg_id = asg.sdg_id 
-                     GROUP BY s.sdg_id 
+                     GROUP BY s.sdg_id, s.title
                      ORDER BY s.sdg_id ASC";
-$sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("AME SDG stats query failed: " . $e->getMessage());
+}
 
 $sdg_descriptions = [
     1 => 'End poverty in all its forms everywhere.',
@@ -68,20 +99,28 @@ $sdg_descriptions = [
 ];
 
 // Fetch Speaker Ratings
-$speaker_ratings = $db->query("
-    SELECT r.*, s.name, e.activity_id 
-    FROM activity_speaker_rating r 
-    JOIN speakers s ON r.speaker_id = s.speaker_id 
-    JOIN activity_evaluation e ON r.evaluation_id = e.evaluation_id
-")->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $speaker_ratings = $db->query("
+        SELECT r.*, s.name, e.activity_id 
+        FROM activity_speaker_rating r 
+        JOIN speakers s ON r.speaker_id = s.speaker_id 
+        JOIN activity_evaluation e ON r.evaluation_id = e.evaluation_id
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("AME speaker ratings query failed: " . $e->getMessage());
+}
 
 // Fetch Organizer Ratings
-$organizer_ratings = $db->query("
-    SELECT r.*, o.name, e.activity_id 
-    FROM activity_organizer_rating r 
-    JOIN organizers o ON r.organizer_id = o.organizer_id 
-    JOIN activity_evaluation e ON r.evaluation_id = e.evaluation_id
-")->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $organizer_ratings = $db->query("
+        SELECT r.*, o.name, e.activity_id 
+        FROM activity_organizer_rating r 
+        JOIN organizers o ON r.organizer_id = o.organizer_id 
+        JOIN activity_evaluation e ON r.evaluation_id = e.evaluation_id
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("AME organizer ratings query failed: " . $e->getMessage());
+}
 ?>
 
 <script>

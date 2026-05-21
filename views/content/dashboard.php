@@ -2,9 +2,28 @@
 require_once __DIR__ . '/../../config/database.php';
 $db = (new Database())->getConnection();
 
-$stmt = $db->prepare("SELECT birthdate, gender, province, city, barangay, address, contact_number, division_id, office_id, position FROM users WHERE user_id = :user_id");
-$stmt->execute(['user_id' => $_SESSION['user_id']]);
-$userProfile = $stmt->fetch(PDO::FETCH_ASSOC);
+function safe_trim_text($text, $width = 40): string {
+    $text = (string)$text;
+    if (function_exists('mb_strimwidth')) {
+        return mb_strimwidth($text, 0, $width, "...");
+    }
+
+    return strlen($text) > $width ? substr($text, 0, max(0, $width - 3)) . "..." : $text;
+}
+
+$dashboard_error = null;
+$userProfile = [];
+$recent_activities = [];
+$active_accreditation_deadlines = [];
+
+try {
+    $stmt = $db->prepare("SELECT birthdate, gender, province, city, barangay, address, contact_number, division_id, office_id, position FROM users WHERE user_id = :user_id");
+    $stmt->execute(['user_id' => $_SESSION['user_id']]);
+    $userProfile = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+} catch (PDOException $e) {
+    $dashboard_error = "Dashboard profile data could not be loaded.";
+    error_log("Dashboard profile query failed: " . $e->getMessage());
+}
 
 $needsProfileCompletion = false;
 if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($userProfile['province']) || empty($userProfile['city']) || empty($userProfile['barangay']) || empty($userProfile['address']) || empty($userProfile['contact_number']) || empty($userProfile['division_id']) || empty($userProfile['office_id']) || empty($userProfile['position'])) {
@@ -12,27 +31,40 @@ if (empty($userProfile['birthdate']) || empty($userProfile['gender']) || empty($
 }
 
 // Fetch recent user activities
-$recent_activities_stmt = $db->query("
-    SELECT ua.*, u.fname, u.lname 
-    FROM user_activity ua
-    JOIN users u ON ua.user_id = u.user_id
-    ORDER BY ua.activity_time DESC
-    LIMIT 5
-");
-$recent_activities = $recent_activities_stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $recent_activities_stmt = $db->query("
+        SELECT ua.*, u.fname, u.lname 
+        FROM user_activity ua
+        JOIN users u ON ua.user_id = u.user_id
+        ORDER BY ua.activity_time DESC
+        LIMIT 5
+    ");
+    $recent_activities = $recent_activities_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Dashboard recent activity query failed: " . $e->getMessage());
+}
 
 // Active accreditation deadlines for dashboard countdown
-$active_deadlines_stmt = $db->query("
-    SELECT accreditation_id, code, name, deadline
-    FROM accreditations
-    WHERE status = 'In Progress'
-      AND deadline IS NOT NULL
-    ORDER BY deadline ASC, name ASC
-");
-$active_accreditation_deadlines = $active_deadlines_stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $active_deadlines_stmt = $db->query("
+        SELECT accreditation_id, code, name, deadline
+        FROM accreditations
+        WHERE status = 'In Progress'
+          AND deadline IS NOT NULL
+        ORDER BY deadline ASC, name ASC
+    ");
+    $active_accreditation_deadlines = $active_deadlines_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Dashboard accreditation deadline query failed: " . $e->getMessage());
+}
 $today = new DateTimeImmutable('today');
 ?>
 <main class="hero" style="display: block; min-height: calc(100vh - 200px); padding: 0; background: #f8fafc;">
+    <?php if ($dashboard_error): ?>
+        <div style="background: #fff7ed; color: #9a3412; padding: 0.9rem 5%; border-bottom: 1px solid #fed7aa; font-weight: 700;">
+            <?= htmlspecialchars($dashboard_error) ?>
+        </div>
+    <?php endif; ?>
     <div style="display: flex; min-height: calc(100vh - 200px);">
         
         <!-- Unified Left Sidebar -->
@@ -134,7 +166,7 @@ $today = new DateTimeImmutable('today');
                     <?php foreach ($recent_activities as $ua): ?>
                         <div style="font-size: 0.75rem; line-height: 1.4;">
                             <span style="font-weight: 700; color: #1e293b;"><?= htmlspecialchars($ua['fname']) ?></span>
-                            <span style="color: #64748b;"><?= htmlspecialchars(mb_strimwidth($ua['activity_description'], 0, 40, "...")) ?></span>
+                            <span style="color: #64748b;"><?= htmlspecialchars(safe_trim_text($ua['activity_description'] ?? '', 40)) ?></span>
                             <div style="font-size: 0.65rem; color: #94a3b8; margin-top: 2px;"><?= date('M d, h:i A', strtotime($ua['activity_time'])) ?></div>
                         </div>
                     <?php endforeach; ?>
