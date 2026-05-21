@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/responses_database.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -15,9 +16,21 @@ if (!$activity_id) {
     header("Location: ../views/feed.php?action=activity");
     exit;
 }
+$activity_id = (int) $activity_id;
+if ($activity_id <= 0) {
+    $_SESSION['error'] = "Invalid activity ID.";
+    header("Location: ../views/feed.php?action=activity");
+    exit;
+}
 
 $database = new Database();
 $db = $database->getConnection();
+$rdb = (new ResponsesDatabase())->getConnection();
+if (!$rdb) {
+    $_SESSION['error'] = "Responses database connection failed. AME form table was not created.";
+    header("Location: ../views/feed.php?action=view_activity&id=" . $activity_id);
+    exit;
+}
 
 // 1. Fetch Activity Details
 $stmt = $db->prepare("SELECT * FROM activities WHERE activity_id = :id");
@@ -134,42 +147,41 @@ function addWorkingDays($startDate, $days) {
     return $date->format('Y-m-d');
 }
 
-if ($rdb) {
-    $rdb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $table_name = "activity_" . $activity_id;
-    
-    try {
-        $rdb->exec("DROP TABLE IF EXISTS $table_name");
-        $createTable = "CREATE TABLE $table_name (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            email VARCHAR(255) UNIQUE,
-            fullname VARCHAR(255),
-            age VARCHAR(50),
-            gender VARCHAR(50),
-            contact VARCHAR(100),
-            unit VARCHAR(255),
-            osr INT,
-        ";
-        
-        for ($i = 0; $i < $facilitatorsCount; $i++) {
-            $createTable .= "fac_{$i}_eff INT, fac_{$i}_mot INT, fac_{$i}_atf INT, ";
-        }
-        
-        for ($i = 0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
-        for ($i = 0; $i < 3; $i++) $createTable .= "log_$i INT, ";
-        
-        $createTable .= "
-            best_topics TEXT,
-            improvements TEXT,
-            oe INT,
-            submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )";
-        $rdb->exec($createTable);
-    } catch (PDOException $e) {
-        $_SESSION['error'] = "Table Creation Failed: " . $e->getMessage();
-        header("Location: ../views/feed.php?action=view_activity&id=" . $activity_id);
-        exit;
+$rdb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$table_name = "activity_" . $activity_id;
+$quoted_table = "`" . str_replace("`", "``", $table_name) . "`";
+
+try {
+    $rdb->exec("DROP TABLE IF EXISTS $quoted_table");
+    $createTable = "CREATE TABLE $quoted_table (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) UNIQUE,
+        fullname VARCHAR(255),
+        age VARCHAR(50),
+        gender VARCHAR(50),
+        contact VARCHAR(100),
+        unit VARCHAR(255),
+        osr INT,
+    ";
+
+    for ($i = 0; $i < $facilitatorsCount; $i++) {
+        $createTable .= "fac_{$i}_eff INT, fac_{$i}_mot INT, fac_{$i}_atf INT, ";
     }
+
+    for ($i = 0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
+    for ($i = 0; $i < 3; $i++) $createTable .= "log_$i INT, ";
+
+    $createTable .= "
+        best_topics TEXT,
+        improvements TEXT,
+        oe INT,
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )";
+    $rdb->exec($createTable);
+} catch (PDOException $e) {
+    $_SESSION['error'] = "Table Creation Failed: " . $e->getMessage();
+    header("Location: ../views/feed.php?action=view_activity&id=" . $activity_id);
+    exit;
 }
 
 $date_released = date('Y-m-d');

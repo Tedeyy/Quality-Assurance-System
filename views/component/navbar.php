@@ -3,7 +3,7 @@ $current_action = $_GET['action'] ?? '';
 $is_dashboard_active = ($current_action === 'dashboard' || $current_action === '');
 $is_document_active = ($current_action === 'document' || $current_action === 'docmasterlist');
 $is_accreditation_active = ($current_action === 'accreditation' || $current_action === 'accmasterlist' || $current_action === 'accmapping');
-$is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity');
+$is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity' || $current_action === 'respondents');
 ?>
 
 <!-- Premium Navbar & Dropdown Styles -->

@@ -10,6 +10,46 @@ $db = $database->getConnection();
 
 $activity_id = $_POST['activity_id'] ?? null;
 if (!$activity_id) die("Missing Activity ID");
+$activity_id = (int) $activity_id;
+if ($activity_id <= 0) die("Invalid Activity ID");
+
+function ensureActivityResponseTable(PDO $rdb, PDO $db, int $activity_id): string {
+    $table_name = "activity_" . $activity_id;
+    $quoted_table = "`" . str_replace("`", "``", $table_name) . "`";
+
+    $fac_stmt = $db->prepare("SELECT COUNT(*) FROM activity_facilitators WHERE activity_id = :aid");
+    $fac_stmt->execute(['aid' => $activity_id]);
+    $facilitatorsCount = (int) $fac_stmt->fetchColumn();
+
+    $createTable = "CREATE TABLE IF NOT EXISTS $quoted_table (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) UNIQUE,
+        fullname VARCHAR(255),
+        age VARCHAR(50),
+        gender VARCHAR(50),
+        contact VARCHAR(100),
+        unit VARCHAR(255),
+        osr INT,
+    ";
+
+    for ($i = 0; $i < $facilitatorsCount; $i++) {
+        $createTable .= "fac_{$i}_eff INT, fac_{$i}_mot INT, fac_{$i}_atf INT, ";
+    }
+
+    for ($i = 0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
+    for ($i = 0; $i < 3; $i++) $createTable .= "log_$i INT, ";
+
+    $createTable .= "
+        best_topics TEXT,
+        improvements TEXT,
+        oe INT,
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )";
+
+    $rdb->exec($createTable);
+
+    return $quoted_table;
+}
 
 // 1. Fetch Evaluation ID
 $stmt = $db->prepare("SELECT evaluation_id FROM activity_evaluation WHERE activity_id = :aid");
@@ -23,7 +63,7 @@ $resp_db_class = new ResponsesDatabase();
 $rdb = $resp_db_class->getConnection();
 
 if ($rdb) {
-    $table_name = "activity_" . $activity_id;
+    $table_name = ensureActivityResponseTable($rdb, $db, $activity_id);
 
     // Check if email already exists
     $check = $rdb->prepare("SELECT id FROM $table_name WHERE email = :email");

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../../config/database.php';
 $db = (new Database())->getConnection();
 
 // Fetch activities with their ratings and SDGs
@@ -479,7 +479,7 @@ usort($months, function($a, $b) {
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../component/activity_modal.php'; ?>
+<?php require_once __DIR__ . '/../../component/activity_modal.php'; ?>
 
 <script>
     const sdgTitles = {

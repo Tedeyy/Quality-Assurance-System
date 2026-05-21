@@ -23,30 +23,32 @@ if (isset($_SESSION['user_id'])) {
     if ($action === 'dashboard' || $action === '' || $action === 'login' || $action === 'signup') {
         require_once __DIR__ . '/content/dashboard.php';
     } elseif ($action === 'accreditation') {
-        require_once __DIR__ . '/content/acctracker.php';
+        require_once __DIR__ . '/content/accreditation/acctracker.php';
     } elseif ($action === 'accmasterlist') {
-        require_once __DIR__ . '/content/accmasterlist.php';
+        require_once __DIR__ . '/content/accreditation/accmasterlist.php';
     } elseif ($action === 'accmapping') {
-        require_once __DIR__ . '/content/accmapping.php';
+        require_once __DIR__ . '/content/accreditation/accmapping.php';
     } elseif ($action === 'activity') {
-        require_once __DIR__ . '/content/ame.php';
+        require_once __DIR__ . '/content/ame/ame.php';
     } elseif ($action === 'actmasterlist') {
-        require_once __DIR__ . '/content/actmasterlist.php';
+        require_once __DIR__ . '/content/ame/actmasterlist.php';
     } elseif ($action === 'view_activity') {
-        require_once __DIR__ . '/content/activitypane.php';
+        require_once __DIR__ . '/content/ame/activitypane.php';
+    } elseif ($action === 'respondents') {
+        require_once __DIR__ . '/content/ame/respondents.php';
     } elseif ($action === 'document') {
-        require_once __DIR__ . '/content/doctracker.php';
+        require_once __DIR__ . '/content/document/doctracker.php';
     } elseif ($action === 'docmasterlist') {
-        require_once __DIR__ . '/content/docmasterlist.php';
+        require_once __DIR__ . '/content/document/docmasterlist.php';
     } else {
         require_once __DIR__ . '/content/dashboard.php';
     }
 } else {
     // Unauthenticated routes
     if ($action === 'signup') {
-        require_once __DIR__ . '/content/signup.php';
+        require_once __DIR__ . '/content/auth/signup.php';
     } else {
-        require_once __DIR__ . '/content/login.php';
+        require_once __DIR__ . '/content/auth/login.php';
     }
 }
 

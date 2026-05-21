@@ -1,6 +1,6 @@
 <?php
 $sub = $_GET['sub'] ?? 'monitoring';
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../../config/database.php';
 $db = (new Database())->getConnection();
 
 // Fetch activities with their ratings and SDGs
@@ -800,7 +800,7 @@ $organizer_ratings = $db->query("
     </div>
 </main>
 
-<?php require_once __DIR__ . '/../component/activity_modal.php'; ?>
+<?php require_once __DIR__ . '/../../component/activity_modal.php'; ?>
 
 <script>
     function toggleDropdown(id) {
