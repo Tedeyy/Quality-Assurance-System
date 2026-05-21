@@ -15,9 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $lname = trim($_POST['lname'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $termsAccepted = isset($_POST['terms_accepted']) && $_POST['terms_accepted'] === '1';
 
         if (empty($fname) || empty($lname) || empty($email) || empty($password)) {
             $_SESSION['error'] = 'All fields are required for sign up.';
+            header('Location: ../views/feed.php?action=signup');
+            exit;
+        }
+
+        if (!$termsAccepted) {
+            $_SESSION['error'] = 'Please agree to the Terms and Conditions before creating an account.';
             header('Location: ../views/feed.php?action=signup');
             exit;
         }
