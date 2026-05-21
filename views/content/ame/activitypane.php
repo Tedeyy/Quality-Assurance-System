@@ -29,6 +29,26 @@ $sdg_stmt = $db->prepare($sdg_query);
 $sdg_stmt->execute([':id' => $activity_id]);
 $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$sdg_descriptions = [
+    1 => 'End poverty in all its forms everywhere.',
+    2 => 'End hunger, achieve food security and improved nutrition, and promote sustainable agriculture.',
+    3 => 'Ensure healthy lives and promote well-being for all at all ages.',
+    4 => 'Ensure inclusive and equitable quality education and promote lifelong learning opportunities for all.',
+    5 => 'Achieve gender equality and empower all women and girls.',
+    6 => 'Ensure availability and sustainable management of water and sanitation for all.',
+    7 => 'Ensure access to affordable, reliable, sustainable, and modern energy for all.',
+    8 => 'Promote sustained, inclusive, and sustainable economic growth, full and productive employment, and decent work for all.',
+    9 => 'Build resilient infrastructure, promote inclusive and sustainable industrialization, and foster innovation.',
+    10 => 'Reduce inequality within and among countries.',
+    11 => 'Make cities and human settlements inclusive, safe, resilient, and sustainable.',
+    12 => 'Ensure sustainable consumption and production patterns.',
+    13 => 'Take urgent action to combat climate change and its impacts.',
+    14 => 'Conserve and sustainably use the oceans, seas, and marine resources for sustainable development.',
+    15 => 'Protect, restore, and promote sustainable use of terrestrial ecosystems, sustainably manage forests, combat desertification, halt and reverse land degradation, and halt biodiversity loss.',
+    16 => 'Promote peaceful and inclusive societies, provide access to justice for all, and build effective, accountable, and inclusive institutions.',
+    17 => 'Strengthen the means of implementation and revitalize the global partnership for sustainable development.'
+];
+
 // Fetch Target Groups
 $tg_query = "SELECT target_group FROM activity_target_groups WHERE activity_id = :id";
 $tg_stmt = $db->prepare($tg_query);
@@ -243,16 +263,31 @@ if ($evaluation) {
                                 <span style="color: var(--text-secondary); font-size: 0.9rem;">No SDGs linked</span>
                             <?php else: ?>
                                 <?php foreach($sdgs as $sdg): ?>
-                                    <div style="position: relative; group;">
+                                    <button type="button"
+                                        class="activity-sdg-card"
+                                        data-sdg-id="<?= (int)$sdg['sdg_id'] ?>"
+                                        data-sdg-title="<?= htmlspecialchars($sdg['title']) ?>"
+                                        data-sdg-description="<?= htmlspecialchars($sdg_descriptions[(int)$sdg['sdg_id']] ?? 'No description available for this Sustainable Development Goal.') ?>"
+                                        data-sdg-icon="../assets/img/sdgs/SDG<?= (int)$sdg['sdg_id'] ?>.png"
+                                        onclick="toggleActivitySdgDescription(this)"
+                                        aria-expanded="false"
+                                        style="position: relative; border: 0; background: transparent; padding: 0; cursor: pointer;">
                                         <img src="../assets/img/sdgs/SDG<?= $sdg['sdg_id'] ?>.png" 
                                              alt="<?= htmlspecialchars($sdg['title']) ?>" 
                                              title="<?= htmlspecialchars($sdg['title']) ?>"
-                                             style="width: 120px; height: 120px; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: help; transition: transform 0.2s; display: block;"
+                                             style="width: 120px; height: 120px; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s, outline 0.2s; display: block;"
                                              onmouseover="this.style.transform='scale(1.05)'; this.style.zIndex='10'; this.style.position='relative';"
-                                             onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1';">
-                                    </div>
+                                             onmouseout="if (!this.closest('.activity-sdg-card').classList.contains('active')) this.style.transform='scale(1)'; this.style.zIndex='1';">
+                                    </button>
                                 <?php endforeach; ?>
                             <?php endif; ?>
+                        </div>
+                        <div id="activitySdgDetailPanel" style="display: none; margin-top: 1rem; background: #f8fafc; border: 1px solid var(--border-color); border-left: 4px solid var(--accent-blue); border-radius: 10px; padding: 1.1rem; gap: 1rem; align-items: flex-start;">
+                            <img id="activitySdgDetailIcon" src="" alt="" style="width: 58px; height: 58px; border-radius: 4px; object-fit: cover; flex-shrink: 0;">
+                            <div>
+                                <h4 id="activitySdgDetailTitle" style="margin: 0 0 0.35rem; color: var(--accent-blue); font-size: 1rem;"></h4>
+                                <p id="activitySdgDetailDescription" style="margin: 0; color: var(--text-secondary); line-height: 1.6; font-size: 0.9rem;"></p>
+                            </div>
                         </div>
                     </div>
 
@@ -496,6 +531,42 @@ if ($evaluation) {
                     if (confirm('Are you sure you want to delete this Google Form? This will remove it from Google Drive and reset the link in the database.')) {
                         window.location.href = '../api/delete_ame_form.php?id=' + id;
                     }
+                }
+
+                function toggleActivitySdgDescription(card) {
+                    const panel = document.getElementById('activitySdgDetailPanel');
+                    const isActive = card.classList.contains('active');
+
+                    document.querySelectorAll('.activity-sdg-card').forEach(item => {
+                        item.classList.remove('active');
+                        item.setAttribute('aria-expanded', 'false');
+                        const img = item.querySelector('img');
+                        if (img) {
+                            img.style.transform = 'scale(1)';
+                            img.style.outline = 'none';
+                            img.style.outlineOffset = '0';
+                        }
+                    });
+
+                    if (isActive) {
+                        panel.style.display = 'none';
+                        return;
+                    }
+
+                    const img = card.querySelector('img');
+                    card.classList.add('active');
+                    card.setAttribute('aria-expanded', 'true');
+                    if (img) {
+                        img.style.transform = 'scale(1.05)';
+                        img.style.outline = '3px solid rgba(0, 28, 87, 0.18)';
+                        img.style.outlineOffset = '3px';
+                    }
+
+                    document.getElementById('activitySdgDetailIcon').src = card.dataset.sdgIcon;
+                    document.getElementById('activitySdgDetailIcon').alt = card.dataset.sdgTitle;
+                    document.getElementById('activitySdgDetailTitle').textContent = `SDG ${card.dataset.sdgId}: ${card.dataset.sdgTitle}`;
+                    document.getElementById('activitySdgDetailDescription').textContent = card.dataset.sdgDescription;
+                    panel.style.display = 'flex';
                 }
 
                 document.addEventListener('click', function() {
