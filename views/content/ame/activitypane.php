@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../../config/database.php';
 $db = (new Database())->getConnection();
 
 $activity_id = $_GET['id'] ?? null;
@@ -116,7 +116,7 @@ if ($evaluation) {
             </div>
         </div>
 
-        <?php require_once __DIR__ . '/../component/activity_modal.php'; ?>
+        <?php require_once __DIR__ . '/../../component/activity_modal.php'; ?>
 
         <!-- PDF Wrapper -->
         <div id="activity-report">
