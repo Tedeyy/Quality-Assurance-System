@@ -20,6 +20,17 @@ $recent_activities_stmt = $db->query("
     LIMIT 5
 ");
 $recent_activities = $recent_activities_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Active accreditation deadlines for dashboard countdown
+$active_deadlines_stmt = $db->query("
+    SELECT accreditation_id, code, name, deadline
+    FROM accreditations
+    WHERE status = 'In Progress'
+      AND deadline IS NOT NULL
+    ORDER BY deadline ASC, name ASC
+");
+$active_accreditation_deadlines = $active_deadlines_stmt->fetchAll(PDO::FETCH_ASSOC);
+$today = new DateTimeImmutable('today');
 ?>
 <main class="hero" style="min-height: calc(100vh - 200px); padding: 0; background: #f8fafc;">
     <div style="display: flex; min-height: calc(100vh - 200px);">
@@ -52,6 +63,51 @@ $recent_activities = $recent_activities_stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
                     <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Institutional VMGO -->
+            <div style="padding-top: 1.5rem; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 1.4rem;">
+                <div>
+                    <h3 style="color: var(--accent-blue); margin-top: 0; margin-bottom: 0.8rem; font-size: 0.9rem; font-weight: 800; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <span style="width: 18px; height: 2px; background: var(--accent-gold);"></span>
+                        Vision
+                    </h3>
+                    <p style="font-size: 0.78rem; color: #475569; line-height: 1.55; margin: 0; font-weight: 500;">A recognized institution for inclusive, culturally responsive, and sustainable higher education.</p>
+                </div>
+
+                <div>
+                    <h3 style="color: var(--accent-blue); margin-top: 0; margin-bottom: 0.8rem; font-size: 0.9rem; font-weight: 800; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <span style="width: 18px; height: 2px; background: var(--accent-gold);"></span>
+                        Mission
+                    </h3>
+                    <p style="font-size: 0.78rem; color: #475569; line-height: 1.55; margin: 0; font-weight: 500;">Northern Bukidnon State College advances excellence in teaching, innovative research, and impactful community service through strategic partnerships, and inclusive and equitable education, empowering transformative development in Bukidnon and Region X.</p>
+                </div>
+
+                <div>
+                    <h3 style="color: var(--accent-blue); margin-top: 0; margin-bottom: 0.8rem; font-size: 0.9rem; font-weight: 800; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <span style="width: 18px; height: 2px; background: var(--accent-gold);"></span>
+                        Institutional Goals
+                    </h3>
+                    <ul style="padding-left: 0; list-style: none; margin: 0; font-size: 0.78rem; color: #475569; display: flex; flex-direction: column; gap: 8px; font-weight: 500; line-height: 1.45;">
+                        <li style="display: flex; gap: 7px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="3" style="flex-shrink:0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Effective Governance and Efficient Resource Management</li>
+                        <li style="display: flex; gap: 7px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="3" style="flex-shrink:0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Transformative Excellence in Student-Centered Innovation</li>
+                        <li style="display: flex; gap: 7px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="3" style="flex-shrink:0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg> Vibrant Research Culture and Inclusive Extension Programs</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 style="color: var(--accent-blue); margin-top: 0; margin-bottom: 0.9rem; font-size: 0.9rem; font-weight: 800; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <span style="width: 18px; height: 2px; background: var(--accent-gold);"></span>
+                        Core Values
+                    </h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                        <?php foreach(['Responsibility', 'Adaptability', 'Inclusivity', 'Sustainability', 'Excellence'] as $val): ?>
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 7px 10px; border-radius: 8px; font-size: 0.72rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 3px;">
+                                <span style="color: var(--accent-blue);"><?= substr($val, 0, 1) ?></span><?= substr($val, 1) ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
 
@@ -97,48 +153,95 @@ $recent_activities = $recent_activities_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <p style="color: #64748b; font-size: 1.1rem; margin: 0;">Institutional Quality Assurance Management System</p>
             </header>
 
-            <!-- Institutional VMGO Section -->
-            <section style="margin-bottom: 4rem; display: flex; flex-direction: column; gap: 2.5rem; max-width: 900px;">
+            <!-- Active Deadlines Section -->
+            <section style="margin-bottom: 4rem; display: flex; flex-direction: column; gap: 2.5rem; max-width: 1100px;">
                 <div>
-                    <h4 style="font-size: 0.85rem; color: var(--accent-gold); text-transform: uppercase; margin-bottom: 0.8rem; letter-spacing: 1.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 24px; height: 2px; background: var(--accent-gold);"></span>
-                        Vision
-                    </h4>
-                    <p style="font-size: 1.1rem; color: #334155; line-height: 1.7; margin: 0; font-weight: 500;">A recognized institution for inclusive, culturally responsive, and sustainable higher education.</p>
-                </div>
-
-                <div>
-                    <h4 style="font-size: 0.85rem; color: var(--accent-gold); text-transform: uppercase; margin-bottom: 0.8rem; letter-spacing: 1.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 24px; height: 2px; background: var(--accent-gold);"></span>
-                        Mission
-                    </h4>
-                    <p style="font-size: 1.1rem; color: #334155; line-height: 1.7; margin: 0; font-weight: 500;">Northern Bukidnon State College advances excellence in teaching, innovative research, and impactful community service through strategic partnerships, and inclusive and equitable education, empowering transformative development in Bukidnon and Region X.</p>
-                </div>
-
-                <div>
-                    <h4 style="font-size: 0.85rem; color: var(--accent-gold); text-transform: uppercase; margin-bottom: 0.8rem; letter-spacing: 1.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 24px; height: 2px; background: var(--accent-gold);"></span>
-                        Institutional Goals
-                    </h4>
-                    <ul style="padding-left: 0; list-style: none; margin: 0; font-size: 1.05rem; color: #334155; display: flex; flex-direction: column; gap: 12px; font-weight: 500;">
-                        <li style="display: flex; gap: 10px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="3" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Effective Governance and Efficient Resource Management</li>
-                        <li style="display: flex; gap: 10px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="3" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Transformative Excellence in Student-Centered Innovation</li>
-                        <li style="display: flex; gap: 10px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="3" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Vibrant Research Culture and Inclusive Extension Programs</li>
-                    </ul>
-                </div>
-
-                <div>
-                    <h4 style="font-size: 0.85rem; color: var(--accent-gold); text-transform: uppercase; margin-bottom: 1.2rem; letter-spacing: 1.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 24px; height: 2px; background: var(--accent-gold);"></span>
-                        Core Values (RAISE)
-                    </h4>
-                    <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-                        <?php foreach(['Responsibility', 'Adaptability', 'Inclusivity', 'Sustainability', 'Excellence'] as $val): ?>
-                            <div style="background: white; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 10px; font-size: 1rem; font-weight: 700; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 4px;">
-                                <span style="color: var(--accent-blue);"><?= substr($val, 0, 1) ?></span><?= substr($val, 1) ?>
-                            </div>
-                        <?php endforeach; ?>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap;">
+                        <div>
+                            <h4 style="font-size: 0.85rem; color: var(--accent-gold); text-transform: uppercase; margin: 0 0 0.35rem; letter-spacing: 1.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                                <span style="width: 24px; height: 2px; background: var(--accent-gold);"></span>
+                                Active Accreditation Deadlines
+                            </h4>
+                            <p style="margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 600;">Upcoming active accreditation due dates at a glance.</p>
+                        </div>
+                        <span style="background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; padding: 7px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 800;">
+                            <?= count($active_accreditation_deadlines) ?> Active
+                        </span>
                     </div>
+
+                    <?php if (empty($active_accreditation_deadlines)): ?>
+                        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.4rem; color: #64748b; font-size: 0.95rem; font-weight: 600; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.04);">
+                            No active accreditation deadlines right now.
+                        </div>
+                    <?php else: ?>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                            <?php foreach ($active_accreditation_deadlines as $deadline): ?>
+                                <?php
+                                    $deadlineDate = new DateTimeImmutable($deadline['deadline']);
+                                    $daysUntil = (int)$today->diff($deadlineDate)->format('%r%a');
+                                    $formattedDeadline = $deadlineDate->format('F j, Y');
+                                    $countdownDiff = $daysUntil < 0 ? $deadlineDate->diff($today) : $today->diff($deadlineDate);
+                                    $monthsUntil = ((int)$countdownDiff->y * 12) + (int)$countdownDiff->m;
+                                    $remainingDays = (int)$countdownDiff->d;
+                                    $monthLabel = $monthsUntil === 1 ? 'Month' : 'Months';
+                                    $dayLabel = $remainingDays === 1 ? 'Day' : 'Days';
+
+                                    if ($daysUntil < 0) {
+                                        $statusLabel = 'Overdue';
+                                        $statusText = 'Past deadline';
+                                        $countColor = '#b91c1c';
+                                        $countBg = '#fee2e2';
+                                        $accentColor = '#dc2626';
+                                    } elseif ($daysUntil === 0) {
+                                        $statusLabel = 'Due today';
+                                        $statusText = 'Needs attention today';
+                                        $countColor = '#92400e';
+                                        $countBg = '#fef3c7';
+                                        $accentColor = '#f59e0b';
+                                    } else {
+                                        $statusLabel = 'On track';
+                                        $statusText = 'Remaining';
+                                        $countColor = '#166534';
+                                        $countBg = '#dcfce7';
+                                        $accentColor = '#16a34a';
+                                    }
+                                ?>
+                                <a href="feed.php?action=accreditation&accreditation_id=<?= (int)$deadline['accreditation_id'] ?>" style="text-decoration: none; background: white; border: 1px solid #e2e8f0; border-left: 5px solid <?= $accentColor ?>; border-radius: 12px; padding: 1.1rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06); transition: transform 0.2s, box-shadow 0.2s;">
+                                    <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start;">
+                                        <div style="min-width: 0; display: flex; gap: 10px;">
+                                            <div style="width: 38px; height: 38px; border-radius: 10px; background: #eff6ff; color: var(--accent-blue); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                                            </div>
+                                            <div style="min-width: 0;">
+                                                <div style="font-size: 0.76rem; color: var(--accent-blue); font-weight: 900; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px;"><?= htmlspecialchars($deadline['code']) ?></div>
+                                                <div style="font-size: 1rem; color: #0f172a; font-weight: 850; line-height: 1.35;"><?= htmlspecialchars($deadline['name']) ?></div>
+                                            </div>
+                                        </div>
+                                        <span style="flex-shrink: 0; background: <?= $countBg ?>; color: <?= $countColor ?>; padding: 6px 11px; border-radius: 999px; font-size: 0.72rem; font-weight: 900; white-space: nowrap;"><?= $statusLabel ?></span>
+                                    </div>
+
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; text-align: center;">
+                                            <div style="font-size: 1.65rem; line-height: 1; color: #0f172a; font-weight: 900;"><?= $monthsUntil ?></div>
+                                            <div style="margin-top: 5px; font-size: 0.68rem; color: #64748b; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px;"><?= $monthLabel ?></div>
+                                        </div>
+                                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; text-align: center;">
+                                            <div style="font-size: 1.65rem; line-height: 1; color: #0f172a; font-weight: 900;"><?= $remainingDays ?></div>
+                                            <div style="margin-top: 5px; font-size: 0.68rem; color: #64748b; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px;"><?= $dayLabel ?></div>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #64748b; font-size: 0.85rem; font-weight: 700; flex-wrap: wrap;">
+                                        <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                            <?= $formattedDeadline ?>
+                                        </span>
+                                        <span style="color: <?= $countColor ?>;"><?= $statusText ?></span>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </section>
 
