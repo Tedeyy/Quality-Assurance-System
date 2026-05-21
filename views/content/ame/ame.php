@@ -615,6 +615,41 @@ try {
                 <p id="sdgDetailDescription"></p>
             </div>
         </div>
+        <script>
+            window.toggleSdgDescription = function(card) {
+                const panel = document.getElementById('sdgDetailPanel');
+                if (!panel || !card) return;
+
+                const isActive = card.classList.contains('active');
+
+                document.querySelectorAll('.sdg-card').forEach(item => {
+                    item.classList.remove('active');
+                    item.setAttribute('aria-expanded', 'false');
+                });
+
+                if (isActive) {
+                    panel.classList.remove('active');
+                    return;
+                }
+
+                const title = card.dataset.sdgTitle || `SDG ${card.dataset.sdgId}`;
+                const icon = card.dataset.sdgIcon || '';
+                const detailIcon = document.getElementById('sdgDetailIcon');
+                const detailTitle = document.getElementById('sdgDetailTitle');
+                const detailDescription = document.getElementById('sdgDetailDescription');
+
+                card.classList.add('active');
+                card.setAttribute('aria-expanded', 'true');
+
+                if (detailIcon) {
+                    detailIcon.src = icon;
+                    detailIcon.alt = title;
+                }
+                if (detailTitle) detailTitle.textContent = `SDG ${card.dataset.sdgId}: ${title}`;
+                if (detailDescription) detailDescription.textContent = card.dataset.sdgDescription || '';
+                panel.classList.add('active');
+            };
+        </script>
 
         <!-- Monthly Tabs -->
         <div class="month-tabs" id="monthTabs">
@@ -1070,8 +1105,10 @@ try {
         searchActivities(false);
     }
 
-    function toggleSdgDescription(card) {
+    window.toggleSdgDescription = function(card) {
         const panel = document.getElementById('sdgDetailPanel');
+        if (!panel || !card) return;
+
         const isActive = card.classList.contains('active');
 
         document.querySelectorAll('.sdg-card').forEach(item => {
@@ -1090,12 +1127,18 @@ try {
         card.classList.add('active');
         card.setAttribute('aria-expanded', 'true');
 
-        document.getElementById('sdgDetailIcon').src = icon;
-        document.getElementById('sdgDetailIcon').alt = title;
-        document.getElementById('sdgDetailTitle').textContent = `SDG ${card.dataset.sdgId}: ${title}`;
-        document.getElementById('sdgDetailDescription').textContent = card.dataset.sdgDescription;
+        const detailIcon = document.getElementById('sdgDetailIcon');
+        const detailTitle = document.getElementById('sdgDetailTitle');
+        const detailDescription = document.getElementById('sdgDetailDescription');
+
+        if (detailIcon) {
+            detailIcon.src = icon;
+            detailIcon.alt = title;
+        }
+        if (detailTitle) detailTitle.textContent = `SDG ${card.dataset.sdgId}: ${title}`;
+        if (detailDescription) detailDescription.textContent = card.dataset.sdgDescription || '';
         panel.classList.add('active');
-    }
+    };
 
     function updateRankings(activities) {
         const activeIds = activities.map(a => a.id);
