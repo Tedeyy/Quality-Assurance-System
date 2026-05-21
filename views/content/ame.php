@@ -47,6 +47,26 @@ $sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(asg.activity_id) as count
                      ORDER BY s.sdg_id ASC";
 $sdg_stats = $db->query($sdg_counts_query)->fetchAll(PDO::FETCH_ASSOC);
 
+$sdg_descriptions = [
+    1 => 'End poverty in all its forms everywhere.',
+    2 => 'End hunger, achieve food security and improved nutrition, and promote sustainable agriculture.',
+    3 => 'Ensure healthy lives and promote well-being for all at all ages.',
+    4 => 'Ensure inclusive and equitable quality education and promote lifelong learning opportunities for all.',
+    5 => 'Achieve gender equality and empower all women and girls.',
+    6 => 'Ensure availability and sustainable management of water and sanitation for all.',
+    7 => 'Ensure access to affordable, reliable, sustainable, and modern energy for all.',
+    8 => 'Promote sustained, inclusive, and sustainable economic growth, full and productive employment, and decent work for all.',
+    9 => 'Build resilient infrastructure, promote inclusive and sustainable industrialization, and foster innovation.',
+    10 => 'Reduce inequality within and among countries.',
+    11 => 'Make cities and human settlements inclusive, safe, resilient, and sustainable.',
+    12 => 'Ensure sustainable consumption and production patterns.',
+    13 => 'Take urgent action to combat climate change and its impacts.',
+    14 => 'Conserve and sustainably use the oceans, seas, and marine resources for sustainable development.',
+    15 => 'Protect, restore, and promote sustainable use of terrestrial ecosystems, sustainably manage forests, combat desertification, halt and reverse land degradation, and halt biodiversity loss.',
+    16 => 'Promote peaceful and inclusive societies, provide access to justice for all, and build effective, accountable, and inclusive institutions.',
+    17 => 'Strengthen the means of implementation and revitalize the global partnership for sustainable development.'
+];
+
 // Fetch Speaker Ratings
 $speaker_ratings = $db->query("
     SELECT r.*, s.name, e.activity_id 
@@ -182,6 +202,41 @@ $organizer_ratings = $db->query("
     .dropdown-item.delete:hover svg {
         color: #ef4444; 
     }
+    .activity-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: flex-end;
+    }
+    .pagination-btn,
+    .pagination-ellipsis {
+        align-items: center;
+        border-radius: 6px;
+        display: inline-flex;
+        font-size: 0.8rem;
+        font-weight: 700;
+        justify-content: center;
+        min-width: 34px;
+        padding: 6px 10px;
+    }
+    .pagination-btn {
+        background: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+    .pagination-btn.active {
+        background: var(--accent-blue);
+        border-color: var(--accent-blue);
+        color: white;
+    }
+    .pagination-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+    }
+    .pagination-ellipsis {
+        color: #94a3b8;
+    }
 
     .sdg-container {
         display: flex;
@@ -201,16 +256,25 @@ $organizer_ratings = $db->query("
         border-radius: 10px;
     }
     .sdg-card {
+        background: transparent;
+        border: 0;
+        cursor: pointer;
         flex: 0 1 auto;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 4px;
+        padding: 0;
         transition: transform 0.2s;
         min-width: 0;
     }
-    .sdg-card:hover {
+    .sdg-card:hover,
+    .sdg-card.active {
         transform: translateY(-3px);
+    }
+    .sdg-card.active .sdg-icon {
+        outline: 3px solid rgba(0, 28, 87, 0.18);
+        outline-offset: 3px;
     }
     .sdg-icon {
         width: 64px;
@@ -234,6 +298,38 @@ $organizer_ratings = $db->query("
     }
     .sdg-icon.active-icon {
         box-shadow: 0 0 15px rgba(37, 99, 235, 0.2);
+    }
+    .sdg-detail-panel {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-blue);
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        display: none;
+        margin: -1rem 0 2rem;
+        padding: 1.1rem 1.25rem;
+    }
+    .sdg-detail-panel.active {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    .sdg-detail-panel img {
+        border-radius: 4px;
+        flex: 0 0 auto;
+        height: 54px;
+        width: 54px;
+    }
+    .sdg-detail-panel h3 {
+        color: var(--accent-blue);
+        font-size: 1rem;
+        margin: 0 0 0.35rem;
+    }
+    .sdg-detail-panel p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.55;
+        margin: 0;
     }
 
     /* Ranking Section Styles */
@@ -455,15 +551,30 @@ $organizer_ratings = $db->query("
                     $icon_num = $sdg['sdg_id'];
                     $icon_path = "../assets/img/sdgs/SDG{$icon_num}.png";
                 ?>
-                <div class="sdg-card" title="<?= htmlspecialchars($sdg['title']) ?>" data-sdg-id="<?= $icon_num ?>">
+                <button type="button"
+                    class="sdg-card"
+                    title="<?= htmlspecialchars($sdg['title']) ?>"
+                    data-sdg-id="<?= $icon_num ?>"
+                    data-sdg-title="<?= htmlspecialchars($sdg['title']) ?>"
+                    data-sdg-description="<?= htmlspecialchars($sdg_descriptions[(int)$icon_num] ?? 'No description available for this Sustainable Development Goal.') ?>"
+                    data-sdg-icon="<?= $icon_path ?>"
+                    onclick="toggleSdgDescription(this)"
+                    aria-expanded="false">
                     <img src="<?= $icon_path ?>" 
                          alt="SDG <?= $icon_num ?>" 
                          class="sdg-icon <?= $has_activities ? 'active-icon' : 'inactive' ?>">
                     <span class="sdg-count-val" style="<?= $has_activities ? 'color: var(--accent-blue); background: #eff6ff;' : '' ?> font-size: 0.8rem; font-weight: 800; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">
                         <?= $sdg['count'] ?>
                     </span>
-                </div>
+                </button>
             <?php endforeach; ?>
+        </div>
+        <div class="sdg-detail-panel" id="sdgDetailPanel" aria-live="polite">
+            <img id="sdgDetailIcon" src="" alt="">
+            <div>
+                <h3 id="sdgDetailTitle"></h3>
+                <p id="sdgDetailDescription"></p>
+            </div>
         </div>
 
         <!-- Monthly Tabs -->
@@ -478,9 +589,9 @@ $organizer_ratings = $db->query("
         <div style="background: white; padding: 1rem; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
             <div style="flex: 1; position: relative; min-width: 250px;">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="activitySearch" onkeyup="searchActivities()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
+                <input type="text" id="activitySearch" onkeyup="handleActivityFilterChange()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
-            <select id="statusFilter" onchange="searchActivities()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
+            <select id="statusFilter" onchange="handleActivityFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
                 <option value="all">All Status</option>
                 <option value="upcoming">Upcoming (Pending)</option>
                 <option value="ongoing">In Progress (Ongoing)</option>
@@ -636,13 +747,9 @@ $organizer_ratings = $db->query("
                 </tbody>
             </table>
             
-            <div style="padding: 1rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">Showing <b><?= count($activities) ?></b> activities</div>
-                <div style="display: flex; gap: 5px;">
-                    <button class="btn" style="padding: 5px 10px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem;">Previous</button>
-                    <button class="btn" style="padding: 5px 10px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem;">1</button>
-                    <button class="btn" style="padding: 5px 10px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem;">Next</button>
-                </div>
+            <div style="padding: 1rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">Showing <b id="showing-range">0</b> of <b id="showing-count"><?= count($activities) ?></b> activities</div>
+                <div class="activity-pagination" id="activityPagination"></div>
             </div>
         </div>
         <!-- Ranking Section -->
@@ -741,10 +848,13 @@ $organizer_ratings = $db->query("
         }
     }
 
+    const activitiesPerPage = 10;
+    let currentActivityPage = 1;
     let currentMonthFilter = sessionStorage.getItem('ameMonthFilter') || 'all';
 
     function filterByMonth(month, btn) {
         currentMonthFilter = month;
+        currentActivityPage = 1;
         sessionStorage.setItem('ameMonthFilter', month);
         // Update active tab
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
@@ -752,15 +862,23 @@ $organizer_ratings = $db->query("
             btn.classList.add('active');
         }
         
-        searchActivities(); // Trigger general filter
+        searchActivities(false); // Trigger general filter
     }
 
-    function searchActivities() {
+    function handleActivityFilterChange() {
+        currentActivityPage = 1;
+        searchActivities(false);
+    }
+
+    function searchActivities(resetPage = true) {
+        if (resetPage) currentActivityPage = 1;
+
         const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
         const rows = document.querySelectorAll('.activity-row');
         
         const activeActivities = [];
+        const filteredRows = [];
         const sdgCounts = {};
         for(let i=1; i<=17; i++) sdgCounts[i] = 0;
 
@@ -775,7 +893,7 @@ $organizer_ratings = $db->query("
             const matchesMonth = currentMonthFilter === 'all' || month === currentMonthFilter;
 
             if (matchesSearch && matchesStatus && matchesMonth) {
-                row.style.display = '';
+                filteredRows.push(row);
                 
                 // Collect data for rankings and stats
                 activeActivities.push({
@@ -848,6 +966,96 @@ $organizer_ratings = $db->query("
                 countLabel.style.background = '#f1f5f9';
             }
         });
+
+        renderActivityPage(filteredRows);
+    }
+
+    function renderActivityPage(rows) {
+        const totalItems = rows.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / activitiesPerPage));
+        currentActivityPage = Math.min(Math.max(currentActivityPage, 1), totalPages);
+
+        const startIndex = (currentActivityPage - 1) * activitiesPerPage;
+        const endIndex = startIndex + activitiesPerPage;
+
+        rows.forEach((row, index) => {
+            row.style.display = index >= startIndex && index < endIndex ? '' : 'none';
+        });
+
+        const visibleStart = totalItems === 0 ? 0 : startIndex + 1;
+        const visibleEnd = Math.min(endIndex, totalItems);
+        document.getElementById('showing-range').textContent = totalItems === 0 ? '0' : `${visibleStart}-${visibleEnd}`;
+        document.getElementById('showing-count').textContent = totalItems;
+        renderActivityPagination(totalPages);
+    }
+
+    function getPaginationPages(totalPages) {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+
+        const pages = [1];
+        const start = Math.max(2, currentActivityPage - 1);
+        const end = Math.min(totalPages - 1, currentActivityPage + 1);
+
+        if (start > 2) pages.push('ellipsis-start');
+        for (let page = start; page <= end; page++) pages.push(page);
+        if (end < totalPages - 1) pages.push('ellipsis-end');
+        pages.push(totalPages);
+
+        return pages;
+    }
+
+    function renderActivityPagination(totalPages) {
+        const pagination = document.getElementById('activityPagination');
+        if (!pagination) return;
+
+        const pageItems = getPaginationPages(totalPages);
+        const pageButtons = pageItems.map(item => {
+            if (typeof item === 'string') {
+                return '<span class="pagination-ellipsis">...</span>';
+            }
+
+            return `<button type="button" class="pagination-btn ${item === currentActivityPage ? 'active' : ''}" onclick="goToActivityPage(${item})">${item}</button>`;
+        }).join('');
+
+        pagination.innerHTML = `
+            <button type="button" class="pagination-btn" onclick="goToActivityPage(${currentActivityPage - 1})" ${currentActivityPage === 1 ? 'disabled' : ''}>Previous</button>
+            ${pageButtons}
+            <button type="button" class="pagination-btn" onclick="goToActivityPage(${currentActivityPage + 1})" ${currentActivityPage === totalPages ? 'disabled' : ''}>Next</button>
+        `;
+    }
+
+    function goToActivityPage(page) {
+        currentActivityPage = page;
+        searchActivities(false);
+    }
+
+    function toggleSdgDescription(card) {
+        const panel = document.getElementById('sdgDetailPanel');
+        const isActive = card.classList.contains('active');
+
+        document.querySelectorAll('.sdg-card').forEach(item => {
+            item.classList.remove('active');
+            item.setAttribute('aria-expanded', 'false');
+        });
+
+        if (isActive) {
+            panel.classList.remove('active');
+            return;
+        }
+
+        const title = card.dataset.sdgTitle || `SDG ${card.dataset.sdgId}`;
+        const icon = card.dataset.sdgIcon || '';
+
+        card.classList.add('active');
+        card.setAttribute('aria-expanded', 'true');
+
+        document.getElementById('sdgDetailIcon').src = icon;
+        document.getElementById('sdgDetailIcon').alt = title;
+        document.getElementById('sdgDetailTitle').textContent = `SDG ${card.dataset.sdgId}: ${title}`;
+        document.getElementById('sdgDetailDescription').textContent = card.dataset.sdgDescription;
+        panel.classList.add('active');
     }
 
     function updateRankings(activities) {
