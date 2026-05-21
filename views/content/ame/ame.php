@@ -793,7 +793,7 @@ try {
                                 </td>
                                 <td style="padding: 1.2rem; text-align: right;">
                                     <div class="action-dropdown">
-                                        <button class="three-dots-btn" onclick="toggleDropdown(<?= $activity['activity_id'] ?>)">
+                                        <button class="three-dots-btn" onclick="toggleDropdown(<?= $activity['activity_id'] ?>, event)">
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
                                             </svg>
@@ -877,9 +877,28 @@ try {
 <?php require_once __DIR__ . '/../../component/activity_modal.php'; ?>
 
 <script>
-    function toggleDropdown(id) {
-        event.stopPropagation();
+    window.toggleDropdown = window.toggleDropdown || function(id, event) {
+        if (event) event.stopPropagation();
+
         const menu = document.getElementById('dropdown-' + id);
+        if (!menu) return;
+
+        document.querySelectorAll('.dropdown-menu').forEach(item => {
+            if (item.id !== 'dropdown-' + id) {
+                item.style.display = 'none';
+            }
+        });
+
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    };
+</script>
+
+<script>
+    window.toggleDropdown = function(id, event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('dropdown-' + id);
+        if (!menu) return;
+
         const allMenus = document.querySelectorAll('.dropdown-menu');
         
         allMenus.forEach(m => {
@@ -889,7 +908,7 @@ try {
         });
         
         menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    }
+    };
 
     // Handle direct edit link and initialization
     window.addEventListener('load', () => {
