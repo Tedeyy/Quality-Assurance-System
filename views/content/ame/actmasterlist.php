@@ -10,11 +10,16 @@ $query = "SELECT a.*, s.overall_average, e.response_rate,
           LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
           LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
           LEFT JOIN activity_sdgs asg ON a.activity_id = asg.activity_id
-          LEFT JOIN SDGs sdg ON asg.sdg_id = sdg.sdg_id
+          LEFT JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
           GROUP BY a.activity_id
           ORDER BY a.eventdate DESC";
-$stmt = $db->query($query);
-$activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $stmt = $db->query($query);
+    $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("actmasterlist activities query failed: " . $e->getMessage());
+    $activities = [];
+}
 
 // Extract unique months for tabbing
 $months = [];

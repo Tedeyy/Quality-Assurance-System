@@ -23,28 +23,42 @@
                     <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem;">Requesting Office *</label>
                     <select name="requesting_office_id" required style="width: 100%; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; background: white;">
                         <option value="">Select Office</option>
-                        <?php 
-                        $offices_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
-                        while($office = $offices_stmt->fetch(PDO::FETCH_ASSOC)): 
+                        <?php
+                        $modal_offices = $offices ?? [];
+                        if (empty($modal_offices) && isset($db)) {
+                            try {
+                                $modal_offices = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+                            } catch (PDOException $e) {
+                                error_log("activity_modal offices query failed: " . $e->getMessage());
+                            }
+                        }
+                        foreach ($modal_offices as $office):
                         ?>
                             <option value="<?= $office['office_id'] ?>" <?= (isset($_SESSION['user_office_id']) && $_SESSION['user_office_id'] == $office['office_id']) ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($office['name']) ?> (<?= htmlspecialchars($office['acronym']) ?>)
                             </option>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div style="grid-column: span 2;">
                     <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.8rem;">Sustainable Development Goals (SDGs)</label>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid var(--border-color); max-height: 150px; overflow-y: auto;">
-                        <?php 
-                        $sdgs_stmt = $db->query("SELECT sdg_id, title FROM SDGs ORDER BY sdg_id ASC");
-                        while($sdg = $sdgs_stmt->fetch(PDO::FETCH_ASSOC)): 
+                        <?php
+                        $modal_sdgs = $sdgs ?? [];
+                        if (empty($modal_sdgs) && isset($db)) {
+                            try {
+                                $modal_sdgs = $db->query("SELECT sdg_id, title FROM sdgs ORDER BY sdg_id ASC")->fetchAll(PDO::FETCH_ASSOC);
+                            } catch (PDOException $e) {
+                                error_log("activity_modal sdgs query failed: " . $e->getMessage());
+                            }
+                        }
+                        foreach ($modal_sdgs as $sdg):
                         ?>
                             <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                                 <input type="checkbox" name="sdg_ids[]" value="<?= $sdg['sdg_id'] ?>" style="margin-top: 2px; width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent-blue);">
                                 <span style="color: #334155; line-height: 1.4;"><b>SDG <?= $sdg['sdg_id'] ?></b>: <?= htmlspecialchars($sdg['title']) ?></span>
                             </label>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </div>
                 </div>
                 <div style="grid-column: span 2;">

@@ -3,8 +3,13 @@ require_once __DIR__ . '/../../../config/database.php';
 $db = (new Database())->getConnection();
 
 // Fetch all accreditations
-$stmt = $db->query("SELECT * FROM accreditations ORDER BY name ASC");
-$accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$accreditations = [];
+try {
+    $stmt = $db->query("SELECT * FROM accreditations ORDER BY name ASC");
+    $accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("acctracker accreditations query failed: " . $e->getMessage());
+}
 
 // Selected accreditation (default to first one or from GET)
 $selected_id = $_GET['accreditation_id'] ?? ($accreditations[0]['accreditation_id'] ?? null);

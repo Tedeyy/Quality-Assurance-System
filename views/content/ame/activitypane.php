@@ -24,10 +24,15 @@ if (!$activity) {
 }
 
 // Fetch SDGs
-$sdg_query = "SELECT s.sdg_id, s.title FROM activity_sdgs asg JOIN SDGs s ON asg.sdg_id = s.sdg_id WHERE asg.activity_id = :id";
-$sdg_stmt = $db->prepare($sdg_query);
-$sdg_stmt->execute([':id' => $activity_id]);
-$sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
+$sdgs = [];
+try {
+    $sdg_query = "SELECT s.sdg_id, s.title FROM activity_sdgs asg JOIN sdgs s ON asg.sdg_id = s.sdg_id WHERE asg.activity_id = :id";
+    $sdg_stmt = $db->prepare($sdg_query);
+    $sdg_stmt->execute([':id' => $activity_id]);
+    $sdgs = $sdg_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("activitypane SDG query failed: " . $e->getMessage());
+}
 
 $sdg_descriptions = [
     1 => 'End poverty in all its forms everywhere.',

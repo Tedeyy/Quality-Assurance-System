@@ -19,7 +19,7 @@ $query = "SELECT a.*, o.name as office_name, e.*, s.*,
           LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
           LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
           LEFT JOIN activity_sdgs asg ON a.activity_id = asg.activity_id
-          LEFT JOIN SDGs sdg ON asg.sdg_id = sdg.sdg_id
+          LEFT JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
           WHERE 1=1";
 
 $params = [];

@@ -128,8 +128,26 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 ?>
 <script src="../assets/js/ame-activity.js"></script>
 <script>
-    const speakerRatingsData = <?= json_encode($speaker_ratings, $jsonFlags) ?>;
-    const organizerRatingsData = <?= json_encode($organizer_ratings, $jsonFlags) ?>;
+    if (typeof window.toggleDropdown !== 'function') {
+        window.toggleDropdown = function (id, e) {
+            var evt = e || window.event;
+            if (evt && evt.stopPropagation) evt.stopPropagation();
+            var menu = document.getElementById('dropdown-' + id);
+            if (!menu) return;
+            document.querySelectorAll('.dropdown-menu').forEach(function (m) {
+                if (m.id !== 'dropdown-' + id) m.style.display = 'none';
+            });
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        };
+        window.viewActivity = function (id) { window.location.href = 'feed.php?action=view_activity&id=' + id; };
+        window.deleteActivity = function (id) {
+            if (confirm('Are you sure you want to delete this activity?')) {
+                window.location.href = '../api/activities.php?action=delete&id=' + id;
+            }
+        };
+    }
+    const speakerRatingsData = <?= json_encode($speaker_ratings, $jsonFlags) ?: '[]' ?>;
+    const organizerRatingsData = <?= json_encode($organizer_ratings, $jsonFlags) ?: '[]' ?>;
 </script>
 
 <style>
