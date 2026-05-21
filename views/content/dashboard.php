@@ -32,7 +32,7 @@ $active_deadlines_stmt = $db->query("
 $active_accreditation_deadlines = $active_deadlines_stmt->fetchAll(PDO::FETCH_ASSOC);
 $today = new DateTimeImmutable('today');
 ?>
-<main class="hero" style="min-height: calc(100vh - 200px); padding: 0; background: #f8fafc;">
+<main class="hero" style="display: block; min-height: calc(100vh - 200px); padding: 0; background: #f8fafc;">
     <div style="display: flex; min-height: calc(100vh - 200px);">
         
         <!-- Unified Left Sidebar -->

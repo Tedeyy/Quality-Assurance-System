@@ -454,7 +454,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 }
 ?>
 
-<main class="hero" style="min-height: calc(100vh - 200px); align-items: flex-start; padding: 2rem 5%;">
+<main class="hero" style="display: block; min-height: calc(100vh - 200px); align-items: flex-start; padding: 2rem 5%;">
     <div style="display: flex; gap: 2rem; width: 100%; max-width: 1200px; margin: 0 auto;">
 
         <!-- Sidebar: Accreditations List -->
