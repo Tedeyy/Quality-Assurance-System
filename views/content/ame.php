@@ -182,6 +182,41 @@ $organizer_ratings = $db->query("
     .dropdown-item.delete:hover svg {
         color: #ef4444; 
     }
+    .activity-pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: flex-end;
+    }
+    .pagination-btn,
+    .pagination-ellipsis {
+        align-items: center;
+        border-radius: 6px;
+        display: inline-flex;
+        font-size: 0.8rem;
+        font-weight: 700;
+        justify-content: center;
+        min-width: 34px;
+        padding: 6px 10px;
+    }
+    .pagination-btn {
+        background: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+    .pagination-btn.active {
+        background: var(--accent-blue);
+        border-color: var(--accent-blue);
+        color: white;
+    }
+    .pagination-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+    }
+    .pagination-ellipsis {
+        color: #94a3b8;
+    }
 
     .sdg-container {
         display: flex;
@@ -478,9 +513,9 @@ $organizer_ratings = $db->query("
         <div style="background: white; padding: 1rem; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
             <div style="flex: 1; position: relative; min-width: 250px;">
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="activitySearch" onkeyup="searchActivities()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
+                <input type="text" id="activitySearch" onkeyup="handleActivityFilterChange()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
-            <select id="statusFilter" onchange="searchActivities()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
+            <select id="statusFilter" onchange="handleActivityFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
                 <option value="all">All Status</option>
                 <option value="upcoming">Upcoming (Pending)</option>
                 <option value="ongoing">In Progress (Ongoing)</option>
@@ -636,13 +671,9 @@ $organizer_ratings = $db->query("
                 </tbody>
             </table>
             
-            <div style="padding: 1rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">Showing <b><?= count($activities) ?></b> activities</div>
-                <div style="display: flex; gap: 5px;">
-                    <button class="btn" style="padding: 5px 10px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem;">Previous</button>
-                    <button class="btn" style="padding: 5px 10px; border: 1px solid var(--border-color); background: var(--accent-blue); color: white; font-size: 0.8rem;">1</button>
-                    <button class="btn" style="padding: 5px 10px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem;">Next</button>
-                </div>
+            <div style="padding: 1rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">Showing <b id="showing-range">0</b> of <b id="showing-count"><?= count($activities) ?></b> activities</div>
+                <div class="activity-pagination" id="activityPagination"></div>
             </div>
         </div>
         <!-- Ranking Section -->
@@ -741,10 +772,13 @@ $organizer_ratings = $db->query("
         }
     }
 
+    const activitiesPerPage = 10;
+    let currentActivityPage = 1;
     let currentMonthFilter = sessionStorage.getItem('ameMonthFilter') || 'all';
 
     function filterByMonth(month, btn) {
         currentMonthFilter = month;
+        currentActivityPage = 1;
         sessionStorage.setItem('ameMonthFilter', month);
         // Update active tab
         document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
@@ -752,15 +786,23 @@ $organizer_ratings = $db->query("
             btn.classList.add('active');
         }
         
-        searchActivities(); // Trigger general filter
+        searchActivities(false); // Trigger general filter
     }
 
-    function searchActivities() {
+    function handleActivityFilterChange() {
+        currentActivityPage = 1;
+        searchActivities(false);
+    }
+
+    function searchActivities(resetPage = true) {
+        if (resetPage) currentActivityPage = 1;
+
         const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
         const rows = document.querySelectorAll('.activity-row');
         
         const activeActivities = [];
+        const filteredRows = [];
         const sdgCounts = {};
         for(let i=1; i<=17; i++) sdgCounts[i] = 0;
 
@@ -775,7 +817,7 @@ $organizer_ratings = $db->query("
             const matchesMonth = currentMonthFilter === 'all' || month === currentMonthFilter;
 
             if (matchesSearch && matchesStatus && matchesMonth) {
-                row.style.display = '';
+                filteredRows.push(row);
                 
                 // Collect data for rankings and stats
                 activeActivities.push({
@@ -848,6 +890,69 @@ $organizer_ratings = $db->query("
                 countLabel.style.background = '#f1f5f9';
             }
         });
+
+        renderActivityPage(filteredRows);
+    }
+
+    function renderActivityPage(rows) {
+        const totalItems = rows.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / activitiesPerPage));
+        currentActivityPage = Math.min(Math.max(currentActivityPage, 1), totalPages);
+
+        const startIndex = (currentActivityPage - 1) * activitiesPerPage;
+        const endIndex = startIndex + activitiesPerPage;
+
+        rows.forEach((row, index) => {
+            row.style.display = index >= startIndex && index < endIndex ? '' : 'none';
+        });
+
+        const visibleStart = totalItems === 0 ? 0 : startIndex + 1;
+        const visibleEnd = Math.min(endIndex, totalItems);
+        document.getElementById('showing-range').textContent = totalItems === 0 ? '0' : `${visibleStart}-${visibleEnd}`;
+        document.getElementById('showing-count').textContent = totalItems;
+        renderActivityPagination(totalPages);
+    }
+
+    function getPaginationPages(totalPages) {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+
+        const pages = [1];
+        const start = Math.max(2, currentActivityPage - 1);
+        const end = Math.min(totalPages - 1, currentActivityPage + 1);
+
+        if (start > 2) pages.push('ellipsis-start');
+        for (let page = start; page <= end; page++) pages.push(page);
+        if (end < totalPages - 1) pages.push('ellipsis-end');
+        pages.push(totalPages);
+
+        return pages;
+    }
+
+    function renderActivityPagination(totalPages) {
+        const pagination = document.getElementById('activityPagination');
+        if (!pagination) return;
+
+        const pageItems = getPaginationPages(totalPages);
+        const pageButtons = pageItems.map(item => {
+            if (typeof item === 'string') {
+                return '<span class="pagination-ellipsis">...</span>';
+            }
+
+            return `<button type="button" class="pagination-btn ${item === currentActivityPage ? 'active' : ''}" onclick="goToActivityPage(${item})">${item}</button>`;
+        }).join('');
+
+        pagination.innerHTML = `
+            <button type="button" class="pagination-btn" onclick="goToActivityPage(${currentActivityPage - 1})" ${currentActivityPage === 1 ? 'disabled' : ''}>Previous</button>
+            ${pageButtons}
+            <button type="button" class="pagination-btn" onclick="goToActivityPage(${currentActivityPage + 1})" ${currentActivityPage === totalPages ? 'disabled' : ''}>Next</button>
+        `;
+    }
+
+    function goToActivityPage(page) {
+        currentActivityPage = page;
+        searchActivities(false);
     }
 
     function updateRankings(activities) {
