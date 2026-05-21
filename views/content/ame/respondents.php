@@ -26,6 +26,33 @@ if (!$activity) {
     exit;
 }
 
+$fac_stmt = $db->prepare(
+    "SELECT af.role, af.person_id,
+            COALESCE(sp.name, og.name) AS name
+     FROM activity_facilitators af
+     LEFT JOIN speakers sp ON af.role = 'speaker' AND af.person_id = sp.speaker_id
+     LEFT JOIN organizers og ON af.role = 'organizer' AND af.person_id = og.organizer_id
+     WHERE af.activity_id = :id
+     ORDER BY af.role, af.af_id"
+);
+$fac_stmt->execute(['id' => $activity_id]);
+$facilitators = $fac_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+if (empty($facilitators)) {
+    if (!empty($activity['speaker'])) {
+        foreach (explode(',', $activity['speaker']) as $name) {
+            $name = trim($name);
+            if ($name) $facilitators[] = ['role' => 'speaker', 'name' => $name];
+        }
+    }
+    if (!empty($activity['organizer'])) {
+        foreach (explode(',', $activity['organizer']) as $name) {
+            $name = trim($name);
+            if ($name) $facilitators[] = ['role' => 'organizer', 'name' => $name];
+        }
+    }
+}
+
 $responses = [];
 $table_exists = false;
 $rating_columns = [];
@@ -146,6 +173,17 @@ function pretty_field_name(string $column): string
     return ucwords($name);
 }
 
+function base_rating_counts(): array
+{
+    return [
+        'Excellent' => 0,
+        'Very Satisfactory' => 0,
+        'Satisfactory' => 0,
+        'Fair' => 0,
+        'Poor' => 0
+    ];
+}
+
 function pie_background(array $counts, array $colors): string
 {
     $total = array_sum($counts);
@@ -162,6 +200,139 @@ function pie_background(array $counts, array $colors): string
     }
 
     return $segments ? implode(', ', $segments) : '#e2e8f0 0deg 360deg';
+}
+
+function make_rating_chart(string $column, string $title, string $description, array $source_responses, array $pie_colors): array
+{
+    $counts = base_rating_counts();
+
+    foreach ($source_responses as $response) {
+        $label = column_rating_label($response[$column] ?? null);
+        if (isset($counts[$label])) {
+            $counts[$label]++;
+        }
+    }
+
+    return [
+        'column' => $column,
+        'title' => $title,
+        'description' => $description,
+        'counts' => $counts,
+        'total' => array_sum($counts),
+        'background' => pie_background($counts, $pie_colors)
+    ];
+}
+
+function add_chart_if_present(array &$groups, string $group_key, string $group_title, string $group_description, string $column, string $title, string $description, array $rating_columns, array $source_responses, array $pie_colors): void
+{
+    if (!in_array($column, $rating_columns, true)) return;
+
+    if (!isset($groups[$group_key])) {
+        $groups[$group_key] = [
+            'title' => $group_title,
+            'description' => $group_description,
+            'charts' => []
+        ];
+    }
+
+    $groups[$group_key]['charts'][] = make_rating_chart($column, $title, $description, $source_responses, $pie_colors);
+}
+
+function build_rating_groups(array $rating_columns, array $source_responses, array $facilitators, array $pie_colors): array
+{
+    $groups = [];
+    $fac_metrics = [
+        'eff' => ['label' => 'Effectiveness', 'desc' => 'How well the facilitator achieved the intended goals of the session.'],
+        'mot' => ['label' => 'Mastery of Topic', 'desc' => 'The depth of knowledge and command shown over the subject matter.'],
+        'atf' => ['label' => 'Ability to Facilitate', 'desc' => 'The facilitator\'s skill in managing the discussion and audience participation.']
+    ];
+    $program_questions = [
+        ['label' => 'Program Flow', 'desc' => 'Smoothness and logical transition between the various parts of the activity.'],
+        ['label' => 'Program Contents', 'desc' => 'Quality, relevance, and substance of the materials and topics presented.'],
+        ['label' => 'Relevance to Objective', 'desc' => 'How well the program aligned with the stated goals and expectations.'],
+        ['label' => 'Future Applicability', 'desc' => 'The likelihood of using the knowledge or skills gained in your future work.']
+    ];
+    $logistics_questions = [
+        ['label' => 'Secretariat Service', 'desc' => 'Efficiency, courtesy, and responsiveness of the registration and support staff.'],
+        ['label' => 'Logistics/Venue', 'desc' => 'Comfort, cleanliness, accessibility, and adequacy of the facilities provided.'],
+        ['label' => 'Timing/Scheduling', 'desc' => 'Punctuality, appropriate time allocation, and overall duration of the session.']
+    ];
+
+    add_chart_if_present(
+        $groups,
+        'overall',
+        'Overall Ratings',
+        'General activity and experience ratings.',
+        'osr',
+        'General success of the totality of the activity execution',
+        'Overall assessment of how the activity was conducted from start to finish.',
+        $rating_columns,
+        $source_responses,
+        $pie_colors
+    );
+    add_chart_if_present(
+        $groups,
+        'overall',
+        'Overall Ratings',
+        'General activity and experience ratings.',
+        'oe',
+        'Overall Experience',
+        'Summarize your total experience with this activity.',
+        $rating_columns,
+        $source_responses,
+        $pie_colors
+    );
+
+    foreach ($facilitators as $index => $facilitator) {
+        $name = $facilitator['name'] ?? ('Facilitator ' . ($index + 1));
+        $role = !empty($facilitator['role']) ? ucfirst($facilitator['role']) : 'Facilitator';
+        foreach ($fac_metrics as $metric => $question) {
+            add_chart_if_present(
+                $groups,
+                'fac_' . $index,
+                'Facilitator Ratings: ' . $name,
+                $role . ' performance ratings.',
+                "fac_{$index}_{$metric}",
+                $question['label'],
+                $question['desc'],
+                $rating_columns,
+                $source_responses,
+                $pie_colors
+            );
+        }
+    }
+
+    foreach ($program_questions as $index => $question) {
+        add_chart_if_present(
+            $groups,
+            'program',
+            'Program Evaluation',
+            'Ratings for program flow, contents, relevance, and future applicability.',
+            'prog_' . $index,
+            $question['label'],
+            $question['desc'],
+            $rating_columns,
+            $source_responses,
+            $pie_colors
+        );
+    }
+
+    foreach ($logistics_questions as $index => $question) {
+        add_chart_if_present(
+            $groups,
+            'logistics',
+            'Logistics',
+            'Ratings for secretariat service, venue, and scheduling.',
+            'log_' . $index,
+            $question['label'],
+            $question['desc'],
+            $rating_columns,
+            $source_responses,
+            $pie_colors
+        );
+    }
+
+    return array_values($groups);
 }
 
 $respondent_rows = [];
@@ -197,32 +368,7 @@ $pie_colors = [
 ];
 
 $overall_pie_background = pie_background($category_counts, $pie_colors);
-$global_rating_charts = [];
-
-foreach ($rating_columns as $column) {
-    $counts = [
-        'Excellent' => 0,
-        'Very Satisfactory' => 0,
-        'Satisfactory' => 0,
-        'Fair' => 0,
-        'Poor' => 0
-    ];
-
-    foreach ($responses as $response) {
-        $label = column_rating_label($response[$column] ?? null);
-        if (isset($counts[$label])) {
-            $counts[$label]++;
-        }
-    }
-
-    $global_rating_charts[] = [
-        'column' => $column,
-        'title' => pretty_field_name($column),
-        'counts' => $counts,
-        'total' => array_sum($counts),
-        'background' => pie_background($counts, $pie_colors)
-    ];
-}
+$global_rating_groups = build_rating_groups($rating_columns, $responses, $facilitators, $pie_colors);
 ?>
 
 <style>
@@ -432,7 +578,31 @@ foreach ($rating_columns as $column) {
         display: grid;
         gap: 1.25rem;
         grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-        margin-bottom: 1.5rem;
+    }
+    .rating-section {
+        border-top: 1px solid #eef2f7;
+        padding-top: 1.25rem;
+    }
+    .rating-section:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+    }
+    .rating-section + .rating-section {
+        margin-top: 1.5rem;
+    }
+    .rating-section-head {
+        margin-bottom: 0.9rem;
+    }
+    .rating-section-head h3 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 900;
+        margin: 0 0 0.25rem;
+    }
+    .rating-section-head p {
+        color: #64748b;
+        font-size: 0.84rem;
+        margin: 0;
     }
     .rating-chart-card {
         align-items: center;
@@ -445,12 +615,18 @@ foreach ($rating_columns as $column) {
         min-height: 150px;
         padding: 1rem 0.9rem;
     }
-    .rating-chart-card h3 {
+    .rating-chart-card h4 {
         color: #0f172a;
         font-size: 1rem;
         font-weight: 900;
         line-height: 1.3;
-        margin: 0 0 0.9rem;
+        margin: 0 0 0.35rem;
+    }
+    .rating-question-desc {
+        color: #64748b;
+        font-size: 0.76rem;
+        line-height: 1.35;
+        margin: 0 0 0.8rem;
     }
     .rating-chart-card .pie-chart {
         --pie-size: 92px;
@@ -570,6 +746,13 @@ foreach ($rating_columns as $column) {
         line-height: 1.45;
         overflow-wrap: anywhere;
     }
+    .individual-rating-groups {
+        grid-column: 1 / -1;
+        margin: 0.25rem 0;
+    }
+    .individual-rating-groups .rating-section {
+        border-top-color: #e2e8f0;
+    }
     .empty-state {
         color: #64748b;
         padding: 3rem 1.5rem;
@@ -676,24 +859,38 @@ foreach ($rating_columns as $column) {
                         </div>
                     </div>
 
-                    <?php if (!empty($global_rating_charts)): ?>
-                        <div class="rating-chart-grid">
-                            <?php foreach ($global_rating_charts as $chart): ?>
-                                <article class="rating-chart-card">
-                                    <div class="pie-chart" style="--pie-bg: <?= htmlspecialchars($chart['background']) ?>;" data-total="<?= (int)$chart['total'] ?>" aria-label="<?= htmlspecialchars($chart['title']) ?> distribution"></div>
-                                    <div>
-                                        <h3><?= htmlspecialchars($chart['title']) ?></h3>
-                                        <div class="legend-grid">
-                                            <?php foreach ($chart['counts'] as $label => $count): ?>
-                                                <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
-                                                    <span class="legend-label"><span class="legend-dot" style="background: <?= $pie_colors[$label] ?>"></span><?= $label ?></span>
-                                                    <span><?= $count ?></span>
+                    <?php if (!empty($global_rating_groups)): ?>
+                        <?php foreach ($global_rating_groups as $group): ?>
+                            <section class="rating-section">
+                                <div class="rating-section-head">
+                                    <h3><?= htmlspecialchars($group['title']) ?></h3>
+                                    <p><?= htmlspecialchars($group['description']) ?></p>
+                                </div>
+                                <div class="rating-chart-grid">
+                                    <?php foreach ($group['charts'] as $chart): ?>
+                                        <article class="rating-chart-card">
+                                            <div class="pie-chart" style="--pie-bg: <?= htmlspecialchars($chart['background']) ?>;" data-total="<?= (int)$chart['total'] ?>" aria-label="<?= htmlspecialchars($chart['title']) ?> distribution"></div>
+                                            <div>
+                                                <h4><?= htmlspecialchars($chart['title']) ?></h4>
+                                                <p class="rating-question-desc"><?= htmlspecialchars($chart['description']) ?></p>
+                                                <div class="legend-grid">
+                                                    <?php foreach ($chart['counts'] as $label => $count): ?>
+                                                        <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
+                                                            <span class="legend-label"><span class="legend-dot" style="background: <?= $pie_colors[$label] ?>"></span><?= $label ?></span>
+                                                            <span><?= $count ?></span>
+                                                        </div>
+                                                    <?php endforeach; ?>
                                                 </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                </article>
-                            <?php endforeach; ?>
+                                            </div>
+                                        </article>
+                                    <?php endforeach; ?>
+                                </div>
+                            </section>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="empty-state">
+                            <strong>No rating fields found.</strong>
+                            <p>The response table exists, but it does not contain rating columns for charting.</p>
                         </div>
                     <?php endif; ?>
                 </div>
