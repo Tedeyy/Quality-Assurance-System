@@ -123,9 +123,13 @@ try {
 }
 ?>
 
+<?php
+$jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE;
+?>
+<script src="../assets/js/ame-activity.js"></script>
 <script>
-    const speakerRatingsData = <?= json_encode($speaker_ratings) ?>;
-    const organizerRatingsData = <?= json_encode($organizer_ratings) ?>;
+    const speakerRatingsData = <?= json_encode($speaker_ratings, $jsonFlags) ?>;
+    const organizerRatingsData = <?= json_encode($organizer_ratings, $jsonFlags) ?>;
 </script>
 
 <style>
@@ -793,7 +797,7 @@ try {
                                 </td>
                                 <td style="padding: 1.2rem; text-align: right;">
                                     <div class="action-dropdown">
-                                        <button class="three-dots-btn" onclick="toggleDropdown(<?= $activity['activity_id'] ?>, event)">
+                                        <button type="button" class="three-dots-btn" onclick="toggleDropdown(<?= (int)$activity['activity_id'] ?>, event)">
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
                                             </svg>
@@ -877,39 +881,6 @@ try {
 <?php require_once __DIR__ . '/../../component/activity_modal.php'; ?>
 
 <script>
-    window.toggleDropdown = window.toggleDropdown || function(id, event) {
-        if (event) event.stopPropagation();
-
-        const menu = document.getElementById('dropdown-' + id);
-        if (!menu) return;
-
-        document.querySelectorAll('.dropdown-menu').forEach(item => {
-            if (item.id !== 'dropdown-' + id) {
-                item.style.display = 'none';
-            }
-        });
-
-        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    };
-</script>
-
-<script>
-    window.toggleDropdown = function(id, event) {
-        if (event) event.stopPropagation();
-        const menu = document.getElementById('dropdown-' + id);
-        if (!menu) return;
-
-        const allMenus = document.querySelectorAll('.dropdown-menu');
-        
-        allMenus.forEach(m => {
-            if (m.id !== 'dropdown-' + id) {
-                m.style.display = 'none';
-            }
-        });
-        
-        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    };
-
     // Handle direct edit link and initialization
     window.addEventListener('load', () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -930,16 +901,6 @@ try {
         
         searchActivities(); // Initialize rankings and counts
     });
-
-    function viewActivity(id) {
-        window.location.href = 'feed.php?action=view_activity&id=' + id;
-    }
-
-    function deleteActivity(id) {
-        if(confirm('Are you sure you want to delete this activity?')) {
-            window.location.href = '../api/activities.php?action=delete&id=' + id;
-        }
-    }
 
     const activitiesPerPage = 10;
     let currentActivityPage = 1;
