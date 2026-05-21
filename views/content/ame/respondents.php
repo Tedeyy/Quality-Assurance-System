@@ -218,8 +218,55 @@ function make_rating_chart(string $column, string $title, string $description, a
         'title' => $title,
         'description' => $description,
         'counts' => $counts,
+        'colors' => $pie_colors,
         'total' => array_sum($counts),
         'background' => pie_background($counts, $pie_colors)
+    ];
+}
+
+function build_distribution_chart(string $field, string $title, string $description, array $source_responses, array $palette): array
+{
+    $counts = [];
+
+    foreach ($source_responses as $response) {
+        $value = trim((string)($response[$field] ?? ''));
+        $label = $value !== '' ? $value : 'No answer';
+        $counts[$label] = ($counts[$label] ?? 0) + 1;
+    }
+
+    if (empty($counts)) {
+        $counts = ['No answer' => 0];
+    }
+
+    arsort($counts);
+    $colors = [];
+    $index = 0;
+    foreach (array_keys($counts) as $label) {
+        $colors[$label] = $palette[$index % count($palette)];
+        $index++;
+    }
+
+    return [
+        'column' => $field,
+        'title' => $title,
+        'description' => $description,
+        'counts' => $counts,
+        'colors' => $colors,
+        'total' => array_sum($counts),
+        'background' => pie_background($counts, $colors)
+    ];
+}
+
+function build_profile_group(array $source_responses, array $palette): array
+{
+    return [
+        'title' => 'Profile',
+        'description' => 'Respondent demographic distribution by age, gender, and unit.',
+        'charts' => [
+            build_distribution_chart('age', 'Age', 'Respondent age distribution.', $source_responses, $palette),
+            build_distribution_chart('gender', 'Gender', 'Respondent gender distribution.', $source_responses, $palette),
+            build_distribution_chart('unit', 'Unit / Office', 'Respondent unit, office, or division distribution.', $source_responses, $palette)
+        ]
     ];
 }
 
@@ -366,8 +413,10 @@ $pie_colors = [
     'Fair' => '#ea580c',
     'Poor' => '#dc2626'
 ];
+$profile_pie_palette = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#be185d', '#475569'];
 
 $overall_pie_background = pie_background($category_counts, $pie_colors);
+$global_profile_group = build_profile_group($responses, $profile_pie_palette);
 $global_rating_groups = build_rating_groups($rating_columns, $responses, $facilitators, $pie_colors);
 ?>
 
@@ -719,10 +768,13 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
         font-size: 1.25rem;
         margin: 0 0 0.35rem;
     }
+    .detail-score {
+        text-align: right;
+    }
     .detail-grid {
         display: grid;
-        gap: 0.8rem;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .detail-field {
         background: #f8fafc;
@@ -746,12 +798,61 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
         line-height: 1.45;
         overflow-wrap: anywhere;
     }
+    .profile-card {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-color: #dbe4f0;
+        grid-column: 1 / -1;
+        padding: 1rem;
+    }
+    .profile-card span,
+    .feedback-card span {
+        color: var(--accent-blue);
+    }
+    .profile-meta-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-top: 0.75rem;
+    }
+    .profile-meta-item {
+        background: #ffffff;
+        border: 1px solid #eef2f7;
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+    .profile-meta-item small {
+        color: #64748b;
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+    .profile-meta-item strong {
+        color: #0f172a;
+        display: block;
+        font-size: 0.9rem;
+        line-height: 1.35;
+    }
     .individual-rating-groups {
         grid-column: 1 / -1;
         margin: 0.25rem 0;
     }
     .individual-rating-groups .rating-section {
         border-top-color: #e2e8f0;
+    }
+    .feedback-card {
+        background: #ffffff;
+        border-color: #dbe4f0;
+        min-height: 150px;
+        padding: 1rem;
+    }
+    .feedback-card div {
+        color: #334155;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
     }
     .feedback-summary {
         border-top: 1px solid #eef2f7;
@@ -813,6 +914,13 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
         .detail-head {
             align-items: stretch;
             flex-direction: column;
+        }
+        .detail-score {
+            text-align: left;
+        }
+        .detail-grid,
+        .profile-meta-grid {
+            grid-template-columns: 1fr;
         }
         .respondent-search {
             max-width: none;
@@ -904,6 +1012,32 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                         </div>
                     </div>
 
+                    <section class="rating-section">
+                        <div class="rating-section-head">
+                            <h3><?= htmlspecialchars($global_profile_group['title']) ?></h3>
+                            <p><?= htmlspecialchars($global_profile_group['description']) ?></p>
+                        </div>
+                        <div class="rating-chart-grid">
+                            <?php foreach ($global_profile_group['charts'] as $chart): ?>
+                                <article class="rating-chart-card">
+                                    <div class="pie-chart" style="--pie-bg: <?= htmlspecialchars($chart['background']) ?>;" data-total="<?= (int)$chart['total'] ?>" aria-label="<?= htmlspecialchars($chart['title']) ?> distribution"></div>
+                                    <div>
+                                        <h4><?= htmlspecialchars($chart['title']) ?></h4>
+                                        <p class="rating-question-desc"><?= htmlspecialchars($chart['description']) ?></p>
+                                        <div class="legend-grid">
+                                            <?php foreach ($chart['counts'] as $label => $count): ?>
+                                                <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
+                                                    <span class="legend-label"><span class="legend-dot" style="background: <?= $chart['colors'][$label] ?? '#94a3b8' ?>"></span><?= htmlspecialchars($label) ?></span>
+                                                    <span><?= $count ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+
                     <?php if (!empty($global_rating_groups)): ?>
                         <?php foreach ($global_rating_groups as $group): ?>
                             <section class="rating-section">
@@ -921,7 +1055,7 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                                                 <div class="legend-grid">
                                                     <?php foreach ($chart['counts'] as $label => $count): ?>
                                                         <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
-                                                            <span class="legend-label"><span class="legend-dot" style="background: <?= $pie_colors[$label] ?>"></span><?= $label ?></span>
+                                                            <span class="legend-label"><span class="legend-dot" style="background: <?= $chart['colors'][$label] ?? '#94a3b8' ?>"></span><?= htmlspecialchars($label) ?></span>
                                                             <span><?= $count ?></span>
                                                         </div>
                                                     <?php endforeach; ?>
@@ -1002,20 +1136,32 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                                             <h3><?= htmlspecialchars($response['fullname'] ?? 'Unnamed respondent') ?></h3>
                                             <div class="respondent-muted"><?= htmlspecialchars($response['email'] ?? 'No email') ?></div>
                                         </div>
-                                        <div>
+                                        <div class="detail-score">
                                             <span class="rating-pill" style="background: <?= $rating_color ?>;"><?= number_format((float)$response['_average'], 1) ?>%</span>
-                                            <div class="respondent-muted" style="margin-top: 5px; text-align: right;"><?= htmlspecialchars($label) ?></div>
+                                            <div class="respondent-muted" style="margin-top: 5px;"><?= htmlspecialchars($label) ?></div>
                                         </div>
                                     </div>
 
                                     <div class="detail-grid">
-                                        <div class="detail-field">
+                                        <div class="detail-field profile-card">
                                             <span>Profile</span>
-                                            <div>
-                                                <?= htmlspecialchars($response['unit'] ?? 'Unit not provided') ?><br>
-                                                <?= htmlspecialchars($response['gender'] ?? 'Gender N/A') ?>
-                                                <?= !empty($response['age']) ? ', Age ' . htmlspecialchars($response['age']) : '' ?><br>
-                                                <?= htmlspecialchars($response['contact'] ?? 'No contact') ?>
+                                            <div class="profile-meta-grid">
+                                                <div class="profile-meta-item">
+                                                    <small>Unit / Office</small>
+                                                    <strong><?= htmlspecialchars($response['unit'] ?? 'Unit not provided') ?></strong>
+                                                </div>
+                                                <div class="profile-meta-item">
+                                                    <small>Gender</small>
+                                                    <strong><?= htmlspecialchars($response['gender'] ?? 'Gender N/A') ?></strong>
+                                                </div>
+                                                <div class="profile-meta-item">
+                                                    <small>Age</small>
+                                                    <strong><?= htmlspecialchars($response['age'] ?? 'N/A') ?></strong>
+                                                </div>
+                                                <div class="profile-meta-item">
+                                                    <small>Contact</small>
+                                                    <strong><?= htmlspecialchars($response['contact'] ?? 'No contact') ?></strong>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1036,7 +1182,7 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                                                                     <div class="legend-grid">
                                                                         <?php foreach ($chart['counts'] as $rating_text => $count): ?>
                                                                             <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
-                                                                                <span class="legend-label"><span class="legend-dot" style="background: <?= $pie_colors[$rating_text] ?>"></span><?= $rating_text ?></span>
+                                                                                <span class="legend-label"><span class="legend-dot" style="background: <?= $chart['colors'][$rating_text] ?? '#94a3b8' ?>"></span><?= htmlspecialchars($rating_text) ?></span>
                                                                                 <span><?= $count ?></span>
                                                                             </div>
                                                                         <?php endforeach; ?>
@@ -1049,11 +1195,11 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                                             <?php endforeach; ?>
                                         </div>
 
-                                        <div class="detail-field">
+                                        <div class="detail-field feedback-card">
                                             <span>Best Topics / Insights</span>
                                             <div><?= htmlspecialchars($response['best_topics'] ?? 'No answer') ?></div>
                                         </div>
-                                        <div class="detail-field">
+                                        <div class="detail-field feedback-card">
                                             <span>Suggested Improvements</span>
                                             <div><?= htmlspecialchars($response['improvements'] ?? 'No answer') ?></div>
                                         </div>
