@@ -921,6 +921,7 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                                 <?php
                                     $label = $response['_rating_label'];
                                     $rating_color = rating_color($label);
+                                    $individual_rating_groups = build_rating_groups($rating_columns, [$response], $facilitators, $pie_colors);
                                 ?>
                                 <article class="responder-detail <?= $index === 0 ? 'active' : '' ?>" data-responder-detail="<?= $index ?>">
                                     <div class="detail-head">
@@ -945,14 +946,35 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                                             </div>
                                         </div>
 
-                                        <?php foreach ($rating_columns as $column): ?>
-                                            <div class="detail-field">
-                                                <span><?= htmlspecialchars(pretty_field_name($column)) ?></span>
-                                                <strong>
-                                                    <?= isset($response[$column]) && is_numeric($response[$column]) ? number_format((float)$response[$column], 0) . '%' : 'N/A' ?>
-                                                </strong>
-                                            </div>
-                                        <?php endforeach; ?>
+                                        <div class="individual-rating-groups">
+                                            <?php foreach ($individual_rating_groups as $group): ?>
+                                                <section class="rating-section">
+                                                    <div class="rating-section-head">
+                                                        <h3><?= htmlspecialchars($group['title']) ?></h3>
+                                                        <p><?= htmlspecialchars($group['description']) ?></p>
+                                                    </div>
+                                                    <div class="rating-chart-grid">
+                                                        <?php foreach ($group['charts'] as $chart): ?>
+                                                            <article class="rating-chart-card">
+                                                                <div class="pie-chart" style="--pie-bg: <?= htmlspecialchars($chart['background']) ?>;" data-total="<?= (int)$chart['total'] ?>" aria-label="<?= htmlspecialchars($chart['title']) ?> distribution"></div>
+                                                                <div>
+                                                                    <h4><?= htmlspecialchars($chart['title']) ?></h4>
+                                                                    <p class="rating-question-desc"><?= htmlspecialchars($chart['description']) ?></p>
+                                                                    <div class="legend-grid">
+                                                                        <?php foreach ($chart['counts'] as $rating_text => $count): ?>
+                                                                            <div class="legend-item <?= $count === 0 ? 'is-zero' : '' ?>">
+                                                                                <span class="legend-label"><span class="legend-dot" style="background: <?= $pie_colors[$rating_text] ?>"></span><?= $rating_text ?></span>
+                                                                                <span><?= $count ?></span>
+                                                                            </div>
+                                                                        <?php endforeach; ?>
+                                                                    </div>
+                                                                </div>
+                                                            </article>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </section>
+                                            <?php endforeach; ?>
+                                        </div>
 
                                         <div class="detail-field">
                                             <span>Best Topics / Insights</span>
