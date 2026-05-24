@@ -105,6 +105,7 @@ CREATE TABLE `activity_evaluation` (
   `evaluation_id` int(11) NOT NULL AUTO_INCREMENT,
   `activity_id` int(11) DEFAULT NULL,
   `ame_form_link` text DEFAULT NULL,
+  `ame_form_id` text DEFAULT NULL,
   `number_of_respondents` int(11) DEFAULT NULL,
   `response_rate` float DEFAULT NULL,
   `complaints` text DEFAULT NULL,

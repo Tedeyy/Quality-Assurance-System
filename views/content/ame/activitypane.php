@@ -313,6 +313,10 @@ if ($evaluation) {
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
                                     <div id="ameDropdown" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 200px; overflow: hidden;">
+                                        <a href="<?= $edit_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                            Edit Form
+                                        </a>
                                         <a href="<?= $form_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                             View Respondent Form
@@ -325,6 +329,10 @@ if ($evaluation) {
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
                                             Respondents
                                         </a>
+                                        <button onclick="syncGoogleResponses(<?= $activity_id ?>)" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #16a34a; background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='white'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                                            Sync Google Responses
+                                        </button>
                                         <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
                                         <button onclick="deleteAMEForm(<?= $activity_id ?>)" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #ef4444; background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -535,6 +543,29 @@ if ($evaluation) {
                 function deleteAMEForm(id) {
                     if (confirm('Are you sure you want to delete this Google Form? This will remove it from Google Drive and reset the link in the database.')) {
                         window.location.href = '../api/delete_ame_form.php?id=' + id;
+                    }
+                }
+
+                async function syncGoogleResponses(id) {
+                    try {
+                        const btn = event.currentTarget;
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '<span style="display:inline-block; width:16px; height:16px; border:2px solid #16a34a; border-right-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></span> Syncing...';
+                        btn.disabled = true;
+
+                        const response = await fetch(`../api/sync_google_responses.php?id=${id}`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }
+                    } catch (err) {
+                        alert('Failed to sync responses.');
                     }
                 }
 
