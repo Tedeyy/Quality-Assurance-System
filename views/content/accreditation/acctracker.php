@@ -1142,6 +1142,9 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                         <button onclick="removeSubmission()" class="btn btn-danger"
                             style="flex: 1; padding: 0.8rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Remove</button>
                     </div>
+                    <button id="add_another_doc_btn" onclick="openUploadModalForCurrent()" class="btn btn-secondary" style="display: none; margin-top: 10px; width: 100%; padding: 0.6rem; font-size: 0.85rem; border: 1px dashed var(--accent-blue); color: var(--accent-blue); background: #f8fafc;">
+                        + Add Another Document / Proof
+                    </button>
                 </div>
             </div>
         </div>
@@ -1249,7 +1252,39 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
     function handleRequirementClick(id, name, codename, sub, bridges) {
         currentRequirement = { id, name, codename, sub };
-        openUploadModal(id, name, codename, bridges);
+        activeRequirementBridges = bridges || [];
+        
+        let uploadedBridge = null;
+        if (bridges && bridges.length > 0) {
+            uploadedBridge = bridges.find(b => b.submission_id != null);
+        }
+
+        if (uploadedBridge) {
+            const mockSub = {
+                submission_id: uploadedBridge.submission_id,
+                requirement_id: uploadedBridge.requirement_id,
+                status: uploadedBridge.sub_status,
+                google_drive_link: uploadedBridge.sub_link,
+                google_drive_file_id: uploadedBridge.google_drive_file_id,
+                file_path: uploadedBridge.sub_path,
+                remarks: uploadedBridge.sub_remarks,
+                user_id: uploadedBridge.sub_user_id,
+                fname: uploadedBridge.uploader_fname,
+                lname: uploadedBridge.uploader_lname,
+                marker_fname: uploadedBridge.reviewer_fname,
+                marker_lname: uploadedBridge.reviewer_lname
+            };
+            openReviewModal(mockSub, name);
+        } else if (sub) {
+            openReviewModal(sub, name);
+        } else {
+            openUploadModal(id, name, codename, bridges);
+        }
+    }
+    
+    function openUploadModalForCurrent() {
+        document.getElementById('reviewSubmissionModal').style.display = 'none';
+        openUploadModal(currentRequirement.id, currentRequirement.name, currentRequirement.codename, activeRequirementBridges);
     }
 
     function openComplianceTracker(reqId, reqName, reqCodename, bridges) {
@@ -1580,10 +1615,15 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
 
         // Show uploader actions only if it's the user's own submission AND it's not already Approved
         const uploaderActions = document.getElementById('uploader_actions');
+        const addAnotherBtn = document.getElementById('add_another_doc_btn');
         if (sub.user_id == currentUserId && sub.status !== 'Approved') {
             uploaderActions.style.display = 'flex';
         } else {
             uploaderActions.style.display = 'none';
+        }
+        
+        if (addAnotherBtn) {
+            addAnotherBtn.style.display = 'block';
         }
 
         // Show review buttons only if status is Pending (and user is QAO)

@@ -65,17 +65,21 @@ function driveApiRequest($url, $method = 'GET', $body = null, $token) {
 function getOrCreateFolder($name, $parentId, $token) {
     $name = trim($name);
     $query = "name = '" . str_replace("'", "\\'", $name) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parentId . "' in parents and trashed = false";
-    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $token);
+    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query) . "&supportsAllDrives=true&includeItemsFromAllDrives=true", 'GET', null, $token);
     
     if (!empty($search['data']['files'])) {
         return $search['data']['files'][0]['id'];
     }
     
-    $create = driveApiRequest("https://www.googleapis.com/drive/v3/files", 'POST', [
+    $create = driveApiRequest("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", 'POST', [
         'name' => $name,
         'mimeType' => 'application/vnd.google-apps.folder',
         'parents' => [$parentId]
     ], $token);
+    
+    if (isset($create['data']['error'])) {
+        return $create['data']['error'];
+    }
     
     return $create['data']['id'] ?? null;
 }
@@ -121,7 +125,16 @@ if (!$parent_id) {
 
 // Create/Navigate Category Folders
 foreach ($category_path as $folder_name) {
-    $parent_id = getOrCreateFolder($folder_name, $parent_id, $access_token);
+    $parent_id_result = getOrCreateFolder($folder_name, $parent_id, $access_token);
+    
+    // Check if there was an API error we need to surface
+    if (is_array($parent_id_result)) {
+        echo json_encode(['success' => false, 'message' => "Failed to resolve folder: $folder_name. API Error: " . json_encode($parent_id_result)]);
+        exit;
+    }
+    
+    $parent_id = $parent_id_result;
+    
     if (!$parent_id) {
         echo json_encode(['success' => false, 'message' => "Failed to resolve folder: $folder_name"]);
         exit;
@@ -156,7 +169,7 @@ foreach ($files['name'] as $i => $original_name) {
 
     // Check if file already exists to update instead of duplicate
     $query = "name = '" . str_replace("'", "\\'", $target_name) . "' and '" . $parent_id . "' in parents and trashed = false";
-    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query), 'GET', null, $access_token);
+    $search = driveApiRequest("https://www.googleapis.com/drive/v3/files?q=" . urlencode($query) . "&supportsAllDrives=true&includeItemsFromAllDrives=true", 'GET', null, $access_token);
     $existing_file_id = !empty($search['data']['files']) ? $search['data']['files'][0]['id'] : null;
     
     $tmp_name = $files['tmp_name'][$i];
@@ -176,11 +189,11 @@ foreach ($files['name'] as $i => $original_name) {
 
     if ($existing_file_id) {
         // UPDATE existing file
-        $url = "https://www.googleapis.com/upload/drive/v3/files/" . $existing_file_id . "?uploadType=multipart";
+        $url = "https://www.googleapis.com/upload/drive/v3/files/" . $existing_file_id . "?uploadType=multipart&supportsAllDrives=true";
         $method = 'PATCH';
     } else {
         // CREATE new file
-        $url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+        $url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true";
         $method = 'POST';
     }
 
