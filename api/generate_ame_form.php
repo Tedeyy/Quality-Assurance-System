@@ -123,17 +123,7 @@ $driveService->files->update($formId, $emptyFile, [
     'fields' => 'id, parents'
 ]);
 
-$sheetTitle = $activityCode . " Responses";
-$spreadsheet = new Google\Service\Sheets\Spreadsheet(['properties' => ['title' => $sheetTitle]]);
-$ss = $sheetsService->spreadsheets->create($spreadsheet);
-$spreadsheetId = $ss->getSpreadsheetId();
-$sheetUrl = $ss->getSpreadsheetUrl();
-
-$driveService->files->update($spreadsheetId, $emptyFile, [
-    'addParents' => $activityFolderId,
-    'removeParents' => 'root',
-    'fields' => 'id, parents'
-]);
+$sheetUrl = "";
 
 // 5. Index Sheet Integration
 $indexSheetUrl = $_ENV['RESPONSES_GOOGLE_SHEET'] ?? '';
