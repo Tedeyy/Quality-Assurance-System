@@ -125,11 +125,22 @@ try {
     $table_name = "activity_" . $activity_id;
     $quoted_table = "`" . str_replace("`", "``", $table_name) . "`";
     
-    // Ensure response_id column exists to prevent duplicates
+    // Create table if it doesn't exist
+    $create_sql = "CREATE TABLE IF NOT EXISTS $quoted_table (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        response_id VARCHAR(255) UNIQUE,
+        submitted_at DATETIME";
+        
+    $uniqueCols = array_unique(array_values($qMap));
+    foreach ($uniqueCols as $colName) {
+        $create_sql .= ",\n        `$colName` TEXT";
+    }
+    $create_sql .= "\n    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+    
     try {
-        $rdb->exec("ALTER TABLE $quoted_table ADD COLUMN response_id VARCHAR(255) UNIQUE");
+        $rdb->exec($create_sql);
     } catch(Exception $e) {
-        // Column likely already exists
+        error_log("Failed to create responses table: " . $e->getMessage());
     }
     
     $insertedCount = 0;

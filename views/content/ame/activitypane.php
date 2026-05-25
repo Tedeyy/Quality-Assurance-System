@@ -711,3 +711,44 @@ if ($evaluation) {
         </div>
     </div>
 </main>
+<script>
+// Lazy Background Sync
+setTimeout(async () => {
+    const activityId = <?= (int)$activity_id ?>;
+    const lastSyncKey = 'last_sync_' + activityId;
+    const lastSync = localStorage.getItem(lastSyncKey);
+    const now = Date.now();
+    
+    // Only sync once every 2 minutes (120000 ms)
+    if (!lastSync || (now - parseInt(lastSync)) > 120000) {
+        try {
+            const response = await fetch(`../api/sync_google_responses.php?id=${activityId}`);
+            const data = await response.json();
+            
+            if (data.success && data.count > 0) {
+                const toast = document.createElement('div');
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.right = '20px';
+                toast.style.background = '#10b981';
+                toast.style.color = 'white';
+                toast.style.padding = '12px 24px';
+                toast.style.borderRadius = '8px';
+                toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                toast.style.zIndex = '9999';
+                toast.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+                toast.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span><strong>${data.count} new responses found!</strong> Updating dashboard...</span>
+                </div>`;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => { location.reload(); }, 2000);
+            }
+            localStorage.setItem(lastSyncKey, now);
+        } catch (e) {
+            console.error('Background sync failed:', e);
+        }
+    }
+}, 1000);
+</script>
