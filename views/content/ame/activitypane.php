@@ -1039,6 +1039,23 @@ if ($evaluation) {
                     </div>
                 </div>
 
+                <?php if ($evaluation && $evaluation['ame_form_link']): 
+                    $form_url = $evaluation['ame_form_link'];
+                    $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
+                ?>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="navigator.clipboard.writeText('<?= htmlspecialchars($form_url) ?>').then(() => alert('Responders link copied!'))" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: white; color: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copy Responders Link
+                    </button>
+                    
+                    <a href="<?= htmlspecialchars($edit_url) ?>" target="_blank" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: white; color: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        Edit Form
+                    </a>
+                </div>
+                <?php endif; ?>
+
                 <div style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color);">
                     <h3 style="font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1.2rem;">Activity Info</h3>
                     
