@@ -1017,9 +1017,9 @@ if ($eval_id) {
 
         <section class="response-pane">
             <div class="response-tabs" role="tablist" aria-label="Response views">
-                <button type="button" class="response-tab active" data-tab="global" onclick="switchResponseTab('global')">Global</button>
+                <button type="button" class="response-tab active" data-tab="analytics" onclick="switchResponseTab('analytics')">Analytics</button>
                 <button type="button" class="response-tab" data-tab="individual" onclick="switchResponseTab('individual')">Individual</button>
-                <button type="button" class="response-tab" data-tab="analytics" onclick="switchResponseTab('analytics')">Analytics</button>
+                <button type="button" class="response-tab" data-tab="global" onclick="switchResponseTab('global')">Global</button>
             </div>
 
             <?php if (!$table_exists): ?>
@@ -1033,7 +1033,7 @@ if ($eval_id) {
                     <p>Responses will appear here as soon as participants submit the evaluation form.</p>
                 </div>
             <?php else: ?>
-                <div id="globalPanel" class="response-panel active">
+                <div id="globalPanel" class="response-panel">
                     <div class="pane-header">
                         <div>
                             <h2>Global Responses</h2>
@@ -1239,7 +1239,7 @@ if ($eval_id) {
                     </div>
                 </div>
             
-                <div id="analyticsPanel" class="response-panel">
+                <div id="analyticsPanel" class="response-panel active">
                     <div class="pane-header">
                         <div>
                             <h2>Analytics & Interpretation</h2>
@@ -1335,28 +1335,61 @@ if ($eval_id) {
                             
                             <div style="padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
                                 <button onclick="closeManualInterpret()" style="padding: 10px 20px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 700; cursor: pointer; transition: all 0.2s;">Cancel</button>
+                                <button onclick="saveManualInterpretation()" style="padding: 10px 24px; border-radius: 10px; border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s;">Save Interpretation</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evaluation Statistics Card -->
+                    <div style="background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem;">
+                            <div>
+                                <h2 style="font-size: 1.6rem; margin: 0; display: flex; align-items: center; gap: 12px; color: var(--text-primary); font-weight: 800; letter-spacing: -0.5px;">
+                                    <div style="background: #eff6ff; color: #2563eb; padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                                    </div>
+                                    Performance Analytics
+                                </h2>
+                                <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.4);"></span>
+                                    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Live Evaluation Stats</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px;">
+                                <?php if ($evaluation['ame_form_link']): ?>
+                                    <a href="<?= htmlspecialchars($evaluation['ame_form_link']) ?>" target="_blank" style="background: white; color: #475569; border: 1px solid #cbd5e1; padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 22 3 22 10"/><line x1="14" y1="10" x2="22" y2="2"/></svg>
+                                        View Form
+                                    </a>
+                                <?php endif; ?>
+                                <div style="background: #f8fafc; padding: 10px 18px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Status</div>
+                                    <div style="font-size: 0.85rem; font-weight: 700; color: #10b981;"><?= $evaluation['evaluation_status'] ?></div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem;">
-                            <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;">
-                                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Overall Rating</div>
+                            <div style="background: white; padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+                                <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Overall Rating</div>
                                 <div style="display: flex; align-items: baseline; gap: 4px;">
-                                    <span style="font-size: 3rem; font-weight: 900; color: #fbbf24; line-height: 1;"><?= $evaluation['overall_average'] ?: '0%' ?></span>
+                                    <span style="font-size: 3rem; font-weight: 900; color: #2563eb; line-height: 1;"><?= $evaluation['overall_average'] ?: '0%' ?></span>
                                     <span style="font-size: 1.2rem; color: #475569; font-weight: 600;">Score</span>
                                 </div>
-                                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05;">
+                                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05; color: #2563eb;">
                                     <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                                 </div>
                             </div>
-                            <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Respondents</div>
-                                <div style="font-size: 3rem; font-weight: 900; color: #f8fafc; line-height: 1;"><?= $evaluation['number_of_respondents'] ?: 0 ?></div>
+                                                        <div style="background: white; padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Respondents</div>
+                                <div style="font-size: 3rem; font-weight: 900; color: #0f172a; line-height: 1;"><?= $evaluation['number_of_respondents'] ?: 0 ?></div>
                                 <div style="font-size: 0.85rem; color: #475569; margin-top: 5px; font-weight: 600;">Evaluations Collected</div>
                             </div>
-                            <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Response Rate</div>
-                                <div style="font-size: 3rem; font-weight: 900; color: #f8fafc; line-height: 1;"><?= number_format($evaluation['response_rate'] ?: 0, 1) ?><span style="font-size: 1.5rem; margin-left: 2px;">%</span></div>
-                                <div style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 15px; overflow: hidden;">
-                                    <div style="width: <?= $evaluation['response_rate'] ?: 0 ?>%; height: 100%; background: #fbbf24;"></div>
+                            <div style="background: white; padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Response Rate</div>
+                                <div style="font-size: 3rem; font-weight: 900; color: #0f172a; line-height: 1;"><?= number_format($evaluation['response_rate'] ?: 0, 1) ?><span style="font-size: 1.5rem; margin-left: 2px;">%</span></div>
+                                <div style="height: 6px; background: #f1f5f9; border-radius: 3px; margin-top: 15px; overflow: hidden;">
+                                    <div style="width: <?= $evaluation['response_rate'] ?: 0 ?>%; height: 100%; background: #10b981;"></div>
                                 </div>
                             </div>
                         </div>
@@ -1372,19 +1405,19 @@ if ($eval_id) {
                             ];
                             foreach($metrics as $m):
                             ?>
-                                <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                                                                <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);" onmouseover="this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.1)'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.boxShadow='0 1px 3px 0 rgba(0,0,0,0.1)'; this.style.borderColor='#e2e8f0'">
                                     <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: #94a3b8;">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="<?= $m['icon'] ?>"/></svg>
+                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #2563eb;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="<?= $m['icon'] ?>"/></svg>
                                         </div>
                                         <div>
-                                            <div style="font-size: 1rem; color: #f8fafc; font-weight: 700;"><?= $m['label'] ?></div>
-                                            <div style="font-size: 0.65rem; color: #64748b; margin-top: 4px; line-height: 1.4;"><?= $evaluation[$m['val']] ?: 'No data yet' ?></div>
+                                            <div style="font-size: 1.05rem; color: #0f172a; font-weight: 700;"><?= $m['label'] ?></div>
+                                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px; line-height: 1.4;"><?= $evaluation[$m['val']] ?: 'No data yet' ?></div>
                                         </div>
                                     </div>
                                     <div style="text-align: right;">
-                                        <div style="font-size: 1.6rem; font-weight: 900; color: #fbbf24;"><?= $evaluation[$m['wa']] ?: '0%' ?></div>
-                                        <div style="font-size: 0.6rem; color: #475569; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Weighted Avg</div>
+                                        <div style="font-size: 1.5rem; font-weight: 900; color: #10b981;"><?= $evaluation[$m['wa']] ?: '0%' ?></div>
+                                        <div style="font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Weighted Avg</div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -1393,22 +1426,22 @@ if ($eval_id) {
                         <!-- Demographics Section -->
                         <?php if ($other_stats): ?>
                             <div style="margin-top: 3rem;">
-                                <h3 style="font-size: 1rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                                <h3 style="font-size: 1rem; color: #475569; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                     Demographic Distribution
                                 </h3>
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
-                                    <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
                                         <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Gender</div>
-                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($other_stats['gender_distribution'] ?: 'Not recorded') ?></div>
+                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($other_stats['gender_distribution'] ?: 'Not recorded') ?></div>
                                     </div>
-                                    <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
                                         <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Age Group</div>
-                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($other_stats['age_distribution'] ?: 'Not recorded') ?></div>
+                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($other_stats['age_distribution'] ?: 'Not recorded') ?></div>
                                     </div>
-                                    <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
                                         <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Unit / Department</div>
-                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($other_stats['unit_distribution'] ?: 'Not recorded') ?></div>
+                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($other_stats['unit_distribution'] ?: 'Not recorded') ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -1417,7 +1450,7 @@ if ($eval_id) {
                         <!-- Facilitator Ratings Section -->
                         <?php if (!empty($speaker_ratings) || !empty($organizer_ratings)): ?>
                             <div style="margin-top: 3rem;">
-                                <h3 style="font-size: 1rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                                <h3 style="font-size: 1rem; color: #475569; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
                                     Facilitator Excellence Ratings
                                 </h3>
@@ -1430,32 +1463,32 @@ if ($eval_id) {
                                     foreach($all_ratings as $r): 
                                         $avg = ($r['eff'] + $r['mot'] + $r['atf']) / 3;
                                     ?>
-                                        <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+                                        <div style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
                                                 <div style="display: flex; align-items: center; gap: 10px;">
                                                     <div style="width: 36px; height: 36px; border-radius: 50%; background: <?= $r['role_code'] === 'SP' ? '#fbbf24' : '#3b82f6' ?>; color: #0f172a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;"><?= $r['role_code'] ?></div>
                                                     <div>
-                                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 700;"><?= htmlspecialchars($r['name']) ?></div>
+                                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($r['name']) ?></div>
                                                         <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;"><?= $r['role_label'] ?></div>
                                                     </div>
                                                 </div>
                                                 <div style="text-align: right;">
-                                                    <div style="font-size: 1.4rem; font-weight: 800; color: #fbbf24;"><?= number_format($avg, 2) ?></div>
+                                                    <div style="font-size: 1.4rem; font-weight: 800; color: #10b981;"><?= number_format($avg, 2) ?></div>
                                                     <div style="font-size: 0.6rem; color: #475569; font-weight: 800; text-transform: uppercase;">Average</div>
                                                 </div>
                                             </div>
                                             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
+                                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; text-align: center;">
                                                     <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Effectiveness</div>
-                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['eff'], 2) ?></div>
+                                                    <div style="font-size: 0.85rem; color: #0f172a; font-weight: 700;"><?= number_format($r['eff'], 2) ?></div>
                                                 </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
+                                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; text-align: center;">
                                                     <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mastery</div>
-                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['mot'], 2) ?></div>
+                                                    <div style="font-size: 0.85rem; color: #0f172a; font-weight: 700;"><?= number_format($r['mot'], 2) ?></div>
                                                 </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
+                                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; text-align: center;">
                                                     <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Facilitation</div>
-                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['atf'], 2) ?></div>
+                                                    <div style="font-size: 0.85rem; color: #0f172a; font-weight: 700;"><?= number_format($r['atf'], 2) ?></div>
                                                 </div>
                                             </div>
                                         </div>

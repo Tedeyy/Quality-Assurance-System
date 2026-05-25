@@ -116,9 +116,8 @@ try {
     $responsesData = $formsService->forms_responses->listFormsResponses($formId);
     $responses = $responsesData->getResponses();
     
-    if(!$responses) {
-        echo json_encode(['success' => true, 'message' => 'No new responses found.', 'count' => 0]);
-        exit;
+    if(empty($responses)) {
+        $responses = [];
     }
     
     // 3. Insert into Responses Database
@@ -154,6 +153,15 @@ try {
             if(!$qId) continue;
             if(isset($answers[$qId])) {
                 $val = $answers[$qId]['textAnswers']['answers'][0]['value'] ?? null;
+                
+                // Convert 1-5 scale to 0-100 scale for rating columns
+                if ($val !== null && (strpos($colName, 'fac_') === 0 || strpos($colName, 'prog_') === 0 || strpos($colName, 'log_') === 0 || in_array($colName, ['osr', 'oe']))) {
+                    if (is_numeric($val) && in_array((int)$val, [1, 2, 3, 4, 5])) {
+                        $rating_map = [1 => 0, 2 => 25, 3 => 50, 4 => 75, 5 => 100];
+                        $val = $rating_map[(int)$val];
+                    }
+                }
+                
                 $row[$colName] = $val;
             } else {
                 $row[$colName] = null;
@@ -172,12 +180,21 @@ try {
         }
     }
     
-    // Update number of respondents in activity_evaluation
-    $countStmt = $rdb->query("SELECT COUNT(*) FROM $quoted_table");
-    $totalCount = $countStmt->fetchColumn();
+    // 4. Recalculate Statistics
+    require_once __DIR__ . '/recalculate_statistics.php';
     
-    $updStmt = $db->prepare("UPDATE activity_evaluation SET number_of_respondents = :cnt WHERE activity_id = :aid");
-    $updStmt->execute(['cnt' => $totalCount, 'aid' => $activity_id]);
+    // We need evaluation_id to run recalculation
+    $eval_stmt = $db->prepare("SELECT evaluation_id FROM activity_evaluation WHERE activity_id = :aid");
+    $eval_stmt->execute(['aid' => $activity_id]);
+    $eval = $eval_stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $totalCount = 0;
+    if ($eval && !empty($eval['evaluation_id'])) {
+        recalculateActivityStatistics($db, $rdb, $activity_id, $eval['evaluation_id'], $quoted_table);
+        
+        $countStmt = $rdb->query("SELECT COUNT(*) FROM $quoted_table");
+        $totalCount = $countStmt->fetchColumn();
+    }
     
     echo json_encode([
         'success' => true, 
