@@ -1042,8 +1042,19 @@ if ($evaluation) {
                 <?php if ($evaluation && $evaluation['ame_form_link']): 
                     $form_url = $evaluation['ame_form_link'];
                     $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
+                    $isOpen = ($evaluation['published_options'] === 'Open');
                 ?>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="toggleFormStatusBtn" onclick="toggleFormStatus(<?= $activity['activity_id'] ?>)" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: <?= $isOpen ? '#dcfce7' : '#fee2e2' ?>; color: <?= $isOpen ? '#166534' : '#991b1b' ?>; padding: 12px; border-radius: 12px; border: 1px solid <?= $isOpen ? '#bbf7d0' : '#fecaca' ?>; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <?= $isOpen 
+                                ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>' 
+                                : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>' 
+                            ?>
+                        </svg>
+                        <span id="toggleFormStatusText">Form Status: <?= $isOpen ? 'OPEN' : 'CLOSED' ?></span>
+                    </button>
+                    
                     <button onclick="navigator.clipboard.writeText('<?= htmlspecialchars($form_url) ?>').then(() => alert('Responders link copied!'))" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: white; color: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                         Copy Responders Link
@@ -1054,6 +1065,48 @@ if ($evaluation) {
                         Edit Form
                     </a>
                 </div>
+                <script>
+                function toggleFormStatus(activityId) {
+                    const btn = document.getElementById('toggleFormStatusBtn');
+                    const text = document.getElementById('toggleFormStatusText');
+                    const svg = btn.querySelector('svg');
+                    
+                    text.innerText = 'Updating...';
+                    const formData = new FormData();
+                    formData.append('activity_id', activityId);
+
+                    fetch('../api/evaluation_settings.php?action=toggle_visibility', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success) {
+                            if(data.published_options === 'Open') {
+                                btn.style.background = '#dcfce7';
+                                btn.style.color = '#166534';
+                                btn.style.borderColor = '#bbf7d0';
+                                text.innerText = 'Form Status: OPEN';
+                                svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+                            } else {
+                                btn.style.background = '#fee2e2';
+                                btn.style.color = '#991b1b';
+                                btn.style.borderColor = '#fecaca';
+                                text.innerText = 'Form Status: CLOSED';
+                                svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                            }
+                        } else {
+                            alert('Error: ' + data.error);
+                            text.innerText = 'Form Status: ERROR';
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Failed to update form status.');
+                        text.innerText = 'Form Status: ERROR';
+                    });
+                }
+                </script>
                 <?php endif; ?>
 
                 <div style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color);">
