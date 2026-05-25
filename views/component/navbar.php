@@ -343,7 +343,7 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'ac
                 </button>
                 <div class="qa-dropdown-menu">
                     <a href="feed.php?action=activity" class="qa-dropdown-item">
-                        <span>Monitoring and Evaluation</span>
+                        <span>Activity Evaluation</span>
                     </a>
                     <a href="feed.php?action=actmasterlist" class="qa-dropdown-item">
                         <span>Masterlist</span>
@@ -389,7 +389,7 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'ac
             <a href="feed.php?action=accreditation" class="qa-nav-link" style="padding-left: 1.5rem;">Tracking</a>
             
             <div class="qa-drawer-heading">Activity</div>
-            <a href="feed.php?action=activity" class="qa-nav-link" style="padding-left: 1.5rem;">Monitoring and Evaluation</a>
+            <a href="feed.php?action=activity" class="qa-nav-link" style="padding-left: 1.5rem;">Activity Evaluation</a>
             <a href="feed.php?action=actmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             
             <div style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.5rem;">

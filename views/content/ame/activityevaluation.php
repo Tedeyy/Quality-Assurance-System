@@ -451,7 +451,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                         </svg>
                     </div>
-                    Activity Monitoring & Evaluation
+                    Activity Evaluation
                 </h1>
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">Track, evaluate, and report institutional activities and faculty performance.</p>
             </div>

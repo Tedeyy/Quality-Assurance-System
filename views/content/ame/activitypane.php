@@ -157,7 +157,7 @@ if ($evaluation) {
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase; color: #2563eb;">Activity Monitoring & Evaluation</div>
+                        <div style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase; color: #2563eb;">Activity Evaluation</div>
                         <div style="font-size: 0.7rem; color: #94a3b8;">Report Generated: <?= date('F d, Y') ?></div>
                     </div>
                 </div>
