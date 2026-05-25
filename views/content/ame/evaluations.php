@@ -418,6 +418,34 @@ $profile_pie_palette = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '
 $overall_pie_background = pie_background($category_counts, $pie_colors);
 $global_profile_group = build_profile_group($responses, $profile_pie_palette);
 $global_rating_groups = build_rating_groups($rating_columns, $responses, $facilitators, $pie_colors);
+
+$other_stats = null;
+$speaker_ratings = [];
+$organizer_ratings = [];
+$evaluation = [];
+
+// Get the evaluation_id
+$eval_id = $activity['evaluation_id'] ?? null;
+if ($eval_id) {
+    // We already have some evaluation fields in $activity, let's fetch the full evaluation record
+    $eval_stmt = $db->prepare("SELECT e.*, s.* FROM activity_evaluation e LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id WHERE e.evaluation_id = :id");
+    $eval_stmt->execute([':id' => $eval_id]);
+    $evaluation = $eval_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($evaluation) {
+        $other_stmt = $db->prepare("SELECT * FROM activity_statistics_others WHERE evaluation_id = :id");
+        $other_stmt->execute([':id' => $eval_id]);
+        $other_stats = $other_stmt->fetch(PDO::FETCH_ASSOC);
+
+        $speaker_stmt = $db->prepare("SELECT r.*, s.name FROM activity_speaker_rating r JOIN speakers s ON r.speaker_id = s.speaker_id WHERE r.evaluation_id = :id");
+        $speaker_stmt->execute([':id' => $eval_id]);
+        $speaker_ratings = $speaker_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $organizer_stmt = $db->prepare("SELECT r.*, o.name FROM activity_organizer_rating r JOIN organizers o ON r.organizer_id = o.organizer_id WHERE r.evaluation_id = :id");
+        $organizer_stmt->execute([':id' => $eval_id]);
+        $organizer_ratings = $organizer_stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
 ?>
 
 <style>
@@ -989,8 +1017,9 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
 
         <section class="response-pane">
             <div class="response-tabs" role="tablist" aria-label="Response views">
-                <button type="button" class="response-tab active" data-tab="global" onclick="switchResponseTab('global')">Global</button>
+                <button type="button" class="response-tab active" data-tab="analytics" onclick="switchResponseTab('analytics')">Analytics</button>
                 <button type="button" class="response-tab" data-tab="individual" onclick="switchResponseTab('individual')">Individual</button>
+                <button type="button" class="response-tab" data-tab="global" onclick="switchResponseTab('global')">Global</button>
             </div>
 
             <?php if (!$table_exists): ?>
@@ -1004,7 +1033,7 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                     <p>Responses will appear here as soon as participants submit the evaluation form.</p>
                 </div>
             <?php else: ?>
-                <div id="globalPanel" class="response-panel active">
+                <div id="globalPanel" class="response-panel">
                     <div class="pane-header">
                         <div>
                             <h2>Global Responses</h2>
@@ -1209,6 +1238,265 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
                         </div>
                     </div>
                 </div>
+            
+                <div id="analyticsPanel" class="response-panel active">
+                    <div class="pane-header">
+                        <div>
+                            <h2>Analytics & Interpretation</h2>
+                            <div class="respondent-muted">Detailed performance statistics and qualitative analysis.</div>
+                        </div>
+                        <div style="position: relative;">
+                            <button onclick="toggleInterpretDropdown(event)" style="display: flex; align-items: center; gap: 8px; background: white; color: var(--accent-blue); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--accent-blue); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3.5l-1 4.5 4.5-1z"/></svg>
+                                Interpret Results
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div id="interpretDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: white; border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 180px; overflow: hidden;">
+                                <button onclick="runAIInterpretation()" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                    AI Interpret
+                                </button>
+                                <button onclick="openManualInterpret()" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    Manual Interpret
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
+                            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 6 0v-4"/><path d="M10 5h6a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z"/></svg>
+                                Complaints
+                            </h4>
+                            <div id="complaints-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
+                                <?= $evaluation['complaints'] ? nl2br(htmlspecialchars($evaluation['complaints'])) : '<i>No complaints reported.</i>' ?>
+                            </div>
+                        </div>
+                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
+                            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                Suggestions for Improvement
+                            </h4>
+                            <div id="suggestions-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
+                                <?= $evaluation['suggestions_for_improvement'] ? nl2br(htmlspecialchars($evaluation['suggestions_for_improvement'])) : '<i>No suggestions provided.</i>' ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Interpretation Modal -->
+                    <div id="manualInterpretModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
+                        <div style="background: white; width: 95%; max-width: 1200px; height: 85vh; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; animation: modalPop 0.3s ease;">
+                            <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                                <div>
+                                    <h2 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0;">Manual Interpretation</h2>
+                                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">Review raw responses and write your summary.</p>
+                                </div>
+                                <button onclick="closeManualInterpret()" style="background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 350px; flex: 1; overflow: hidden;">
+                                <!-- Raw Responses List -->
+                                <div style="padding: 24px; overflow-y: auto; background: #f8fafc; border-right: 1px solid #e2e8f0;">
+                                    <h3 style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Respondent Feedback</h3>
+                                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                                            <thead style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+                                                <tr>
+                                                    <th style="padding: 12px 16px; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 800; width: 50%;">Liked Best</th>
+                                                    <th style="padding: 12px 16px; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 800; width: 50%;">Least Liked / Improved</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="rawResponsesTableBody">
+                                                <!-- Dynamic rows -->
+                                                <tr>
+                                                    <td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">Loading responses...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <!-- Manual Input Form -->
+                                <div style="padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Complaints</label>
+                                        <textarea id="manualComplaints" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize common complaints..."><?= htmlspecialchars($evaluation['complaints'] ?? '') ?></textarea>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Suggestions</label>
+                                        <textarea id="manualSuggestions" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize suggestions for improvement..."><?= htmlspecialchars($evaluation['suggestions_for_improvement'] ?? '') ?></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                                <button onclick="closeManualInterpret()" style="padding: 10px 20px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 700; cursor: pointer; transition: all 0.2s;">Cancel</button>
+                                <button onclick="saveManualInterpretation()" style="padding: 10px 24px; border-radius: 10px; border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s;">Save Interpretation</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evaluation Statistics Card -->
+                    <div style="background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem;">
+                            <div>
+                                <h2 style="font-size: 1.6rem; margin: 0; display: flex; align-items: center; gap: 12px; color: var(--text-primary); font-weight: 800; letter-spacing: -0.5px;">
+                                    <div style="background: #eff6ff; color: #2563eb; padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                                    </div>
+                                    Performance Analytics
+                                </h2>
+                                <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.4);"></span>
+                                    <span style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Live Evaluation Stats</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px;">
+                                <?php if ($evaluation['ame_form_link']): ?>
+                                    <a href="<?= htmlspecialchars($evaluation['ame_form_link']) ?>" target="_blank" style="background: white; color: #475569; border: 1px solid #cbd5e1; padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 22 3 22 10"/><line x1="14" y1="10" x2="22" y2="2"/></svg>
+                                        View Form
+                                    </a>
+                                <?php endif; ?>
+                                <div style="background: #f8fafc; padding: 10px 18px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: center;">
+                                    <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Status</div>
+                                    <div style="font-size: 0.85rem; font-weight: 700; color: #10b981;"><?= $evaluation['evaluation_status'] ?></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem;">
+                            <div style="background: white; padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+                                <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Overall Rating</div>
+                                <div style="display: flex; align-items: baseline; gap: 4px;">
+                                    <span style="font-size: 3rem; font-weight: 900; color: #2563eb; line-height: 1;"><?= $evaluation['overall_average'] ?: '0%' ?></span>
+                                    <span style="font-size: 1.2rem; color: #475569; font-weight: 600;">Score</span>
+                                </div>
+                                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05; color: #2563eb;">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                </div>
+                            </div>
+                                                        <div style="background: white; padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Respondents</div>
+                                <div style="font-size: 3rem; font-weight: 900; color: #0f172a; line-height: 1;"><?= $evaluation['number_of_respondents'] ?: 0 ?></div>
+                                <div style="font-size: 0.85rem; color: #475569; margin-top: 5px; font-weight: 600;">Evaluations Collected</div>
+                            </div>
+                            <div style="background: white; padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                <div style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Response Rate</div>
+                                <div style="font-size: 3rem; font-weight: 900; color: #0f172a; line-height: 1;"><?= number_format($evaluation['response_rate'] ?: 0, 1) ?><span style="font-size: 1.5rem; margin-left: 2px;">%</span></div>
+                                <div style="height: 6px; background: #f1f5f9; border-radius: 3px; margin-top: 15px; overflow: hidden;">
+                                    <div style="width: <?= $evaluation['response_rate'] ?: 0 ?>%; height: 100%; background: #10b981;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <?php
+                            $metrics = [
+                                ['label' => 'Overall Service Rating', 'val' => 'osr', 'wa' => 'osr_wa', 'icon' => 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+                                ['label' => 'Presenter/Organizer', 'val' => 'peor', 'wa' => 'peor_wa', 'icon' => 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'],
+                                ['label' => 'Program & Methodology', 'val' => 'pam', 'wa' => 'pam_wa', 'icon' => 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
+                                ['label' => 'Management & Logistics', 'val' => 'pamlss', 'wa' => 'pamlss_wa', 'icon' => 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'],
+                                ['label' => 'Overall Experience', 'val' => 'oe', 'wa' => 'oe_wa', 'icon' => 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z']
+                            ];
+                            foreach($metrics as $m):
+                            ?>
+                                                                <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);" onmouseover="this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.1)'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.boxShadow='0 1px 3px 0 rgba(0,0,0,0.1)'; this.style.borderColor='#e2e8f0'">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #2563eb;">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="<?= $m['icon'] ?>"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 1.05rem; color: #0f172a; font-weight: 700;"><?= $m['label'] ?></div>
+                                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px; line-height: 1.4;"><?= $evaluation[$m['val']] ?: 'No data yet' ?></div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 1.5rem; font-weight: 900; color: #10b981;"><?= $evaluation[$m['wa']] ?: '0%' ?></div>
+                                        <div style="font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Weighted Avg</div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Demographics Section -->
+                        <?php if ($other_stats): ?>
+                            <div style="margin-top: 3rem;">
+                                <h3 style="font-size: 1rem; color: #475569; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                    Demographic Distribution
+                                </h3>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                                    <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
+                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Gender</div>
+                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($other_stats['gender_distribution'] ?: 'Not recorded') ?></div>
+                                    </div>
+                                    <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
+                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Age Group</div>
+                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($other_stats['age_distribution'] ?: 'Not recorded') ?></div>
+                                    </div>
+                                    <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
+                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Unit / Department</div>
+                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($other_stats['unit_distribution'] ?: 'Not recorded') ?></div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Facilitator Ratings Section -->
+                        <?php if (!empty($speaker_ratings) || !empty($organizer_ratings)): ?>
+                            <div style="margin-top: 3rem;">
+                                <h3 style="font-size: 1rem; color: #475569; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                                    Facilitator Excellence Ratings
+                                </h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                                    <?php 
+                                    $all_ratings = [];
+                                    foreach($speaker_ratings as $s) { $s['role_label'] = 'Speaker'; $s['role_code'] = 'SP'; $all_ratings[] = $s; }
+                                    foreach($organizer_ratings as $o) { $o['role_label'] = 'Organizer'; $o['role_code'] = 'OG'; $all_ratings[] = $o; }
+                                    
+                                    foreach($all_ratings as $r): 
+                                        $avg = ($r['eff'] + $r['mot'] + $r['atf']) / 3;
+                                    ?>
+                                        <div style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
+                                                <div style="display: flex; align-items: center; gap: 10px;">
+                                                    <div style="width: 36px; height: 36px; border-radius: 50%; background: <?= $r['role_code'] === 'SP' ? '#fbbf24' : '#3b82f6' ?>; color: #0f172a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;"><?= $r['role_code'] ?></div>
+                                                    <div>
+                                                        <div style="font-size: 0.95rem; color: #0f172a; font-weight: 700;"><?= htmlspecialchars($r['name']) ?></div>
+                                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;"><?= $r['role_label'] ?></div>
+                                                    </div>
+                                                </div>
+                                                <div style="text-align: right;">
+                                                    <div style="font-size: 1.4rem; font-weight: 800; color: #10b981;"><?= number_format($avg, 2) ?></div>
+                                                    <div style="font-size: 0.6rem; color: #475569; font-weight: 800; text-transform: uppercase;">Average</div>
+                                                </div>
+                                            </div>
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; text-align: center;">
+                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Effectiveness</div>
+                                                    <div style="font-size: 0.85rem; color: #0f172a; font-weight: 700;"><?= number_format($r['eff'], 2) ?></div>
+                                                </div>
+                                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; text-align: center;">
+                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mastery</div>
+                                                    <div style="font-size: 0.85rem; color: #0f172a; font-weight: 700;"><?= number_format($r['mot'], 2) ?></div>
+                                                </div>
+                                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; text-align: center;">
+                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Facilitation</div>
+                                                    <div style="font-size: 0.85rem; color: #0f172a; font-weight: 700;"><?= number_format($r['atf'], 2) ?></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                </div>
             <?php endif; ?>
         </section>
     </div>
@@ -1249,4 +1537,153 @@ $global_rating_groups = build_rating_groups($rating_columns, $responses, $facili
             selectResponder(firstVisible);
         }
     }
+
+
+                function toggleInterpretDropdown(e) {
+                    e.stopPropagation();
+                    const dropdown = document.getElementById('interpretDropdown');
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                }
+
+                document.addEventListener('click', function() {
+                    const dropdown = document.getElementById('interpretDropdown');
+                    if (dropdown) dropdown.style.display = 'none';
+                });
+
+                async function runAIInterpretation() {
+                    if (!confirm('Run AI Analysis? This will overwrite current complaints and suggestions.')) return;
+                    
+                    const btn = event.currentTarget;
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = `<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Analyzing...`;
+
+                    try {
+                        const res = await fetch(`../api/analyze_feedback.php?id=<?= $activity_id ?>`);
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            document.getElementById('complaints-display').innerHTML = data.complaints.replace(/\n/g, '<br>');
+                            document.getElementById('suggestions-display').innerHTML = data.suggestions.replace(/\n/g, '<br>');
+                            document.getElementById('manualComplaints').value = data.complaints;
+                            document.getElementById('manualSuggestions').value = data.suggestions;
+                            alert('AI Analysis Complete!');
+                        } else {
+                            alert('AI Analysis Failed: ' + data.error);
+                        }
+                    } catch (e) {
+                        alert('Network error during AI analysis.');
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+
+                async function openManualInterpret() {
+                    document.getElementById('manualInterpretModal').style.display = 'flex';
+                    const tableBody = document.getElementById('rawResponsesTableBody');
+                    tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">Loading responses...</td></tr>';
+
+                    try {
+                        const res = await fetch(`../api/get_raw_responses.php?id=<?= $activity_id ?>`);
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            if (data.responses.length === 0) {
+                                tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">No responses found.</td></tr>';
+                            } else {
+                                tableBody.innerHTML = data.responses.map(r => `
+                                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5; border-right: 1px solid #f1f5f9;">${r.best_topics || '<span style="color: #cbd5e1;">N/A</span>'}</td>
+                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5;">${r.improvements || '<span style="color: #cbd5e1;">N/A</span>'}</td>
+                                    </tr>
+                                `).join('');
+                            }
+                        } else {
+                            tableBody.innerHTML = `<tr><td colspan="2" style="color: #ef4444; text-align: center; padding: 3rem;">Error: ${data.error}</td></tr>`;
+                        }
+                    } catch (e) {
+                        tableBody.innerHTML = '<tr><td colspan="2" style="color: #ef4444; text-align: center; padding: 3rem;">Failed to load responses.</td></tr>';
+                    }
+                }
+
+                function closeManualInterpret() {
+                    document.getElementById('manualInterpretModal').style.display = 'none';
+                }
+
+                async function saveManualInterpretation() {
+                    const btn = event.currentTarget;
+                    const complaints = document.getElementById('manualComplaints').value;
+                    const suggestions = document.getElementById('manualSuggestions').value;
+
+                    btn.disabled = true;
+                    btn.textContent = 'Saving...';
+
+                    try {
+                        const fd = new FormData();
+                        fd.append('activity_id', '<?= $activity_id ?>');
+                        fd.append('complaints', complaints);
+                        fd.append('suggestions', suggestions);
+
+                        const res = await fetch('../api/save_manual_interpretation.php', {
+                            method: 'POST',
+                            body: fd
+                        });
+                        const data = await res.json();
+
+                        if (data.success) {
+                            document.getElementById('complaints-display').innerHTML = complaints.replace(/\n/g, '<br>');
+                            document.getElementById('suggestions-display').innerHTML = suggestions.replace(/\n/g, '<br>');
+                            closeManualInterpret();
+                            alert('Interpretation saved successfully!');
+                        } else {
+                            alert('Failed to save: ' + data.error);
+                        }
+                    } catch (e) {
+                        alert('Network error saving interpretation.');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Save Interpretation';
+                    }
+                }
+
+                // Lazy Background Sync
+                setTimeout(async () => {
+                    const activityId = <?= (int)$activity_id ?>;
+                    const lastSyncKey = 'last_sync_' + activityId;
+                    const lastSync = localStorage.getItem(lastSyncKey);
+                    const now = Date.now();
+                    
+                    // Only sync once every 2 minutes (120000 ms)
+                    if (!lastSync || (now - parseInt(lastSync)) > 120000) {
+                        try {
+                            const response = await fetch(`../api/sync_google_responses.php?id=${activityId}`);
+                            const data = await response.json();
+                            
+                            if (data.success && data.count > 0) {
+                                const toast = document.createElement('div');
+                                toast.style.position = 'fixed';
+                                toast.style.bottom = '20px';
+                                toast.style.right = '20px';
+                                toast.style.background = '#10b981';
+                                toast.style.color = 'white';
+                                toast.style.padding = '12px 24px';
+                                toast.style.borderRadius = '8px';
+                                toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                                toast.style.zIndex = '9999';
+                                toast.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+                                toast.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    <span><strong>${data.count} new responses found!</strong> Updating dashboard...</span>
+                                </div>`;
+                                document.body.appendChild(toast);
+                                
+                                setTimeout(() => { location.reload(); }, 2000);
+                            }
+                            localStorage.setItem(lastSyncKey, now);
+                        } catch (e) {
+                            console.error('Background sync failed:', e);
+                        }
+                    }
+                }, 1000);
 </script>

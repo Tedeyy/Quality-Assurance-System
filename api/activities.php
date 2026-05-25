@@ -342,13 +342,13 @@ if ($action === 'delete' && isset($_GET['id'])) {
     try {
         $db->beginTransaction();
 
-        // 1. Find evaluation_id
-        $stmt = $db->prepare("SELECT evaluation_id FROM activity_evaluation WHERE activity_id = :id");
+        // 1. Find evaluation_id and activity_code
+        $stmt = $db->prepare("SELECT e.evaluation_id, a.activity_code FROM activities a LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id WHERE a.activity_id = :id");
         $stmt->execute([':id' => $id]);
-        $eval = $stmt->fetch(PDO::FETCH_ASSOC);
+        $activityData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($eval) {
-            $eid = $eval['evaluation_id'];
+        if ($activityData && !empty($activityData['evaluation_id'])) {
+            $eid = $activityData['evaluation_id'];
             
             // Delete related stats and ratings
             $db->prepare("DELETE FROM activity_speaker_rating WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
@@ -357,6 +357,93 @@ if ($action === 'delete' && isset($_GET['id'])) {
             $db->prepare("DELETE FROM activity_statistics_others WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
             $db->prepare("DELETE FROM activity_evaluation WHERE evaluation_id = :eid")->execute([':eid' => $eid]);
         }
+
+        // --- GOOGLE INTEGRATION DELETION ---
+        $activityCode = $activityData ? $activityData['activity_code'] : null;
+        
+        if ($activityCode && isset($_SESSION['user_id'])) {
+            $stmtToken = $db->prepare("SELECT google_access_token, google_refresh_token FROM users WHERE user_id = :uid");
+            $stmtToken->execute(['uid' => $_SESSION['user_id']]);
+            $user = $stmtToken->fetch(PDO::FETCH_ASSOC);
+
+            if ($user && !empty($user['google_access_token'])) {
+                require_once __DIR__ . '/../config/env.php';
+                require_once __DIR__ . '/../vendor/autoload.php';
+
+                try {
+                    $client = new Google\Client();
+                    $client->setClientId($_ENV['GOOGLE_CLIENT_ID']);
+                    $client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET']);
+                    $client->setAccessToken($user['google_access_token']);
+
+                    if ($client->isAccessTokenExpired() && $user['google_refresh_token']) {
+                        $newToken = $client->fetchAccessTokenWithRefreshToken($user['google_refresh_token']);
+                        if ($newToken) {
+                            $client->setAccessToken($newToken);
+                            $stmtUpd = $db->prepare("UPDATE users SET google_access_token = :token WHERE user_id = :uid");
+                            $stmtUpd->execute(['token' => json_encode($client->getAccessToken()), 'uid' => $_SESSION['user_id']]);
+                        }
+                    }
+
+                    $driveService = new Google\Service\Drive($client);
+                    $sheetsService = new Google\Service\Sheets($client);
+
+                    // Delete the specific activity folder in Google Drive (removes the form and sheet inside it)
+                    $query = "name = '" . str_replace("'", "\'", $activityCode) . "' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+                    $search = $driveService->files->listFiles(['q' => $query]);
+                    if (count($search->getFiles()) > 0) {
+                        $folderId = $search->getFiles()[0]->getId();
+                        $driveService->files->delete($folderId);
+                    }
+
+                    // Delete from Index Sheet
+                    $indexSheetUrl = $_ENV['RESPONSES_GOOGLE_SHEET'] ?? '';
+                    $indexSheetId = $indexSheetUrl;
+                    if (preg_match('/spreadsheets\/d\/([a-zA-Z0-9_-]+)/', $indexSheetUrl, $matches)) {
+                        $indexSheetId = $matches[1];
+                    }
+
+                    if ($indexSheetId) {
+                        $response = $sheetsService->spreadsheets_values->get($indexSheetId, 'A:A');
+                        $values = $response->getValues();
+                        $rowIndexToDelete = -1;
+
+                        if ($values) {
+                            foreach ($values as $index => $row) {
+                                if (isset($row[0]) && $row[0] === $activityCode) {
+                                    $rowIndexToDelete = $index;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($rowIndexToDelete !== -1) {
+                            $spreadsheet = $sheetsService->spreadsheets->get($indexSheetId);
+                            $sheetId = $spreadsheet->getSheets()[0]->getProperties()->getSheetId();
+
+                            $deleteRequest = new Google\Service\Sheets\Request([
+                                'deleteDimension' => [
+                                    'range' => [
+                                        'sheetId' => $sheetId,
+                                        'dimension' => 'ROWS',
+                                        'startIndex' => $rowIndexToDelete,
+                                        'endIndex' => $rowIndexToDelete + 1
+                                    ]
+                                ]
+                            ]);
+
+                            $batchUpdateRequest = new Google\Service\Sheets\BatchUpdateSpreadsheetRequest([
+                                'requests' => [$deleteRequest]
+                            ]);
+                            $sheetsService->spreadsheets->batchUpdate($indexSheetId, $batchUpdateRequest);
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("Failed to delete Google Drive resources for $activityCode: " . $e->getMessage());
+                }
+            }
+        }
+        // --- END GOOGLE INTEGRATION DELETION ---
 
         // 2. Delete junction rows
         $db->prepare("DELETE FROM activity_facilitators WHERE activity_id = :id")->execute([':id' => $id]);

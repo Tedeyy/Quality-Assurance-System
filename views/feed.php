@@ -63,13 +63,13 @@ if (isset($_SESSION['user_id'])) {
     } elseif ($action === 'accmapping') {
         $content_file = __DIR__ . '/content/accreditation/accmapping.php';
     } elseif ($action === 'activity') {
-        $content_file = __DIR__ . '/content/ame/ame.php';
+        $content_file = __DIR__ . '/content/ame/activityevaluation.php';
     } elseif ($action === 'actmasterlist') {
         $content_file = __DIR__ . '/content/ame/actmasterlist.php';
     } elseif ($action === 'view_activity') {
         $content_file = __DIR__ . '/content/ame/activitypane.php';
-    } elseif ($action === 'respondents') {
-        $content_file = __DIR__ . '/content/ame/respondents.php';
+    } elseif ($action === 'evaluations' || $action === 'respondents') {
+        $content_file = __DIR__ . '/content/ame/evaluations.php';
     } elseif ($action === 'document') {
         $content_file = __DIR__ . '/content/document/doctracker.php';
     } elseif ($action === 'docmasterlist') {

@@ -192,7 +192,7 @@
                 <h2>Policy Statement</h2>
                 <p>
                     The Quality Assurance System supports institutional quality management by helping authorized users
-                    manage accreditation records, activity monitoring and evaluation, document tracking, and stakeholder
+                    manage accreditation records, activity evaluation, document tracking, and stakeholder
                     feedback. The system is intended to promote accuracy, accountability, transparency, and continuous
                     improvement in quality assurance processes.
                 </p>

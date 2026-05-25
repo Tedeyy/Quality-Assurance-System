@@ -14,7 +14,7 @@ $news_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Northern Bukidnon State College Quality Assurance Office portal for accreditation, activity monitoring, documents, and stakeholder feedback.">
+        content="Northern Bukidnon State College Quality Assurance Office portal for accreditation, activity evaluation, documents, and stakeholder feedback.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/index.css?v=1.0.1">
     <link rel="icon" type="image/png" href="assets/img/QAO_logo.png">

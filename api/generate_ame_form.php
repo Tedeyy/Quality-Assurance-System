@@ -71,40 +71,77 @@ if ($client->isAccessTokenExpired() && $user['google_refresh_token']) {
 $driveService = new Google\Service\Drive($client);
 $sheetsService = new Google\Service\Sheets($client);
 
-// 3. Ensure Target Folder Access
-$targetFolderId = "1yNI_uaSeM815nd7cW_b6rytc0IYdTR2x";
+// 3. Drive Folder Organization
+$rootFolderUrl = $_ENV['GOOGLE_FORM_FILEPATH'] ?? '';
+preg_match('/folders\/([a-zA-Z0-9_-]+)/', $rootFolderUrl, $matches);
+$rootFolderId = $matches[1] ?? '1yNI_uaSeM815nd7cW_b6rytc0IYdTR2x';
 
-// 4. Google Sheet Integration (Keep this for data backup/reporting)
-$monthName = date('F', strtotime($data['eventdate']));
-$sheetTitle = "Form Responses " . $monthName;
+$eventDate = $data['eventdate'] ? strtotime($data['eventdate']) : time();
+$monthYear = date('F Y', $eventDate);
+$activityCode = $data['activity_code'];
+$activityTitle = $data['title'];
+$eventDateStr = $data['eventdate'] ? date('Y-m-d', $eventDate) : '';
 
-try {
-    $query = "name = '" . $sheetTitle . "' and mimeType = 'application/vnd.google-apps.spreadsheet' and '" . $targetFolderId . "' in parents and trashed = false";
+function getOrCreateDriveFolder($driveService, $folderName, $parentFolderId) {
+    $query = "name = '" . str_replace("'", "\'", $folderName) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parentFolderId . "' in parents and trashed = false";
     $search = $driveService->files->listFiles(['q' => $query]);
-    
-    $spreadsheetId = null;
     if (count($search->getFiles()) > 0) {
-        $spreadsheetId = $search->getFiles()[0]->getId();
+        return $search->getFiles()[0]->getId();
     } else {
-        $spreadsheet = new Google\Service\Sheets\Spreadsheet(['properties' => ['title' => $sheetTitle]]);
-        $ss = $sheetsService->spreadsheets->create($spreadsheet);
-        $spreadsheetId = $ss->getSpreadsheetId();
-        
-        $driveService->files->update($spreadsheetId, new Google\Service\Drive\DriveFile(), [
-            'addParents' => $targetFolderId,
-            'removeParents' => 'root',
-            'fields' => 'id, parents'
+        $folderMetadata = new Google\Service\Drive\DriveFile([
+            'name' => $folderName,
+            'mimeType' => 'application/vnd.google-apps.folder',
+            'parents' => [$parentFolderId]
         ]);
+        $folder = $driveService->files->create($folderMetadata, ['fields' => 'id']);
+        return $folder->getId();
     }
-} catch (Exception $e) {
-    // If sheet creation fails, we still proceed with local form
 }
 
-// 5. Update Database and Initialize Records
-$activity_code = $data['activity_code'];
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-$host = $_SERVER['HTTP_HOST'];
-$localUri = $protocol . "://" . $host . "/Quality-Assurance-System/evaluation.php?code=" . $activity_code;
+$monthYearFolderId = getOrCreateDriveFolder($driveService, $monthYear, $rootFolderId);
+$activityFolderId = getOrCreateDriveFolder($driveService, $activityCode, $monthYearFolderId);
+
+// 4. Form & Sheet Creation
+$formsService = new Google\Service\Forms($client);
+$formTitle = "AME Evaluation: " . $activityTitle;
+$form = new Google\Service\Forms\Form();
+$form->setInfo(new Google\Service\Forms\Info([
+    'title' => $formTitle,
+    'documentTitle' => $formTitle
+]));
+
+$createdForm = $formsService->forms->create($form);
+$formId = $createdForm->getFormId();
+$formEditLink = "https://docs.google.com/forms/d/" . $formId . "/edit";
+$formResponseLink = "https://docs.google.com/forms/d/" . $formId . "/edit#responses";
+$responderUri = $createdForm->getResponderUri();
+
+$emptyFile = new Google\Service\Drive\DriveFile();
+$driveService->files->update($formId, $emptyFile, [
+    'addParents' => $activityFolderId,
+    'removeParents' => 'root',
+    'fields' => 'id, parents'
+]);
+
+$sheetUrl = "";
+
+// 5. Index Sheet Integration
+$indexSheetUrl = $_ENV['RESPONSES_GOOGLE_SHEET'] ?? '';
+$indexSheetId = $indexSheetUrl;
+if (preg_match('/spreadsheets\/d\/([a-zA-Z0-9_-]+)/', $indexSheetUrl, $matches)) {
+    $indexSheetId = $matches[1];
+} elseif (preg_match('/folders\/([a-zA-Z0-9_-]+)/', $indexSheetUrl, $matches)) {
+    $indexSheetId = $indexSheetUrl;
+}
+
+try {
+    $generationDate = date('Y-m-d H:i:s');
+    $folderUrl = "https://drive.google.com/drive/folders/" . $activityFolderId;
+    $values = [[$activityCode, $activityTitle, $eventDateStr, $generationDate, $responderUri, $folderUrl, $sheetUrl]];
+    $body = new Google\Service\Sheets\ValueRange(['values' => $values]);
+    $params = ['valueInputOption' => 'USER_ENTERED'];
+    $sheetsService->spreadsheets_values->append($indexSheetId, "A:G", $body, $params);
+} catch (Exception $e) {}
 
 // ── Fetch facilitators from junction table ───────────────────────────────────
 $fac_stmt = $db->prepare(
@@ -119,7 +156,6 @@ $fac_stmt = $db->prepare(
 $fac_stmt->execute(['id' => $activity_id]);
 $facilitators_list = $fac_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fallback: parse legacy comma strings if junction table empty
 if (empty($facilitators_list)) {
     if (!empty($data['speaker'])) {
         foreach (explode(',', $data['speaker']) as $n) {
@@ -132,8 +168,153 @@ if (empty($facilitators_list)) {
         }
     }
 }
-
 $facilitatorsCount = count($facilitators_list);
+
+// 6. Build Form Structure (Batch Update)
+$requests = [];
+$index = 0;
+
+function createTextQuestion($title, &$index, $paragraph = false) {
+    return new \Google\Service\Forms\Request([
+        'createItem' => [
+            'item' => [
+                'title' => $title,
+                'questionItem' => [
+                    'question' => [
+                        'required' => true,
+                        'textQuestion' => [
+                            'paragraph' => $paragraph
+                        ]
+                    ]
+                ]
+            ],
+            'location' => ['index' => $index++]
+        ]
+    ]);
+}
+
+function createChoiceQuestion($title, $options, &$index) {
+    $choices = [];
+    foreach($options as $opt) {
+        $choices[] = ['value' => $opt];
+    }
+    return new \Google\Service\Forms\Request([
+        'createItem' => [
+            'item' => [
+                'title' => $title,
+                'questionItem' => [
+                    'question' => [
+                        'required' => true,
+                        'choiceQuestion' => [
+                            'type' => 'RADIO',
+                            'options' => $choices
+                        ]
+                    ]
+                ]
+            ],
+            'location' => ['index' => $index++]
+        ]
+    ]);
+}
+
+function createScaleQuestion($title, $low, $high, $lowLabel, $highLabel, &$index) {
+    return new \Google\Service\Forms\Request([
+        'createItem' => [
+            'item' => [
+                'title' => $title,
+                'questionItem' => [
+                    'question' => [
+                        'required' => true,
+                        'scaleQuestion' => [
+                            'low' => $low,
+                            'high' => $high,
+                            'lowLabel' => $lowLabel,
+                            'highLabel' => $highLabel
+                        ]
+                    ]
+                ]
+            ],
+            'location' => ['index' => $index++]
+        ]
+    ]);
+}
+
+function createGridQuestion($title, $rows, $columns, &$index) {
+    $r = [];
+    foreach($rows as $row) {
+        $r[] = ['rowQuestion' => ['title' => $row]];
+    }
+    $c = [];
+    foreach($columns as $col) {
+        $c[] = ['value' => (string)$col];
+    }
+    return new \Google\Service\Forms\Request([
+        'createItem' => [
+            'item' => [
+                'title' => $title,
+                'questionGroupItem' => [
+                    'questions' => $r,
+                    'grid' => [
+                        'columns' => [
+                             'type' => 'RADIO',
+                             'options' => $c
+                        ]
+                    ]
+                ]
+            ],
+            'location' => ['index' => $index++]
+        ]
+    ]);
+}
+
+// Section 1: Profile
+$requests[] = createTextQuestion("Email Address", $index);
+$requests[] = createTextQuestion("Full Name (Last Name, First Name, Middle Initial)", $index);
+$requests[] = createTextQuestion("Age", $index);
+$requests[] = createTextQuestion("Contact Number", $index);
+$requests[] = createTextQuestion("Unit / Office / Division", $index);
+$requests[] = createChoiceQuestion("Gender", ["Male", "Female", "Others"], $index);
+
+// Section 2: Quality Assessment
+$requests[] = createScaleQuestion("I. Overall Service Rating (General success of the totality of the activity execution)", 1, 5, "Poor", "Excellent", $index);
+
+// Section 3: Speakers
+foreach ($facilitators_list as $fac) {
+    $requests[] = createGridQuestion(
+        "II. Performance: " . $fac['name'] . " (" . ucfirst($fac['role']) . ")",
+        ["Expertise and Delivery", "Mastery of Topic", "Interaction & Engagement", "General Impact"],
+        ["1", "2", "3", "4", "5"],
+        $index
+    );
+}
+
+// Section 4: Program & Methodology
+$requests[] = createGridQuestion(
+    "III. Evaluation Results",
+    ["Program Flow", "Program Contents", "Relevance to Objective", "Future Applicability"],
+    ["1", "2", "3", "4", "5"],
+    $index
+);
+
+// Section 5: Management & Logistics
+$requests[] = createGridQuestion(
+    "IV. Logistics",
+    ["Secretariat Service", "Logistics/Venue", "Timing/Scheduling"],
+    ["1", "2", "3", "4", "5"],
+    $index
+);
+
+// Section 6: Feedback
+$requests[] = createTextQuestion("Which of the topics did you like BEST? Why?", $index, true);
+$requests[] = createTextQuestion("Which parts could be improved? (Least Liked)", $index, true);
+$requests[] = createScaleQuestion("Overall Experience", 1, 5, "Poor", "Excellent", $index);
+
+try {
+    $batchRequest = new \Google\Service\Forms\BatchUpdateFormRequest(['requests' => $requests]);
+    $formsService->forms->batchUpdate($formId, $batchRequest);
+} catch (Exception $e) {
+    // Ignore batch update errors, form is created anyway
+}
 
 // Helper to add working days
 function addWorkingDays($startDate, $days) {
@@ -147,43 +328,6 @@ function addWorkingDays($startDate, $days) {
     return $date->format('Y-m-d');
 }
 
-$rdb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-$table_name = "activity_" . $activity_id;
-$quoted_table = "`" . str_replace("`", "``", $table_name) . "`";
-
-try {
-    $rdb->exec("DROP TABLE IF EXISTS $quoted_table");
-    $createTable = "CREATE TABLE $quoted_table (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        email VARCHAR(255) UNIQUE,
-        fullname VARCHAR(255),
-        age VARCHAR(50),
-        gender VARCHAR(50),
-        contact VARCHAR(100),
-        unit VARCHAR(255),
-        osr INT,
-    ";
-
-    for ($i = 0; $i < $facilitatorsCount; $i++) {
-        $createTable .= "fac_{$i}_eff INT, fac_{$i}_mot INT, fac_{$i}_atf INT, ";
-    }
-
-    for ($i = 0; $i < 4; $i++) $createTable .= "prog_$i INT, ";
-    for ($i = 0; $i < 3; $i++) $createTable .= "log_$i INT, ";
-
-    $createTable .= "
-        best_topics TEXT,
-        improvements TEXT,
-        oe INT,
-        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )";
-    $rdb->exec($createTable);
-} catch (PDOException $e) {
-    $_SESSION['error'] = "Table Creation Failed: " . $e->getMessage();
-    header("Location: ../views/feed.php?action=view_activity&id=" . $activity_id);
-    exit;
-}
-
 $date_released = date('Y-m-d');
 $deadline = addWorkingDays($date_released, 20);
 
@@ -193,15 +337,15 @@ $eval = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($eval) {
     $evaluation_id = $eval['evaluation_id'];
-    $update = $db->prepare("UPDATE activity_evaluation SET ame_form_link = :link, published_options = 'Open', date_released = :dr, deadline = :dl WHERE evaluation_id = :eid");
-    $update->execute(['link' => $localUri, 'eid' => $evaluation_id, 'dr' => $date_released, 'dl' => $deadline]);
+    $update = $db->prepare("UPDATE activity_evaluation SET ame_form_link = :link, ame_form_id = :fid, published_options = 'Open', date_released = :dr, deadline = :dl WHERE evaluation_id = :eid");
+    $update->execute(['link' => $responderUri, 'fid' => $formId, 'eid' => $evaluation_id, 'dr' => $date_released, 'dl' => $deadline]);
 } else {
-    $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, evaluation_status, published_options, date_released, deadline) VALUES (:aid, :link, 'Pending', 'Open', :dr, :dl)");
-    $insert->execute(['aid' => $activity_id, 'link' => $localUri, 'dr' => $date_released, 'dl' => $deadline]);
+    $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, ame_form_id, evaluation_status, published_options, date_released, deadline) VALUES (:aid, :link, :fid, 'Pending', 'Open', :dr, :dl)");
+    $insert->execute(['aid' => $activity_id, 'link' => $responderUri, 'fid' => $formId, 'dr' => $date_released, 'dl' => $deadline]);
     $evaluation_id = $db->lastInsertId();
 }
 
-// 6. Initialize stats and ratings
+// 7. Initialize stats and ratings
 $stmt = $db->prepare("SELECT statistics_id FROM activity_statistics WHERE evaluation_id = :eid");
 $stmt->execute(['eid' => $evaluation_id]);
 if (!$stmt->fetch()) {
@@ -251,6 +395,6 @@ foreach ($facilitators_list as $fac) {
     }
 }
 
-$_SESSION['success'] = "Custom Evaluation activated successfully!";
+$_SESSION['success'] = "Custom Evaluation activated successfully via Google Forms!";
 header("Location: ../views/feed.php?action=view_activity&id=" . $activity_id);
 exit;

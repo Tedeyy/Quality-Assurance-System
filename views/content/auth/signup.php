@@ -14,7 +14,7 @@
                 <span class="signup-kicker">Northern Bukidnon State College</span>
                 <h1>Start with a secure QA account.</h1>
                 <p>
-                    Create your account to access accreditation tracking, activity monitoring, document control, and
+                    Create your account to access accreditation tracking, activity evaluation, document control, and
                     quality assurance updates in one institutional workspace.
                 </p>
             </div>

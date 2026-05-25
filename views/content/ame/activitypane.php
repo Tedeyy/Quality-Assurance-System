@@ -97,27 +97,8 @@ $eval_stmt = $db->prepare($eval_query);
 $eval_stmt->execute([':id' => $activity_id]);
 $evaluation = $eval_stmt->fetch(PDO::FETCH_ASSOC);
 
-$other_stats = null;
-$speaker_ratings = [];
-$organizer_ratings = [];
-
 if ($evaluation) {
-    $eval_id = $evaluation['evaluation_id'];
-    
-    // Other stats
-    $other_stmt = $db->prepare("SELECT * FROM activity_statistics_others WHERE evaluation_id = :id");
-    $other_stmt->execute([':id' => $eval_id]);
-    $other_stats = $other_stmt->fetch(PDO::FETCH_ASSOC);
-
-    // Speaker ratings
-    $speaker_stmt = $db->prepare("SELECT r.*, s.name FROM activity_speaker_rating r JOIN speakers s ON r.speaker_id = s.speaker_id WHERE r.evaluation_id = :id");
-    $speaker_stmt->execute([':id' => $eval_id]);
-    $speaker_ratings = $speaker_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Organizer ratings
-    $organizer_stmt = $db->prepare("SELECT r.*, o.name FROM activity_organizer_rating r JOIN organizers o ON r.organizer_id = o.organizer_id WHERE r.evaluation_id = :id");
-    $organizer_stmt->execute([':id' => $eval_id]);
-    $organizer_ratings = $organizer_stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Evaluation found
 }
 ?>
 
@@ -157,7 +138,7 @@ if ($evaluation) {
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase; color: #2563eb;">Activity Monitoring & Evaluation</div>
+                        <div style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase; color: #2563eb;">Activity Evaluation</div>
                         <div style="font-size: 0.7rem; color: #94a3b8;">Report Generated: <?= date('F d, Y') ?></div>
                     </div>
                 </div>
@@ -166,6 +147,7 @@ if ($evaluation) {
             <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem;">
             <!-- Main Content -->
             <div style="display: flex; flex-direction: column; gap: 2rem;">
+
                 <div style="background: white; padding: 2.5rem; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
                         <div>
@@ -304,29 +286,27 @@ if ($evaluation) {
                         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
                             <?php if ($evaluation && $evaluation['ame_form_link']): 
                                 $form_url = $evaluation['ame_form_link'];
-                                $edit_url = str_replace('/viewform', '/edit', $form_url);
+                                $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
                             ?>
                                 <div style="position: relative; display: inline-block;">
-                                    <button onclick="toggleAMEDropdown(event)" style="display: flex; align-items: center; gap: 10px; background: #eff6ff; color: #1e40af; padding: 12px 20px; border-radius: 10px; border: 1px solid #dbeafe; text-decoration: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                        AME Evaluation Form
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                    <button onclick="toggleAMEDropdown(event)" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #2563eb; color: white; padding: 12px 20px; border-radius: 12px; border: none; text-decoration: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);" onmouseover="this.style.background='#1e40af'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#2563eb'; this.style.transform='translateY(0)';">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                            Activity Evaluation Form
+                                        </div>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.8;"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
-                                    <div id="ameDropdown" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 200px; overflow: hidden;">
-                                        <a href="<?= $form_url ?>" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <div id="ameDropdown" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 100%; width: max-content; overflow: hidden; padding: 4px 0;">
+                                        <a href="<?= $form_url ?>" target="_blank" style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                            View Respondent Form
+                                            View Form (Live)
                                         </a>
-                                        <button onclick="copyToClipboard('<?= $form_url ?>')" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                            Copy Respondent Link
+                                        <button onclick="syncGoogleResponses(<?= $activity_id ?>)" style="width: 100%; box-sizing: border-box; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #16a34a; background: transparent; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='transparent'">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                                            Force Sync Responses
                                         </button>
-                                        <a href="feed.php?action=respondents&id=<?= (int)$activity_id ?>" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                                            Respondents
-                                        </a>
                                         <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
-                                        <button onclick="deleteAMEForm(<?= $activity_id ?>)" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #ef4444; background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+                                        <button onclick="deleteAMEForm(<?= $activity_id ?>)" style="width: 100%; box-sizing: border-box; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #ef4444; background: transparent; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                             Delete Form
                                         </button>
@@ -351,18 +331,7 @@ if ($evaluation) {
                             <?php if (!$activity['request_email_link'] && !$activity['email_link'] && (!$evaluation || !$evaluation['ame_form_link'])): ?>
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <span style="color: var(--text-secondary); font-size: 0.9rem;">No external links available for this activity.</span>
-                                    <?php if (!$evaluation || !$evaluation['ame_form_link']): ?>
-                                        <button onclick="generateAMEForm(this)" style="width: fit-content; display: flex; align-items: center; gap: 10px; background: white; color: var(--accent-blue); padding: 10px 18px; border-radius: 10px; border: 1px dashed var(--accent-blue); text-decoration: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                                            Generate AME Evaluation Form
-                                        </button>
-                                    <?php endif; ?>
                                 </div>
-                            <?php elseif (!$evaluation || !$evaluation['ame_form_link']): ?>
-                                <button onclick="generateAMEForm(this)" style="display: flex; align-items: center; gap: 10px; background: white; color: var(--accent-blue); padding: 12px 20px; border-radius: 10px; border: 1px dashed var(--accent-blue); text-decoration: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                                    Generate Form
-                                </button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -411,114 +380,6 @@ if ($evaluation) {
                     }
                 }
 
-                function toggleInterpretDropdown(e) {
-                    e.stopPropagation();
-                    const dropdown = document.getElementById('interpretDropdown');
-                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-                }
-
-                document.addEventListener('click', function() {
-                    const dropdown = document.getElementById('interpretDropdown');
-                    if (dropdown) dropdown.style.display = 'none';
-                });
-
-                async function runAIInterpretation() {
-                    if (!confirm('Run AI Analysis? This will overwrite current complaints and suggestions.')) return;
-                    
-                    const btn = event.currentTarget;
-                    const originalText = btn.innerHTML;
-                    btn.disabled = true;
-                    btn.innerHTML = `<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Analyzing...`;
-
-                    try {
-                        const res = await fetch(`../api/analyze_feedback.php?id=<?= $activity_id ?>`);
-                        const data = await res.json();
-                        
-                        if (data.success) {
-                            document.getElementById('complaints-display').innerHTML = data.complaints.replace(/\n/g, '<br>');
-                            document.getElementById('suggestions-display').innerHTML = data.suggestions.replace(/\n/g, '<br>');
-                            document.getElementById('manualComplaints').value = data.complaints;
-                            document.getElementById('manualSuggestions').value = data.suggestions;
-                            alert('AI Analysis Complete!');
-                        } else {
-                            alert('AI Analysis Failed: ' + data.error);
-                        }
-                    } catch (e) {
-                        alert('Network error during AI analysis.');
-                    } finally {
-                        btn.disabled = false;
-                        btn.innerHTML = originalText;
-                    }
-                }
-
-                async function openManualInterpret() {
-                    document.getElementById('manualInterpretModal').style.display = 'flex';
-                    const tableBody = document.getElementById('rawResponsesTableBody');
-                    tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">Loading responses...</td></tr>';
-
-                    try {
-                        const res = await fetch(`../api/get_raw_responses.php?id=<?= $activity_id ?>`);
-                        const data = await res.json();
-                        
-                        if (data.success) {
-                            if (data.responses.length === 0) {
-                                tableBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">No responses found.</td></tr>';
-                            } else {
-                                tableBody.innerHTML = data.responses.map(r => `
-                                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5; border-right: 1px solid #f1f5f9;">${r.best_topics || '<span style="color: #cbd5e1;">N/A</span>'}</td>
-                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5;">${r.improvements || '<span style="color: #cbd5e1;">N/A</span>'}</td>
-                                    </tr>
-                                `).join('');
-                            }
-                        } else {
-                            tableBody.innerHTML = `<tr><td colspan="2" style="color: #ef4444; text-align: center; padding: 3rem;">Error: ${data.error}</td></tr>`;
-                        }
-                    } catch (e) {
-                        tableBody.innerHTML = '<tr><td colspan="2" style="color: #ef4444; text-align: center; padding: 3rem;">Failed to load responses.</td></tr>';
-                    }
-                }
-
-                function closeManualInterpret() {
-                    document.getElementById('manualInterpretModal').style.display = 'none';
-                }
-
-                async function saveManualInterpretation() {
-                    const btn = event.currentTarget;
-                    const complaints = document.getElementById('manualComplaints').value;
-                    const suggestions = document.getElementById('manualSuggestions').value;
-
-                    btn.disabled = true;
-                    btn.textContent = 'Saving...';
-
-                    try {
-                        const fd = new FormData();
-                        fd.append('activity_id', '<?= $activity_id ?>');
-                        fd.append('complaints', complaints);
-                        fd.append('suggestions', suggestions);
-
-                        const res = await fetch('../api/save_manual_interpretation.php', {
-                            method: 'POST',
-                            body: fd
-                        });
-                        const data = await res.json();
-
-                        if (data.success) {
-                            document.getElementById('complaints-display').innerHTML = complaints.replace(/\n/g, '<br>');
-                            document.getElementById('suggestions-display').innerHTML = suggestions.replace(/\n/g, '<br>');
-                            closeManualInterpret();
-                            alert('Interpretation saved successfully!');
-                        } else {
-                            alert('Failed to save: ' + data.error);
-                        }
-                    } catch (e) {
-                        alert('Network error saving interpretation.');
-                    } finally {
-                        btn.disabled = false;
-                        btn.textContent = 'Save Interpretation';
-                    }
-                }
-
                 function toggleAMEDropdown(e) {
                     e.stopPropagation();
                     const dropdown = document.getElementById('ameDropdown');
@@ -535,6 +396,29 @@ if ($evaluation) {
                 function deleteAMEForm(id) {
                     if (confirm('Are you sure you want to delete this Google Form? This will remove it from Google Drive and reset the link in the database.')) {
                         window.location.href = '../api/delete_ame_form.php?id=' + id;
+                    }
+                }
+
+                async function syncGoogleResponses(id) {
+                    try {
+                        const btn = event.currentTarget;
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '<span style="display:inline-block; width:16px; height:16px; border:2px solid #16a34a; border-right-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></span> Syncing...';
+                        btn.disabled = true;
+
+                        const response = await fetch(`../api/sync_google_responses.php?id=${id}`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }
+                    } catch (err) {
+                        alert('Failed to sync responses.');
                     }
                 }
 
@@ -575,8 +459,8 @@ if ($evaluation) {
                 }
 
                 document.addEventListener('click', function() {
-                    const dropdown = document.getElementById('ameDropdown');
-                    if (dropdown) dropdown.style.display = 'none';
+                    const ameDropdown = document.getElementById('ameDropdown');
+                    if (ameDropdown) ameDropdown.style.display = 'none';
                 });
 
                 function generateAMEForm(btn) {
@@ -594,51 +478,7 @@ if ($evaluation) {
                         window.location.href = '../api/generate_ame_form.php?id=<?= $activity_id ?>';
                     }
                 }
-
-                async function toggleVisibility(evaluationId, activityId) {
-                    const btn    = document.getElementById('visibilityToggleBtn');
-                    const track  = document.getElementById('visToggleTrack');
-                    const thumb  = document.getElementById('visToggleThumb');
-                    const label  = document.getElementById('visToggleLabel');
-
-                    // Optimistic disable during request
-                    btn.disabled = true;
-                    btn.style.opacity = '0.6';
-
-                    try {
-                        const fd = new FormData();
-                        fd.append('activity_id', activityId);
-
-                        const res  = await fetch('../api/evaluation_settings.php?action=toggle_visibility', {
-                            method: 'POST', body: fd
-                        });
-                        const data = await res.json();
-
-                        if (data.success) {
-                            const isNowOpen = (data.published_options === 'Open');
-
-                            // Animate pill
-                            track.style.background = isNowOpen ? '#10b981' : '#334155';
-                            thumb.style.left        = isNowOpen ? '19px'   : '3px';
-
-                            // Update label
-                            label.textContent   = isNowOpen ? 'Open' : 'Closed';
-                            label.style.color   = isNowOpen ? '#10b981' : '#94a3b8';
-
-                            // Update button border
-                            btn.style.borderColor = isNowOpen ? '#10b981' : 'rgba(255,255,255,0.1)';
-                        } else {
-                            alert('Failed to update visibility: ' + (data.error || 'Unknown error'));
-                        }
-                    } catch (e) {
-                        alert('Network error. Please try again.');
-                    } finally {
-                        btn.disabled = false;
-                        btn.style.opacity = '1';
-                    }
-                }
                 </script>
-
                 <style>
                 @keyframes spin {
                     from { transform: rotate(0deg); }
@@ -672,283 +512,6 @@ if ($evaluation) {
                             </div>
                         </div>
                     </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3 style="font-size: 1.1rem; color: var(--text-primary); margin: 0;">Evaluation Interpretation</h3>
-                        <div class="action-dropdown" style="position: relative;">
-                            <button onclick="toggleInterpretDropdown(event)" style="display: flex; align-items: center; gap: 8px; background: white; color: var(--accent-blue); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--accent-blue); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3.5l-1 4.5 4.5-1z"/></svg>
-                                Interpret Results
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                            <div id="interpretDropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: white; border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; min-width: 180px; overflow: hidden;">
-                                <button onclick="runAIInterpretation()" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                                    AI Interpret
-                                </button>
-                                <button onclick="openManualInterpret()" style="width: 100%; border: none; text-align: left; display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--text-primary); background: white; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                    Manual Interpret
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
-                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
-                            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 6 0v-4"/><path d="M10 5h6a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z"/></svg>
-                                Complaints
-                            </h4>
-                            <div id="complaints-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
-                                <?= $evaluation['complaints'] ? nl2br(htmlspecialchars($evaluation['complaints'])) : '<i>No complaints reported.</i>' ?>
-                            </div>
-                        </div>
-                        <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
-                            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                                Suggestions for Improvement
-                            </h4>
-                            <div id="suggestions-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
-                                <?= $evaluation['suggestions_for_improvement'] ? nl2br(htmlspecialchars($evaluation['suggestions_for_improvement'])) : '<i>No suggestions provided.</i>' ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Manual Interpretation Modal -->
-                    <div id="manualInterpretModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
-                        <div style="background: white; width: 95%; max-width: 1200px; height: 85vh; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; animation: modalPop 0.3s ease;">
-                            <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
-                                <div>
-                                    <h2 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0;">Manual Interpretation</h2>
-                                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">Review raw responses and write your summary.</p>
-                                </div>
-                                <button onclick="closeManualInterpret()" style="background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                </button>
-                            </div>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 350px; flex: 1; overflow: hidden;">
-                                <!-- Raw Responses List -->
-                                <div style="padding: 24px; overflow-y: auto; background: #f8fafc; border-right: 1px solid #e2e8f0;">
-                                    <h3 style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Respondent Feedback</h3>
-                                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                                            <thead style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
-                                                <tr>
-                                                    <th style="padding: 12px 16px; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 800; width: 50%;">Liked Best</th>
-                                                    <th style="padding: 12px 16px; text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; font-weight: 800; width: 50%;">Least Liked / Improved</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="rawResponsesTableBody">
-                                                <!-- Dynamic rows -->
-                                                <tr>
-                                                    <td colspan="2" style="text-align: center; padding: 3rem; color: #94a3b8;">Loading responses...</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                
-                                <!-- Manual Input Form -->
-                                <div style="padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
-                                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Complaints</label>
-                                        <textarea id="manualComplaints" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize common complaints..."><?= htmlspecialchars($evaluation['complaints'] ?? '') ?></textarea>
-                                    </div>
-                                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Suggestions</label>
-                                        <textarea id="manualSuggestions" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize suggestions for improvement..."><?= htmlspecialchars($evaluation['suggestions_for_improvement'] ?? '') ?></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
-                                <button onclick="closeManualInterpret()" style="padding: 10px 20px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 700; cursor: pointer; transition: all 0.2s;">Cancel</button>
-                                <button onclick="saveManualInterpretation()" style="padding: 10px 24px; border-radius: 10px; border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s;">Save Interpretation</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Evaluation Statistics Card -->
-                    <div style="background: #0f172a; padding: 2.5rem; border-radius: 20px; color: white; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.05);">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem;">
-                            <div>
-                                <h2 style="font-size: 1.6rem; margin: 0; display: flex; align-items: center; gap: 12px; color: #f8fafc; font-weight: 800; letter-spacing: -0.5px;">
-                                    <div style="background: #fbbf24; padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-                                    </div>
-                                    Performance Analytics
-                                </h2>
-                                <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
-                                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
-                                    <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Live Evaluation Stats</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 12px;">
-                                <?php if ($evaluation['ame_form_link']): ?>
-                                    <a href="<?= htmlspecialchars($evaluation['ame_form_link']) ?>" target="_blank" style="background: rgba(255,255,255,0.05); color: #f8fafc; border: 1px solid rgba(255,255,255,0.1); padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; text-decoration: none; transition: all 0.2s;">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 22 3 22 10"/><line x1="14" y1="10" x2="22" y2="2"/></svg>
-                                        Form
-                                    </a>
-                                <?php endif; ?>
-                                <?php
-                                    $isOpen   = ($evaluation['published_options'] === 'Open');
-                                    $togBorder = $isOpen ? '#10b981' : 'rgba(255,255,255,0.1)';
-                                    $togLabel  = $isOpen ? 'Open' : 'Closed';
-                                    $togColor  = $isOpen ? '#10b981' : '#94a3b8';
-                                ?>
-                                <button
-                                    id="visibilityToggleBtn"
-                                    onclick="toggleVisibility(<?= $evaluation['evaluation_id'] ?>, <?= $activity_id ?>)"
-                                    title="Toggle form visibility"
-                                    style="background: rgba(255,255,255,0.03); padding: 10px 18px; border-radius: 10px; border: 1px solid <?= $togBorder ?>; display: flex; flex-direction: column; justify-content: center; cursor: pointer; transition: all 0.25s; gap: 6px; min-width: 110px;"
-                                    onmouseover="this.style.background='rgba(255,255,255,0.07)'"
-                                    onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                                    <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; text-align: left;">Visibility</div>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <!-- Pill switch -->
-                                        <div id="visToggleTrack" style="width: 36px; height: 20px; border-radius: 20px; background: <?= $isOpen ? '#10b981' : '#334155' ?>; position: relative; transition: background 0.25s; flex-shrink: 0;">
-                                            <div id="visToggleThumb" style="width: 14px; height: 14px; border-radius: 50%; background: white; position: absolute; top: 3px; left: <?= $isOpen ? '19px' : '3px' ?>; transition: left 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.3);"></div>
-                                        </div>
-                                        <span id="visToggleLabel" style="font-size: 0.85rem; font-weight: 700; color: <?= $togColor ?>;"><?= $togLabel ?></span>
-                                    </div>
-                                </button>
-                                <div style="background: rgba(255,255,255,0.03); padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; justify-content: center;">
-                                    <div style="font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Status</div>
-                                    <div style="font-size: 0.85rem; font-weight: 700; color: #10b981;"><?= $evaluation['evaluation_status'] ?></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem;">
-                            <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;">
-                                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Overall Rating</div>
-                                <div style="display: flex; align-items: baseline; gap: 4px;">
-                                    <span style="font-size: 3rem; font-weight: 900; color: #fbbf24; line-height: 1;"><?= $evaluation['overall_average'] ?: '0%' ?></span>
-                                    <span style="font-size: 1.2rem; color: #475569; font-weight: 600;">Score</span>
-                                </div>
-                                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05;">
-                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                                </div>
-                            </div>
-                            <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Respondents</div>
-                                <div style="font-size: 3rem; font-weight: 900; color: #f8fafc; line-height: 1;"><?= $evaluation['number_of_respondents'] ?: 0 ?></div>
-                                <div style="font-size: 0.85rem; color: #475569; margin-top: 5px; font-weight: 600;">Evaluations Collected</div>
-                            </div>
-                            <div style="background: rgba(255,255,255,0.03); padding: 2rem 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px;">Response Rate</div>
-                                <div style="font-size: 3rem; font-weight: 900; color: #f8fafc; line-height: 1;"><?= number_format($evaluation['response_rate'] ?: 0, 1) ?><span style="font-size: 1.5rem; margin-left: 2px;">%</span></div>
-                                <div style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 15px; overflow: hidden;">
-                                    <div style="width: <?= $evaluation['response_rate'] ?: 0 ?>%; height: 100%; background: #fbbf24;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <?php
-                            $metrics = [
-                                ['label' => 'Overall Service Rating', 'val' => 'osr', 'wa' => 'osr_wa', 'icon' => 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
-                                ['label' => 'Presenter/Organizer', 'val' => 'peor', 'wa' => 'peor_wa', 'icon' => 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'],
-                                ['label' => 'Program & Methodology', 'val' => 'pam', 'wa' => 'pam_wa', 'icon' => 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
-                                ['label' => 'Management & Logistics', 'val' => 'pamlss', 'wa' => 'pamlss_wa', 'icon' => 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'],
-                                ['label' => 'Overall Experience', 'val' => 'oe', 'wa' => 'oe_wa', 'icon' => 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z']
-                            ];
-                            foreach($metrics as $m):
-                            ?>
-                                <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.05)'">
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: #94a3b8;">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="<?= $m['icon'] ?>"/></svg>
-                                        </div>
-                                        <div>
-                                            <div style="font-size: 1rem; color: #f8fafc; font-weight: 700;"><?= $m['label'] ?></div>
-                                            <div style="font-size: 0.65rem; color: #64748b; margin-top: 4px; line-height: 1.4;"><?= $evaluation[$m['val']] ?: 'No data yet' ?></div>
-                                        </div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="font-size: 1.6rem; font-weight: 900; color: #fbbf24;"><?= $evaluation[$m['wa']] ?: '0%' ?></div>
-                                        <div style="font-size: 0.6rem; color: #475569; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Weighted Avg</div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <!-- Demographics Section -->
-                        <?php if ($other_stats): ?>
-                            <div style="margin-top: 3rem;">
-                                <h3 style="font-size: 1rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                                    Demographic Distribution
-                                </h3>
-                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
-                                    <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Gender</div>
-                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($other_stats['gender_distribution'] ?: 'Not recorded') ?></div>
-                                    </div>
-                                    <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Age Group</div>
-                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($other_stats['age_distribution'] ?: 'Not recorded') ?></div>
-                                    </div>
-                                    <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 8px;">Unit / Department</div>
-                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 600;"><?= htmlspecialchars($other_stats['unit_distribution'] ?: 'Not recorded') ?></div>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-
-                        <!-- Facilitator Ratings Section -->
-                        <?php if (!empty($speaker_ratings) || !empty($organizer_ratings)): ?>
-                            <div style="margin-top: 3rem;">
-                                <h3 style="font-size: 1rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-                                    Facilitator Excellence Ratings
-                                </h3>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                                    <?php 
-                                    $all_ratings = [];
-                                    foreach($speaker_ratings as $s) { $s['role_label'] = 'Speaker'; $s['role_code'] = 'SP'; $all_ratings[] = $s; }
-                                    foreach($organizer_ratings as $o) { $o['role_label'] = 'Organizer'; $o['role_code'] = 'OG'; $all_ratings[] = $o; }
-                                    
-                                    foreach($all_ratings as $r): 
-                                        $avg = ($r['eff'] + $r['mot'] + $r['atf']) / 3;
-                                    ?>
-                                        <div style="background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
-                                                <div style="display: flex; align-items: center; gap: 10px;">
-                                                    <div style="width: 36px; height: 36px; border-radius: 50%; background: <?= $r['role_code'] === 'SP' ? '#fbbf24' : '#3b82f6' ?>; color: #0f172a; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;"><?= $r['role_code'] ?></div>
-                                                    <div>
-                                                        <div style="font-size: 0.95rem; color: #f8fafc; font-weight: 700;"><?= htmlspecialchars($r['name']) ?></div>
-                                                        <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;"><?= $r['role_label'] ?></div>
-                                                    </div>
-                                                </div>
-                                                <div style="text-align: right;">
-                                                    <div style="font-size: 1.4rem; font-weight: 800; color: #fbbf24;"><?= number_format($avg, 2) ?></div>
-                                                    <div style="font-size: 0.6rem; color: #475569; font-weight: 800; text-transform: uppercase;">Average</div>
-                                                </div>
-                                            </div>
-                                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
-                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
-                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Effectiveness</div>
-                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['eff'], 2) ?></div>
-                                                </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
-                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Mastery</div>
-                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['mot'], 2) ?></div>
-                                                </div>
-                                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px; text-align: center;">
-                                                    <div style="font-size: 0.55rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Facilitation</div>
-                                                    <div style="font-size: 0.85rem; color: #cbd5e1; font-weight: 700;"><?= number_format($r['atf'], 2) ?></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                    </div>
                 <?php else: ?>
                     <div style="background: white; padding: 2.5rem; border-radius: 16px; border: 1px dashed var(--border-color); text-align: center; color: var(--text-secondary);">
                         <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
@@ -964,6 +527,135 @@ if ($evaluation) {
 
             <!-- Sidebar Info -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <!-- Form Setup -->
+                <div style="background: #eff6ff; padding: 1.25rem; border-radius: 16px; border: 1px dashed #93c5fd;">
+                    <h3 style="font-size: 1rem; margin-bottom: 1rem; color: #1e40af; display: flex; align-items: center; gap: 8px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        Form Setup
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 1: Generate</div>
+                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Creates form & sheet in Google Drive.</div>
+                            <?php if (!$evaluation || !$evaluation['ame_form_link']): ?>
+                                <button onclick="generateAMEForm(this)" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: white; color: var(--accent-blue); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent-blue); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
+                                    Generate Form
+                                </button>
+                            <?php else: ?>
+                                <span style="font-size: 0.8rem; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                    Generated
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 2: Link Form</div>
+                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Create new spreadsheet and link it there.</div>
+                            <?php if ($evaluation && $evaluation['ame_form_link']): 
+                                $form_url = $evaluation['ame_form_link'];
+                                $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
+                            ?>
+                                <a href="<?= $edit_url ?>" target="_blank" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: var(--accent-blue); color: white; padding: 8px 12px; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#1e3a8a'" onmouseout="this.style.background='var(--accent-blue)'">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                    Edit Form
+                                </a>
+                            <?php else: ?>
+                                <span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Generate form first.</span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 3: Update Index</div>
+                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Copy the response spreadsheet URL, then paste it into the Index Responses spreadsheet.</div>
+                            <?php if ($evaluation && $evaluation['ame_form_link']): 
+                                $index_env = $_ENV['RESPONSES_GOOGLE_SHEET'] ?? '';
+                                $index_url = (strpos($index_env, 'http') === 0) ? $index_env : "https://docs.google.com/spreadsheets/d/" . $index_env . "/edit";
+                            ?>
+                                <a href="<?= htmlspecialchars($index_url) ?>" target="_blank" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: white; color: var(--accent-blue); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent-blue); text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                    Open Index Sheet
+                                </a>
+                            <?php else: ?>
+                                <span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Complete Step 2 first.</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if ($evaluation && $evaluation['ame_form_link']): 
+                    $form_url = $evaluation['ame_form_link'];
+                    $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
+                    $isOpen = ($evaluation['published_options'] === 'Open');
+                ?>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="toggleFormStatusBtn" onclick="toggleFormStatus(<?= $activity['activity_id'] ?>)" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: <?= $isOpen ? '#dcfce7' : '#fee2e2' ?>; color: <?= $isOpen ? '#166534' : '#991b1b' ?>; padding: 12px; border-radius: 12px; border: 1px solid <?= $isOpen ? '#bbf7d0' : '#fecaca' ?>; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <?= $isOpen 
+                                ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>' 
+                                : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>' 
+                            ?>
+                        </svg>
+                        <span id="toggleFormStatusText">Form Status: <?= $isOpen ? 'OPEN' : 'CLOSED' ?></span>
+                    </button>
+                    
+                    <button onclick="navigator.clipboard.writeText('<?= htmlspecialchars($form_url) ?>').then(() => alert('Responders link copied!'))" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: white; color: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copy Responders Link
+                    </button>
+                    
+                    <a href="<?= htmlspecialchars($edit_url) ?>" target="_blank" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: white; color: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#94a3b8'" onmouseout="this.style.background='white'; this.style.borderColor='#cbd5e1'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        Edit Form
+                    </a>
+                    
+                    <a href="feed.php?action=evaluations&id=<?= (int)$activity_id ?>" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background: #2563eb; color: white; padding: 12px; border-radius: 12px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#2563eb'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                        See Results
+                    </a>
+                </div>
+                <script>
+                function toggleFormStatus(activityId) {
+                    const btn = document.getElementById('toggleFormStatusBtn');
+                    const text = document.getElementById('toggleFormStatusText');
+                    const svg = btn.querySelector('svg');
+                    
+                    text.innerText = 'Updating...';
+                    const formData = new FormData();
+                    formData.append('activity_id', activityId);
+
+                    fetch('../api/evaluation_settings.php?action=toggle_visibility', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success) {
+                            if(data.published_options === 'Open') {
+                                btn.style.background = '#dcfce7';
+                                btn.style.color = '#166534';
+                                btn.style.borderColor = '#bbf7d0';
+                                text.innerText = 'Form Status: OPEN';
+                                svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+                            } else {
+                                btn.style.background = '#fee2e2';
+                                btn.style.color = '#991b1b';
+                                btn.style.borderColor = '#fecaca';
+                                text.innerText = 'Form Status: CLOSED';
+                                svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                            }
+                        } else {
+                            alert('Error: ' + data.error);
+                            text.innerText = 'Form Status: ERROR';
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Failed to update form status.');
+                        text.innerText = 'Form Status: ERROR';
+                    });
+                }
+                </script>
+                <?php endif; ?>
+
                 <div style="background: white; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color);">
                     <h3 style="font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1.2rem;">Activity Info</h3>
                     
@@ -1019,3 +711,44 @@ if ($evaluation) {
         </div>
     </div>
 </main>
+<script>
+// Lazy Background Sync
+setTimeout(async () => {
+    const activityId = <?= (int)$activity_id ?>;
+    const lastSyncKey = 'last_sync_' + activityId;
+    const lastSync = localStorage.getItem(lastSyncKey);
+    const now = Date.now();
+    
+    // Only sync once every 2 minutes (120000 ms)
+    if (!lastSync || (now - parseInt(lastSync)) > 120000) {
+        try {
+            const response = await fetch(`../api/sync_google_responses.php?id=${activityId}`);
+            const data = await response.json();
+            
+            if (data.success && data.count > 0) {
+                const toast = document.createElement('div');
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.right = '20px';
+                toast.style.background = '#10b981';
+                toast.style.color = 'white';
+                toast.style.padding = '12px 24px';
+                toast.style.borderRadius = '8px';
+                toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                toast.style.zIndex = '9999';
+                toast.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+                toast.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span><strong>${data.count} new responses found!</strong> Updating dashboard...</span>
+                </div>`;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => { location.reload(); }, 2000);
+            }
+            localStorage.setItem(lastSyncKey, now);
+        } catch (e) {
+            console.error('Background sync failed:', e);
+        }
+    }
+}, 1000);
+</script>

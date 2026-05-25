@@ -27,7 +27,7 @@ if ($action === 'toggle_visibility' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         // Fetch current value
-        $stmt = $db->prepare("SELECT evaluation_id, published_options FROM activity_evaluation WHERE activity_id = :aid");
+        $stmt = $db->prepare("SELECT evaluation_id, published_options, ame_form_id FROM activity_evaluation WHERE activity_id = :aid");
         $stmt->execute([':aid' => $activity_id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -42,6 +42,28 @@ if ($action === 'toggle_visibility' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $db->prepare("UPDATE activity_evaluation SET published_options = :val WHERE evaluation_id = :eid")
            ->execute([':val' => $newVal, ':eid' => $row['evaluation_id']]);
+
+        // Trigger Google Apps Script Webhook to lock/unlock the actual Google Form
+        $webhookUrl = $_ENV['APPS_SCRIPT_WEBHOOK_URL'] ?? '';
+        $formId = $row['ame_form_id'] ?? '';
+        
+        if (!empty($webhookUrl) && !empty($formId)) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $webhookUrl);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+                'form_id' => $formId,
+                'status'  => $newVal
+            ]));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            
+            // Ignore SSL verification if running on local XAMPP without cacert
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+        }
 
         echo json_encode(['success' => true, 'published_options' => $newVal]);
     } catch (PDOException $e) {
