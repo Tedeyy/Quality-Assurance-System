@@ -68,7 +68,7 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/ame/actmasterlist.php';
     } elseif ($action === 'view_activity') {
         $content_file = __DIR__ . '/content/ame/activitypane.php';
-    } elseif ($action === 'respondents') {
+    } elseif ($action === 'evaluations' || $action === 'respondents') {
         $content_file = __DIR__ . '/content/ame/evaluations.php';
     } elseif ($action === 'document') {
         $content_file = __DIR__ . '/content/document/doctracker.php';
