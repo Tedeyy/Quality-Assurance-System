@@ -74,6 +74,7 @@ if ($selected_id) {
         SELECT b.*, doc.doc_code, doc.category as doc_category, doc.purpose as doc_purpose,
                s.status as sub_status, s.google_drive_link as sub_link, s.file_path as sub_path,
                s.google_drive_file_id, s.remarks as sub_remarks, s.user_id as sub_user_id,
+               s.updated_at as sub_created_at, d.name as sub_division_name, o.name as sub_office_name,
                u.fname as uploader_fname, u.lname as uploader_lname,
                m.fname as reviewer_fname, m.lname as reviewer_lname
         FROM document_bridge b
@@ -81,6 +82,8 @@ if ($selected_id) {
         LEFT JOIN accreditation_requirement_submissions s ON b.submission_id = s.submission_id
         LEFT JOIN users u ON s.user_id = u.user_id
         LEFT JOIN users m ON s.marked_by = m.user_id
+        LEFT JOIN divisions d ON s.division_id = d.division_id
+        LEFT JOIN divisions_offices o ON s.office_id = o.office_id
         JOIN accreditation_requirement r ON b.requirement_id = r.requirement_id
         JOIN accreditation_categories c ON r.category_id = c.category_id
         WHERE c.accreditation_id = :acc_id
@@ -1089,9 +1092,14 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         </div>
 
         <div style="display: flex; gap: 2rem; flex: 1; overflow: hidden;">
-            <!-- File Preview -->
-            <div style="flex: 2; background: #f1f5f9; border-radius: 8px; overflow: hidden; position: relative;">
-                <iframe id="preview_frame" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+            <div style="flex: 2; background: #f1f5f9; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
+                <div style="padding: 10px; background: #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
+                    <span>Document Preview</span>
+                    <a id="rev_drive_link" href="#" target="_blank" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.75rem; text-decoration: none;">
+                        Open in Google Drive ↗
+                    </a>
+                </div>
+                <iframe id="preview_frame" src="" style="width: 100%; flex: 1; border: none;"></iframe>
             </div>
 
             <!-- Details and Actions -->
@@ -1269,6 +1277,9 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 file_path: uploadedBridge.sub_path,
                 remarks: uploadedBridge.sub_remarks,
                 user_id: uploadedBridge.sub_user_id,
+                created_at: uploadedBridge.sub_created_at,
+                division_name: uploadedBridge.sub_division_name,
+                office_name: uploadedBridge.sub_office_name,
                 fname: uploadedBridge.uploader_fname,
                 lname: uploadedBridge.uploader_lname,
                 marker_fname: uploadedBridge.reviewer_fname,
@@ -1640,13 +1651,15 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
         // but for files /view works well.
         const previewUrl = sub.google_drive_link.replace('/view', '/preview');
         document.getElementById('preview_frame').src = previewUrl;
+        document.getElementById('rev_drive_link').href = sub.file_path || sub.google_drive_link;
 
         document.getElementById('rev_user').textContent = sub.fname + ' ' + sub.lname;
         document.getElementById('rev_division').textContent = sub.division_name || 'N/A';
         document.getElementById('rev_office').textContent = sub.office_name || 'N/A';
 
         // Format date: Date and hour:minute PM/AM
-        const date = new Date(sub.created_at);
+        const dateValue = sub.created_at || sub.updated_at || sub.uploaded_at || new Date();
+        const date = new Date(dateValue);
         const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
         document.getElementById('rev_date').textContent = date.toLocaleDateString('en-US', options);
 

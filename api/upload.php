@@ -223,6 +223,7 @@ if ($success_count > 0) {
     $drive_link = $is_multiple 
         ? "https://drive.google.com/drive/folders/" . $submission_file_id
         : "https://drive.google.com/file/d/" . $submission_file_id . "/view";
+    $folder_url = "https://drive.google.com/drive/folders/" . $parent_id;
 
     $bridge_id = $_POST['bridge_id'] ?? null;
     $existing_submission_id = null;
@@ -238,6 +239,7 @@ if ($success_count > 0) {
         $stmt = $db->prepare("UPDATE accreditation_requirement_submissions SET 
             google_drive_file_id = :file_id, 
             google_drive_link = :link, 
+            file_path = :file_path,
             division_id = :division_id, 
             office_id = :office_id, 
             status = 'Pending', 
@@ -249,6 +251,7 @@ if ($success_count > 0) {
         $stmt->execute([
             'file_id' => $submission_file_id,
             'link' => $drive_link,
+            'file_path' => $folder_url,
             'division_id' => $division_id,
             'office_id' => $office_id,
             'user_id' => $_SESSION['user_id'],
@@ -257,13 +260,14 @@ if ($success_count > 0) {
     } else {
         // Insert new submission
         $stmt = $db->prepare("INSERT INTO accreditation_requirement_submissions 
-            (requirement_id, user_id, google_drive_file_id, google_drive_link, division_id, office_id, status) 
-            VALUES (:req_id, :user_id, :file_id, :link, :division_id, :office_id, 'Pending')");
+            (requirement_id, user_id, google_drive_file_id, google_drive_link, file_path, division_id, office_id, status) 
+            VALUES (:req_id, :user_id, :file_id, :link, :file_path, :division_id, :office_id, 'Pending')");
         $stmt->execute([
             'req_id' => $requirement_id,
             'user_id' => $_SESSION['user_id'],
             'file_id' => $submission_file_id,
             'link' => $drive_link,
+            'file_path' => $folder_url,
             'division_id' => $division_id,
             'office_id' => $office_id
         ]);
