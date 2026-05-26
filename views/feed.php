@@ -66,6 +66,8 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/ame/activityevaluation.php';
     } elseif ($action === 'actmasterlist') {
         $content_file = __DIR__ . '/content/ame/actmasterlist.php';
+    } elseif ($action === 'evaluationmonitoring') {
+        $content_file = __DIR__ . '/content/ame/evaluationmonitoring.php';
     } elseif ($action === 'view_activity') {
         $content_file = __DIR__ . '/content/ame/activitypane.php';
     } elseif ($action === 'evaluations' || $action === 'respondents') {

@@ -3,7 +3,7 @@ $current_action = $_GET['action'] ?? '';
 $is_dashboard_active = ($current_action === 'dashboard' || $current_action === '');
 $is_document_active = ($current_action === 'document' || $current_action === 'docmasterlist');
 $is_accreditation_active = ($current_action === 'accreditation' || $current_action === 'accmasterlist' || $current_action === 'accmapping');
-$is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity' || $current_action === 'respondents');
+$is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity' || $current_action === 'respondents' || $current_action === 'evaluationmonitoring');
 ?>
 
 <!-- Premium Navbar & Dropdown Styles -->
@@ -345,6 +345,9 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'ac
                     <a href="feed.php?action=activity" class="qa-dropdown-item">
                         <span>Activity Evaluation</span>
                     </a>
+                    <a href="feed.php?action=evaluationmonitoring" class="qa-dropdown-item">
+                        <span>Evaluation Monitoring</span>
+                    </a>
                     <a href="feed.php?action=actmasterlist" class="qa-dropdown-item">
                         <span>Masterlist</span>
                     </a>
@@ -390,6 +393,7 @@ $is_activity_active = ($current_action === 'activity' || $current_action === 'ac
             
             <div class="qa-drawer-heading">Activity</div>
             <a href="feed.php?action=activity" class="qa-nav-link" style="padding-left: 1.5rem;">Activity Evaluation</a>
+            <a href="feed.php?action=evaluationmonitoring" class="qa-nav-link" style="padding-left: 1.5rem;">Evaluation Monitoring</a>
             <a href="feed.php?action=actmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             
             <div style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.5rem;">
