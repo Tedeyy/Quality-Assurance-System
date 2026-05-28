@@ -1252,8 +1252,38 @@ function getProofDisplayMeta(array $bridge): array {
                 body: `bridge_id=${bridgeId}&document_id=${docId}`
             });
             const result = await response.json();
-            if (result.success) window.location.reload();
-            else alert(result.message || 'Failed to link document.');
+            if (result.success) {
+                const req = allRequirements.find(r => (r.proofs || []).some(p => String(p.bridge_id) === String(bridgeId)));
+                const linkedDoc = allInstitutionalDocs.find(doc => String(doc.doc_id) === String(docId));
+
+                if (req) {
+                    req.proofs = (req.proofs || []).map(proof => {
+                        if (String(proof.bridge_id) !== String(bridgeId)) {
+                            return proof;
+                        }
+
+                        return {
+                            ...proof,
+                            document_id: docId,
+                            doc_code: linkedDoc ? linkedDoc.doc_code : proof.doc_code,
+                            doc_category: linkedDoc ? linkedDoc.category : proof.doc_category,
+                            doc_purpose: linkedDoc ? linkedDoc.purpose : proof.doc_purpose,
+                            submission_id: null,
+                            sub_status: null,
+                            sub_link: null,
+                            sub_path: null,
+                            google_drive_file_id: null,
+                            sub_remarks: null,
+                            sub_user_id: null,
+                            uploader_fname: null,
+                            uploader_lname: null
+                        };
+                    });
+                    refreshRequirementProofs(req.req_id);
+                }
+
+                document.getElementById('linkDocumentModal').style.display = 'none';
+            } else alert(result.message || 'Failed to link document.');
         } catch (e) {
             alert('Failed to link document.');
         }

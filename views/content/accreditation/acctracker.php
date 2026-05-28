@@ -1533,7 +1533,38 @@ function renderCategories($parent_id, $categories_by_parent, $requirements_by_ca
             });
             const result = await response.json();
             if (result.success) {
-                window.location.reload();
+                const linkedDoc = allInstitutionalDocs.find(doc => String(doc.doc_id) === String(docId));
+                activeRequirementBridges = activeRequirementBridges.map(bridge => {
+                    if (String(bridge.bridge_id) !== String(bridgeId)) {
+                        return bridge;
+                    }
+
+                    return {
+                        ...bridge,
+                        document_id: docId,
+                        doc_code: linkedDoc ? linkedDoc.doc_code : bridge.doc_code,
+                        doc_category: linkedDoc ? linkedDoc.category : bridge.doc_category,
+                        doc_purpose: linkedDoc ? linkedDoc.purpose : bridge.doc_purpose,
+                        submission_id: null,
+                        sub_status: null,
+                        sub_link: null,
+                        sub_path: null,
+                        google_drive_file_id: null,
+                        sub_remarks: null,
+                        sub_user_id: null,
+                        uploader_fname: null,
+                        uploader_lname: null,
+                        reviewer_fname: null,
+                        reviewer_lname: null
+                    };
+                });
+
+                openComplianceTracker(
+                    currentRequirement.id,
+                    currentRequirement.name,
+                    currentRequirement.codename || '',
+                    activeRequirementBridges
+                );
             } else {
                 showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
             }
