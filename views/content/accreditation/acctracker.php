@@ -219,11 +219,9 @@ if ($selected_id) {
             $direct_approved = 0;
             if (isset($requirements_by_category[$cat_id])) {
                 foreach ($requirements_by_category[$cat_id] as $req) {
-                    $direct_total++;
                     $progress = getRequirementProgress($req['requirement_id'], $bridges_by_requirement, $submissions[$req['requirement_id']] ?? null);
-                    if ($progress['status'] === 'Approved') {
-                        $direct_approved++;
-                    }
+                    $direct_total += $progress['total'];
+                    $direct_approved += $progress['approved'];
                 }
             }
 
