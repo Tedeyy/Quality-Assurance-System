@@ -1,40 +1,28 @@
 <?php
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../cache_helpers.php';
 $db = (new Database())->getConnection();
 
-// Fetch all accreditations
-$accreditations = [];
-try {
+function buildAccTrackerListCache(PDO $db): array {
     $stmt = $db->query("SELECT * FROM accreditations ORDER BY name ASC");
-    $accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("acctracker accreditations query failed: " . $e->getMessage());
+    return ['accreditations' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
 }
 
-// Selected accreditation (default to first one or from GET)
-$selected_id = $_GET['accreditation_id'] ?? ($accreditations[0]['accreditation_id'] ?? null);
-
-$current_acc = null;
-$categories = [];
-
-if ($selected_id) {
+function buildAccTrackerSelectedCache(PDO $db, int $selected_id): array {
     $stmt = $db->prepare("SELECT * FROM accreditations WHERE accreditation_id = :id");
     $stmt->execute(['id' => $selected_id]);
     $current_acc = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Fetch categories
     $stmt = $db->prepare("SELECT * FROM accreditation_categories WHERE accreditation_id = :acc_id ORDER BY name ASC");
     $stmt->execute(['acc_id' => $selected_id]);
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group categories by parent
     $categories_by_parent = [];
     foreach ($categories as $cat) {
         $parent_id = $cat['parent_category_id'] ?? 0;
         $categories_by_parent[$parent_id][] = $cat;
     }
 
-    // Fetch all requirements for this accreditation
     $stmt = $db->prepare("
         SELECT r.* 
         FROM accreditation_requirement r
@@ -44,13 +32,11 @@ if ($selected_id) {
     $stmt->execute(['acc_id' => $selected_id]);
     $all_requirements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group requirements by category_id
     $requirements_by_category = [];
     foreach ($all_requirements as $req) {
         $requirements_by_category[$req['category_id']][] = $req;
     }
 
-    // Fetch submissions for this accreditation
     $stmt = $db->prepare("
         SELECT s.*, u.fname, u.lname, d.name as division_name, o.name as office_name,
                m.fname as marker_fname, m.lname as marker_lname
@@ -69,7 +55,6 @@ if ($selected_id) {
         $submissions[$row['requirement_id']] = $row;
     }
 
-    // Fetch document bridges/proofs of compliance for this accreditation
     $stmt = $db->prepare("
         SELECT b.*, doc.doc_code, doc.category as doc_category, doc.purpose as doc_purpose,
                s.status as sub_status, s.google_drive_link as sub_link, s.file_path as sub_path,
@@ -91,15 +76,68 @@ if ($selected_id) {
     $stmt->execute(['acc_id' => $selected_id]);
     $document_bridges = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group bridges by requirement_id
     $bridges_by_requirement = [];
     foreach ($document_bridges as $bridge) {
         $bridges_by_requirement[$bridge['requirement_id']][] = $bridge;
     }
 
-    // Fetch institutional documents for selection
     $stmt = $db->query("SELECT doc_id, doc_code, category, purpose FROM documents ORDER BY doc_code ASC");
     $all_inst_docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return compact(
+        'current_acc',
+        'categories',
+        'categories_by_parent',
+        'all_requirements',
+        'requirements_by_category',
+        'submissions',
+        'document_bridges',
+        'bridges_by_requirement',
+        'all_inst_docs'
+    );
+}
+
+$acc_tracker_list = qa_cached_dataset($db, 'acctracker_list_cache', ['accreditations'], 'buildAccTrackerListCache');
+$accreditations = $acc_tracker_list['accreditations'];
+
+// Selected accreditation (default to first one or from GET)
+$selected_id = $_GET['accreditation_id'] ?? ($accreditations[0]['accreditation_id'] ?? null);
+
+$current_acc = null;
+$categories = [];
+$categories_by_parent = [];
+$all_requirements = [];
+$requirements_by_category = [];
+$submissions = [];
+$document_bridges = [];
+$bridges_by_requirement = [];
+$all_inst_docs = [];
+
+if ($selected_id) {
+    $selected_id = (int)$selected_id;
+    $acc_tracker_selected = qa_cached_dataset($db, 'acctracker_selected_cache_' . $selected_id, [
+        'accreditations',
+        'accreditation_categories',
+        'accreditation_requirement',
+        'accreditation_requirement_submissions',
+        'document_bridge',
+        'documents',
+        'divisions',
+        'divisions_offices',
+        'users',
+    ], function (PDO $db) use ($selected_id) {
+        return buildAccTrackerSelectedCache($db, $selected_id);
+    });
+
+    $current_acc = $acc_tracker_selected['current_acc'];
+    $categories = $acc_tracker_selected['categories'];
+    $categories_by_parent = $acc_tracker_selected['categories_by_parent'];
+    $all_requirements = $acc_tracker_selected['all_requirements'];
+    $requirements_by_category = $acc_tracker_selected['requirements_by_category'];
+    $submissions = $acc_tracker_selected['submissions'];
+    $document_bridges = $acc_tracker_selected['document_bridges'];
+    $bridges_by_requirement = $acc_tracker_selected['bridges_by_requirement'];
+    $all_inst_docs = $acc_tracker_selected['all_inst_docs'];
 
     // Robust QAO check
     $stmt = $db->prepare("

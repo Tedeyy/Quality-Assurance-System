@@ -2,43 +2,9 @@
 require_once __DIR__ . '/../../../config/database.php';
 $db = (new Database())->getConnection();
 
-// Fetch offices for filtering and modals
 $stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
 $sys_offices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$offices = array_column($sys_offices, 'name');
-
-// Fetch accreditations and categories for JS hierarchical dropdowns
-$stmt = $db->query("SELECT accreditation_id, name, code FROM accreditations ORDER BY name ASC");
-$all_accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$stmt = $db->query("SELECT category_id, name, parent_category_id, accreditation_id FROM accreditation_categories ORDER BY parent_category_id ASC, name ASC");
-$all_categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Fetch document bridges (proofs) with linked document or submission office
-$stmt = $db->query("
-    SELECT b.*,
-           doc.doc_code, doc.category AS doc_category, doc.purpose AS doc_purpose,
-           s.status AS sub_status, s.google_drive_link AS sub_link,
-           s.google_drive_file_id, s.file_path AS sub_path, s.remarks AS sub_remarks,
-           s.user_id AS sub_user_id,
-           u.fname AS uploader_fname, u.lname AS uploader_lname,
-           do.name AS office_name, do.acronym AS office_acronym
-    FROM document_bridge b
-    LEFT JOIN documents doc ON b.document_id = doc.doc_id
-    LEFT JOIN accreditation_requirement_submissions s ON b.submission_id = s.submission_id
-    LEFT JOIN users u ON s.user_id = u.user_id
-    LEFT JOIN divisions_offices do ON s.office_id = do.office_id
-    ORDER BY b.requirement_id ASC, b.proof_name ASC
-");
-$all_bridges_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$bridges_by_requirement = [];
-foreach ($all_bridges_raw as $bridge) {
-    $bridges_by_requirement[$bridge['requirement_id']][] = $bridge;
-}
-
-// Institutional documents for linking proofs
-$stmt = $db->query("SELECT doc_id, doc_code, category, purpose FROM documents ORDER BY doc_code ASC");
-$all_inst_docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$categories = [];
 
 // QAO check for add/delete proof
 $stmt = $db->prepare("
@@ -87,42 +53,6 @@ function getProofDisplayMeta(array $bridge): array {
     ];
 }
 
-// Fetch all requirements
-$req_query = "
-    SELECT
-        r.requirement_id AS req_id,
-        r.codename AS req_code,
-        r.name AS title,
-        '' AS description,
-        r.category_id,
-        c.name AS category,
-        c.accreditation_id
-    FROM accreditation_requirement r
-    LEFT JOIN accreditation_categories c ON r.category_id = c.category_id
-    ORDER BY c.name ASC, r.name ASC
-";
-$stmt = $db->query($req_query);
-$raw_requirements = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$requirements = [];
-foreach ($raw_requirements as $req) {
-    $req_id = $req['req_id'];
-    $proofs = $bridges_by_requirement[$req_id] ?? [];
-    $requirements[] = [
-        'req_id' => $req_id,
-        'req_code' => (!empty($req['req_code']) ? $req['req_code'] : 'REQ-' . $req_id),
-        'title' => $req['title'],
-        'description' => $req['description'],
-        'category_id' => $req['category_id'],
-        'category' => (!empty($req['category']) ? $req['category'] : 'Uncategorized'),
-        'accreditation_id' => $req['accreditation_id'],
-        'proofs' => $proofs,
-        'proof_count' => count($proofs),
-        'proof_linked' => count(array_filter($proofs, function ($p) {
-            return !empty($p['document_id']) || !empty($p['submission_id']);
-        })),
-    ];
-}
 ?>
 
 <style>
@@ -431,74 +361,6 @@ foreach ($raw_requirements as $req) {
                     </tr>
                 </thead>
                 <tbody id="req-table-body">
-                    <?php foreach ($requirements as $req): ?>
-                        <tr class="req-row"
-                            style="display: none;"
-                            data-req-id="<?= htmlspecialchars($req['req_id']) ?>"
-                            data-code="<?= htmlspecialchars($req['req_code']) ?>"
-                            data-title="<?= htmlspecialchars($req['title']) ?>"
-                            data-desc="<?= htmlspecialchars($req['description']) ?>"
-                            data-category-id="<?= htmlspecialchars($req['category_id']) ?>"
-                            data-accreditation-id="<?= htmlspecialchars($req['accreditation_id'] ?? '') ?>">
-                            
-                            <td style="padding: 1.2rem; font-weight: 800; color: var(--accent-blue); font-size: 0.95rem;">
-                                <?= htmlspecialchars($req['req_code']) ?>
-                            </td>
-                            
-                            <td style="padding: 1.2rem;">
-                                <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem; margin-bottom: 4px;"><?= htmlspecialchars($req['title']) ?></div>
-                                <span style="font-size: 0.75rem; background: rgba(0, 28, 87, 0.05); color: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;"><?= htmlspecialchars($req['category']) ?></span>
-                            </td>
-
-                            <td style="padding: 1.2rem;">
-                                <div class="proof-list-cell" id="proof-list-<?= (int)$req['req_id'] ?>">
-                                    <?php if (empty($req['proofs'])): ?>
-                                        <span class="proof-empty">No proofs defined</span>
-                                    <?php else: ?>
-                                        <?php foreach ($req['proofs'] as $proof):
-                                            $meta = getProofDisplayMeta($proof);
-                                        ?>
-                                        <div class="proof-chip">
-                                            <span class="proof-chip-name"><?= htmlspecialchars($proof['proof_name']) ?></span>
-                                            <?php if ($meta['status']): ?>
-                                                <span class="proof-chip-status" style="color: <?= $meta['status_color'] ?>; background: <?= $meta['status_bg'] ?>;"><?= htmlspecialchars($meta['status']) ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($meta['detail']): ?>
-                                                <span class="proof-chip-office"><?= htmlspecialchars($meta['detail']) ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($meta['office']): ?>
-                                                <span class="proof-chip-office">Office: <?= htmlspecialchars($meta['office']) ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-
-                            <td style="padding: 1.2rem; text-align: right;">
-                                <div class="action-dropdown">
-                                    <button class="three-dots-btn" onclick="toggleDropdown(<?= $req['req_id'] ?>)">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                                    </button>
-                                    <div id="dropdown-<?= $req['req_id'] ?>" class="dropdown-menu">
-                                        <button class="dropdown-item" onclick="openManageProofs(<?= (int)$req['req_id'] ?>)">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                            Manage Proofs
-                                        </button>
-                                        <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
-                                        <button class="dropdown-item" onclick="viewDetails(<?= $req['req_id'] ?>)">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                            View Details
-                                        </button>
-                                        <button class="dropdown-item delete" onclick="deleteRequirement(<?= $req['req_id'] ?>)">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                                            Delete Mapping
-                                        </button>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
                     <tr id="req-filter-prompt-row">
                         <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.8rem;"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
@@ -690,12 +552,13 @@ foreach ($raw_requirements as $req) {
 </div>
 
 <script>
-    // --- Data from PHP ---
-    const allAccreditations = <?= json_encode($all_accreditations) ?>;
-    const allCategories = <?= json_encode($all_categories) ?>;
-    const allRequirements = <?= json_encode($requirements) ?>;
-    const allInstitutionalDocs = <?= json_encode($all_inst_docs) ?>;
+    // --- Browser-side cached data ---
+    let allAccreditations = [];
+    let allCategories = [];
+    let allRequirements = [];
+    let allInstitutionalDocs = [];
     const isQAOGlobal = <?= json_encode($is_qao) ?>;
+    const accmappingCacheKey = 'qa.accmapping.dataset.v1';
 
     // --- State ---
     let selectedAccreditationId = null;
@@ -703,6 +566,74 @@ foreach ($raw_requirements as $req) {
     let currentPage = parseInt(sessionStorage.getItem('accmappingPage')) || 1;
     const itemsPerPage = 10;
     let requirementsDataReady = false;
+
+    function readAccMappingCache() {
+        try {
+            const raw = localStorage.getItem(accmappingCacheKey);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function writeAccMappingCache(version, data) {
+        try {
+            localStorage.setItem(accmappingCacheKey, JSON.stringify({
+                version,
+                cachedAt: Date.now(),
+                data
+            }));
+        } catch (e) {
+            console.warn('Accreditation mapping browser cache could not be saved.', e);
+        }
+    }
+
+    function applyAccMappingDataset(data) {
+        allAccreditations = data.allAccreditations || [];
+        allCategories = data.allCategories || [];
+        allRequirements = data.allRequirements || [];
+        allInstitutionalDocs = data.allInstitutionalDocs || [];
+        requirementsDataReady = true;
+        renderRequirementRows();
+        buildDropdowns();
+        searchRequirements();
+    }
+
+    async function loadAccMappingDataset() {
+        const cached = readAccMappingCache();
+        if (cached?.data) {
+            applyAccMappingDataset(cached.data);
+        } else {
+            setRequirementTableMessage('prompt');
+        }
+
+        try {
+            const versionResponse = await fetch('../api/cache_data.php?dataset=accmapping&mode=version', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const versionPayload = await versionResponse.json();
+            if (!versionPayload.success) throw new Error(versionPayload.message || 'Version check failed.');
+
+            if (cached?.version === versionPayload.version && cached?.data) {
+                return;
+            }
+
+            const dataResponse = await fetch('../api/cache_data.php?dataset=accmapping&mode=data', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const dataPayload = await dataResponse.json();
+            if (!dataPayload.success) throw new Error(dataPayload.message || 'Dataset load failed.');
+
+            writeAccMappingCache(dataPayload.version, dataPayload.data);
+            applyAccMappingDataset(dataPayload.data);
+        } catch (e) {
+            console.error('Failed to load accreditation mapping cache.', e);
+            const countContainer = document.getElementById('showing-count-container');
+            if (countContainer) countContainer.textContent = 'Unable to load cached requirements.';
+        } finally {
+            hideRequirementLoading();
+        }
+    }
 
     // --- Category helpers ---
     function isRootCategory(cat) {
@@ -944,6 +875,72 @@ foreach ($raw_requirements as $req) {
     function resetPageAndSearch() {
         currentPage = 1;
         runRequirementSearch();
+    }
+
+    function renderRequirementRows() {
+        const body = document.getElementById('req-table-body');
+        if (!body) return;
+
+        const rowsHtml = allRequirements.map(req => `
+            <tr class="req-row"
+                style="display: none;"
+                data-req-id="${escapeHtml(req.req_id)}"
+                data-code="${escapeHtml(req.req_code)}"
+                data-title="${escapeHtml(req.title)}"
+                data-desc="${escapeHtml(req.description || '')}"
+                data-category-id="${escapeHtml(req.category_id)}"
+                data-accreditation-id="${escapeHtml(req.accreditation_id || '')}">
+                <td style="padding: 1.2rem; font-weight: 800; color: var(--accent-blue); font-size: 0.95rem;">
+                    ${escapeHtml(req.req_code)}
+                </td>
+                <td style="padding: 1.2rem;">
+                    <div style="font-weight: 700; color: #1e293b; font-size: 0.9rem; margin-bottom: 4px;">${escapeHtml(req.title)}</div>
+                    <span style="font-size: 0.75rem; background: rgba(0, 28, 87, 0.05); color: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;">${escapeHtml(req.category)}</span>
+                </td>
+                <td style="padding: 1.2rem;">
+                    <div class="proof-list-cell" id="proof-list-${escapeHtml(req.req_id)}">
+                        ${(req.proofs || []).length ? (req.proofs || []).map(renderProofChip).join('') : '<span class="proof-empty">No proofs defined</span>'}
+                    </div>
+                </td>
+                <td style="padding: 1.2rem; text-align: right;">
+                    <div class="action-dropdown">
+                        <button class="three-dots-btn" onclick="toggleDropdown(${Number(req.req_id)})">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                        </button>
+                        <div id="dropdown-${escapeHtml(req.req_id)}" class="dropdown-menu">
+                            <button class="dropdown-item" onclick="openManageProofs(${Number(req.req_id)})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                Manage Proofs
+                            </button>
+                            <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                            <button class="dropdown-item" onclick="viewDetails(${Number(req.req_id)})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                View Details
+                            </button>
+                            <button class="dropdown-item delete" onclick="deleteRequirement(${Number(req.req_id)})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                Delete Mapping
+                            </button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        body.innerHTML = rowsHtml + `
+            <tr id="req-filter-prompt-row">
+                <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.8rem;"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                    <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">Select an accreditation or category filter to view requirements.</p>
+                    <p style="margin: 0.35rem 0 0 0; font-size: 0.85rem;">Requirement data is loaded in the background and will appear after a filter is selected.</p>
+                </td>
+            </tr>
+            <tr id="req-no-results-row" style="display: none;">
+                <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                    <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">No requirements match the selected filter.</p>
+                </td>
+            </tr>
+        `;
     }
 
     // --- Main search/filter/paginate ---
@@ -1471,9 +1468,8 @@ foreach ($raw_requirements as $req) {
 
     // --- Initialize ---
     window.addEventListener('DOMContentLoaded', () => {
-        buildDropdowns();
         searchRequirements();
-        requirementsDataReady = true;
+        loadAccMappingDataset();
 
         const addProofForm = document.getElementById('addProofForm');
         if (addProofForm) {

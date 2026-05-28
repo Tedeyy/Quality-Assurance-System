@@ -1,13 +1,14 @@
 <?php
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../cache_helpers.php';
 $db = (new Database())->getConnection();
 
-$linkages = [];
-$documents_by_id = [];
-$accreditations = [];
-$offices = [];
+function buildDocLinkageCache(PDO $db): array {
+    $linkages = [];
+    $documents_by_id = [];
+    $accreditations = [];
+    $offices = [];
 
-try {
     $stmt = $db->query("
         SELECT
             b.bridge_id,
@@ -35,44 +36,60 @@ try {
         ORDER BY d.doc_code ASC, a.name ASC, c.name ASC, r.name ASC, b.proof_name ASC
     ");
     $linkages = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("doclinkage query failed: " . $e->getMessage());
-}
 
-foreach ($linkages as $row) {
-    $doc_id = (int)$row['doc_id'];
-    if (!isset($documents_by_id[$doc_id])) {
-        $documents_by_id[$doc_id] = [
-            'doc_id' => $doc_id,
-            'doc_code' => $row['doc_code'],
-            'office_of_origin' => $row['office_of_origin'],
-            'doc_category' => $row['doc_category'],
-            'confidentiality' => (int)($row['confidentiality'] ?? 0),
-            'purpose' => $row['purpose'],
-            'linkages' => [],
+    foreach ($linkages as $row) {
+        $doc_id = (int)$row['doc_id'];
+        if (!isset($documents_by_id[$doc_id])) {
+            $documents_by_id[$doc_id] = [
+                'doc_id' => $doc_id,
+                'doc_code' => $row['doc_code'],
+                'office_of_origin' => $row['office_of_origin'],
+                'doc_category' => $row['doc_category'],
+                'confidentiality' => (int)($row['confidentiality'] ?? 0),
+                'purpose' => $row['purpose'],
+                'linkages' => [],
+            ];
+        }
+        $documents_by_id[$doc_id]['linkages'][] = [
+            'bridge_id' => (int)$row['bridge_id'],
+            'proof_name' => $row['proof_name'],
+            'requirement_id' => (int)($row['requirement_id'] ?? 0),
+            'req_code' => $row['req_code'],
+            'requirement_name' => $row['requirement_name'],
+            'category_id' => (int)($row['category_id'] ?? 0),
+            'category_name' => $row['category_name'],
+            'accreditation_id' => (int)($row['accreditation_id'] ?? 0),
+            'accreditation_code' => $row['accreditation_code'],
+            'accreditation_name' => $row['accreditation_name'],
+            'accreditation_status' => $row['accreditation_status'],
         ];
+
+        if (!empty($row['accreditation_name'])) $accreditations[$row['accreditation_name']] = true;
+        if (!empty($row['office_of_origin'])) $offices[$row['office_of_origin']] = true;
     }
-    $documents_by_id[$doc_id]['linkages'][] = [
-        'bridge_id' => (int)$row['bridge_id'],
-        'proof_name' => $row['proof_name'],
-        'requirement_id' => (int)($row['requirement_id'] ?? 0),
-        'req_code' => $row['req_code'],
-        'requirement_name' => $row['requirement_name'],
-        'category_id' => (int)($row['category_id'] ?? 0),
-        'category_name' => $row['category_name'],
-        'accreditation_id' => (int)($row['accreditation_id'] ?? 0),
-        'accreditation_code' => $row['accreditation_code'],
-        'accreditation_name' => $row['accreditation_name'],
-        'accreditation_status' => $row['accreditation_status'],
+    ksort($accreditations);
+    ksort($offices);
+
+    return [
+        'linkages' => $linkages,
+        'documents' => array_values($documents_by_id),
+        'accreditations' => $accreditations,
+        'offices' => $offices,
     ];
-
-    if (!empty($row['accreditation_name'])) $accreditations[$row['accreditation_name']] = true;
-    if (!empty($row['office_of_origin'])) $offices[$row['office_of_origin']] = true;
 }
-ksort($accreditations);
-ksort($offices);
 
-$documents = array_values($documents_by_id);
+$doclinkage_cache = qa_cached_dataset($db, 'doclinkage_dataset_cache', [
+    'document_bridge',
+    'documents',
+    'accreditation_requirement',
+    'accreditation_categories',
+    'accreditations',
+], 'buildDocLinkageCache');
+
+$linkages = $doclinkage_cache['linkages'];
+$documents = $doclinkage_cache['documents'];
+$accreditations = $doclinkage_cache['accreditations'];
+$offices = $doclinkage_cache['offices'];
 $confidentiality_levels = [
     1 => ['label' => 'Public', 'color' => '#10b981', 'bg' => '#ecfdf5'],
     2 => ['label' => 'Internal', 'color' => '#3b82f6', 'bg' => '#eff6ff'],
