@@ -357,19 +357,20 @@ function getProofDisplayMeta(array $bridge): array {
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Req Code</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Requirement Title / Category</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Proofs of Compliance</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Submission / Proof</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 80px; text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="req-table-body">
                     <tr id="req-filter-prompt-row">
-                        <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                        <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.8rem;"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                             <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">Select an accreditation or category filter to view requirements.</p>
                             <p style="margin: 0.35rem 0 0 0; font-size: 0.85rem;">Requirement data is loaded in the background and will appear after a filter is selected.</p>
                         </td>
                     </tr>
                     <tr id="req-no-results-row" style="display: none;">
-                        <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                        <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                             <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">No requirements match the selected filter.</p>
                         </td>
                     </tr>
@@ -902,6 +903,11 @@ function getProofDisplayMeta(array $bridge): array {
                         ${(req.proofs || []).length ? (req.proofs || []).map(renderProofChip).join('') : '<span class="proof-empty">No proofs defined</span>'}
                     </div>
                 </td>
+                <td style="padding: 1.2rem;">
+                    <div class="proof-list-cell" id="submission-list-${escapeHtml(req.req_id)}">
+                        ${renderSubmissionSummary(req.proofs || [])}
+                    </div>
+                </td>
                 <td style="padding: 1.2rem; text-align: right;">
                     <div class="action-dropdown">
                         <button class="three-dots-btn" onclick="toggleDropdown(${Number(req.req_id)})">
@@ -929,14 +935,14 @@ function getProofDisplayMeta(array $bridge): array {
 
         body.innerHTML = rowsHtml + `
             <tr id="req-filter-prompt-row">
-                <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.8rem;"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
                     <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">Select an accreditation or category filter to view requirements.</p>
                     <p style="margin: 0.35rem 0 0 0; font-size: 0.85rem;">Requirement data is loaded in the background and will appear after a filter is selected.</p>
                 </td>
             </tr>
             <tr id="req-no-results-row" style="display: none;">
-                <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                     <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">No requirements match the selected filter.</p>
                 </td>
             </tr>
@@ -1127,6 +1133,42 @@ function getProofDisplayMeta(array $bridge): array {
         `;
     }
 
+    function getSubmissionStatusMeta(status) {
+        const colors = {
+            Approved: ['#10b981', '#ecfdf5'],
+            Pending: ['#3b82f6', '#eff6ff'],
+            Uploaded: ['#3b82f6', '#eff6ff'],
+            Returned: ['#ef4444', '#fef2f2'],
+            Disapproved: ['#ef4444', '#fef2f2']
+        };
+        const [color, bg] = colors[status] || ['#f59e0b', '#fef3c7'];
+        return { color, bg };
+    }
+
+    function renderSubmissionSummary(proofs) {
+        const submissions = (proofs || []).filter(proof => proof.submission_id);
+        if (!submissions.length) {
+            return '<span class="proof-empty">No submission</span>';
+        }
+
+        return submissions.map(proof => {
+            const status = proof.sub_status || 'Uploaded';
+            const meta = getSubmissionStatusMeta(status);
+            const uploader = [proof.uploader_fname, proof.uploader_lname].filter(Boolean).join(' ');
+            const detailParts = [];
+            if (uploader) detailParts.push(`By ${uploader}`);
+            if (proof.office_name) detailParts.push(proof.office_name);
+
+            return `
+                <div class="proof-chip">
+                    <span class="proof-chip-name">${escapeHtml(proof.proof_name || 'General submission')}</span>
+                    <span class="proof-chip-status" style="color: ${meta.color}; background: ${meta.bg};">${escapeHtml(status)}</span>
+                    ${detailParts.length ? `<span class="proof-chip-office">${escapeHtml(detailParts.join(' - '))}</span>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
     function refreshRequirementProofs(reqId) {
         const req = allRequirements.find(r => r.req_id == reqId);
         if (!req) return;
@@ -1139,6 +1181,11 @@ function getProofDisplayMeta(array $bridge): array {
             proofList.innerHTML = req.proofs.length
                 ? req.proofs.map(renderProofChip).join('')
                 : '<span class="proof-empty">No proofs defined</span>';
+        }
+
+        const submissionList = document.getElementById(`submission-list-${reqId}`);
+        if (submissionList) {
+            submissionList.innerHTML = renderSubmissionSummary(req.proofs || []);
         }
 
         activeRequirementBridges = req.proofs || [];
