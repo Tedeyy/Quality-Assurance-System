@@ -395,7 +395,7 @@ foreach ($raw_requirements as $req) {
 
         <!-- Dynamic Category Tabs / Dropdown filter -->
         <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
-            <button class="category-tab active" id="all-categories-tab" onclick="resetCategoryFilters()">All Areas</button>
+            <button class="category-tab active" id="all-categories-tab" onclick="resetCategoryFilters()">Clear Filters</button>
             <div id="dynamic-dropdowns" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
         </div>
 
@@ -415,8 +415,8 @@ foreach ($raw_requirements as $req) {
         </div>
 
         <!-- Table Grid -->
-        <div id="req-table-section" class="is-loading" style="background: white; border-radius: 12px; border: 1px solid var(--border-color); overflow: visible; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
-            <div id="req-table-loading" class="req-table-loader" aria-live="polite" aria-busy="true">
+        <div id="req-table-section" style="background: white; border-radius: 12px; border: 1px solid var(--border-color); overflow: visible; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+            <div id="req-table-loading" class="req-table-loader" aria-live="polite" aria-busy="false">
                 <div class="req-table-spinner" aria-hidden="true"></div>
                 <p class="req-table-loader-text">Loading requirements…</p>
             </div>
@@ -433,6 +433,7 @@ foreach ($raw_requirements as $req) {
                 <tbody id="req-table-body">
                     <?php foreach ($requirements as $req): ?>
                         <tr class="req-row"
+                            style="display: none;"
                             data-req-id="<?= htmlspecialchars($req['req_id']) ?>"
                             data-code="<?= htmlspecialchars($req['req_code']) ?>"
                             data-title="<?= htmlspecialchars($req['title']) ?>"
@@ -498,11 +499,23 @@ foreach ($raw_requirements as $req) {
                             </td>
                         </tr>
                     <?php endforeach; ?>
+                    <tr id="req-filter-prompt-row">
+                        <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.8rem;"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+                            <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">Select an accreditation or category filter to view requirements.</p>
+                            <p style="margin: 0.35rem 0 0 0; font-size: 0.85rem;">Requirement data is loaded in the background and will appear after a filter is selected.</p>
+                        </td>
+                    </tr>
+                    <tr id="req-no-results-row" style="display: none;">
+                        <td colspan="4" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                            <p style="margin: 0; font-weight: 700; font-size: 0.95rem;">No requirements match the selected filter.</p>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
             </div>
             <div class="req-table-footer" style="padding: 1.2rem 2rem; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px;">
-                <div style="font-size: 0.8rem; color: var(--text-secondary);" id="showing-count-container">Showing <b>0 - 0</b> of <b>0</b> requirements</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);" id="showing-count-container">Select a filter to view requirements</div>
                 <div id="pagination-controls" style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; justify-content: flex-end;"></div>
             </div>
         </div>
@@ -689,7 +702,7 @@ foreach ($raw_requirements as $req) {
     let selectedCategoryIds = []; // Parent / child category selections after accreditation
     let currentPage = parseInt(sessionStorage.getItem('accmappingPage')) || 1;
     const itemsPerPage = 10;
-    let isTableInitialLoad = true;
+    let requirementsDataReady = false;
 
     // --- Category helpers ---
     function isRootCategory(cat) {
@@ -770,7 +783,7 @@ foreach ($raw_requirements as $req) {
             currentPage = 1;
             updateAllTabState();
             buildDropdowns();
-            searchRequirements();
+            runRequirementSearch();
         });
 
         wrapper.appendChild(select);
@@ -818,7 +831,7 @@ foreach ($raw_requirements as $req) {
             if (val === '') {
                 currentPage = 1;
                 updateAllTabState();
-                searchRequirements();
+                runRequirementSearch();
                 return;
             }
 
@@ -831,7 +844,7 @@ foreach ($raw_requirements as $req) {
                 addCategoryDropdownLevel(container, children, level + 1);
             }
 
-            searchRequirements();
+            runRequirementSearch();
         });
 
         wrapper.appendChild(select);
@@ -864,6 +877,55 @@ foreach ($raw_requirements as $req) {
         searchRequirements();
     }
 
+    function runRequirementSearch() {
+        if (hasSelectedFilter() && !requirementsDataReady) {
+            showRequirementLoading();
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => searchRequirements());
+            });
+            return;
+        }
+
+        searchRequirements();
+    }
+
+    function hasSelectedFilter() {
+        return Boolean(selectedAccreditationId || selectedCategoryIds.length > 0);
+    }
+
+    function setRequirementTableMessage(type, totalItems = 0) {
+        const promptRow = document.getElementById('req-filter-prompt-row');
+        const noResultsRow = document.getElementById('req-no-results-row');
+        const countContainer = document.getElementById('showing-count-container');
+
+        if (promptRow) promptRow.style.display = type === 'prompt' ? '' : 'none';
+        if (noResultsRow) noResultsRow.style.display = type === 'empty' ? '' : 'none';
+
+        if (countContainer) {
+            if (type === 'prompt') {
+                countContainer.innerHTML = 'Select a filter to view requirements';
+            } else if (type === 'empty') {
+                countContainer.innerHTML = 'Showing <b>0 - 0</b> of <b>0</b> requirements';
+            } else {
+                countContainer.innerHTML = `Showing <b>${totalItems === 0 ? 0 : 1} - ${Math.min(itemsPerPage, totalItems)}</b> of <b>${totalItems}</b> requirements`;
+            }
+        }
+    }
+
+    function showRequirementLoading() {
+        const section = document.getElementById('req-table-section');
+        const loader = document.getElementById('req-table-loading');
+        if (section) section.classList.add('is-loading');
+        if (loader) loader.setAttribute('aria-busy', 'true');
+    }
+
+    function hideRequirementLoading() {
+        const section = document.getElementById('req-table-section');
+        const loader = document.getElementById('req-table-loading');
+        if (section) section.classList.remove('is-loading');
+        if (loader) loader.setAttribute('aria-busy', 'false');
+    }
+
     // --- Dropdown toggle for action buttons ---
     function toggleDropdown(id) {
         event.stopPropagation();
@@ -881,12 +943,21 @@ foreach ($raw_requirements as $req) {
 
     function resetPageAndSearch() {
         currentPage = 1;
-        searchRequirements();
+        runRequirementSearch();
     }
 
     // --- Main search/filter/paginate ---
     function searchRequirements() {
         const searchTerm = document.getElementById('requirementSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('.req-row');
+
+        if (!hasSelectedFilter()) {
+            rows.forEach(row => row.style.display = 'none');
+            setRequirementTableMessage('prompt');
+            updatePaginationUI(0);
+            hideRequirementLoading();
+            return;
+        }
         
         // Determine which category_ids to match
         let allowedCategoryIds = null; // null means all
@@ -897,7 +968,6 @@ foreach ($raw_requirements as $req) {
             allowedCategoryIds = getCategoryIdsForAccreditation(selectedAccreditationId);
         }
 
-        const rows = document.querySelectorAll('.req-row');
         let matchingRows = [];
 
         rows.forEach(row => {
@@ -934,20 +1004,16 @@ foreach ($raw_requirements as $req) {
         const actualStart = totalItems === 0 ? 0 : startIndex + 1;
         const actualEnd = Math.min(endIndex, totalItems);
 
+        setRequirementTableMessage(totalItems === 0 ? 'empty' : 'results', totalItems);
+
         const countContainer = document.getElementById('showing-count-container');
         if (countContainer) {
             countContainer.innerHTML = `Showing <b>${actualStart} - ${actualEnd}</b> of <b>${totalItems}</b> requirements`;
         }
 
         updatePaginationUI(totalPages);
-
-        if (isTableInitialLoad) {
-            isTableInitialLoad = false;
-            const section = document.getElementById('req-table-section');
-            const loader = document.getElementById('req-table-loading');
-            if (section) section.classList.remove('is-loading');
-            if (loader) loader.setAttribute('aria-busy', 'false');
-        }
+        requirementsDataReady = true;
+        hideRequirementLoading();
     }
 
     function getPaginationPages(current, total) {
@@ -981,6 +1047,7 @@ foreach ($raw_requirements as $req) {
         const controls = document.getElementById('pagination-controls');
         if (!controls) return;
         controls.innerHTML = '';
+        if (totalPages < 1) return;
 
         const btnBase = 'padding: 5px 10px; border: 1px solid var(--border-color); background: white; font-size: 0.8rem; border-radius: 6px; min-width: 32px;';
         const btnActive = btnBase + ' background: var(--accent-blue); color: white; cursor: default;';
@@ -1405,10 +1472,8 @@ foreach ($raw_requirements as $req) {
     // --- Initialize ---
     window.addEventListener('DOMContentLoaded', () => {
         buildDropdowns();
-        // Defer pagination so the loading state paints before processing rows
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => searchRequirements());
-        });
+        searchRequirements();
+        requirementsDataReady = true;
 
         const addProofForm = document.getElementById('addProofForm');
         if (addProofForm) {
