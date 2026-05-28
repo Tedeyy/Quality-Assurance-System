@@ -12,7 +12,7 @@ if (isset($_SESSION['user_id'])) {
     $db = $db ?? (new Database())->getConnection();
     $can_access_all_modules = qa_current_user_can_access_all_modules($db);
 }
-$home_href = (!isset($_SESSION['user_id']) || $can_access_all_modules) ? 'feed.php?action=dashboard' : 'feed.php?action=accreditation';
+$home_href = 'feed.php?action=dashboard';
 ?>
 
 <!-- Premium Navbar & Dropdown Styles -->
@@ -349,6 +349,10 @@ $home_href = (!isset($_SESSION['user_id']) || $can_access_all_modules) ? 'feed.p
                     </div>
                 </div>
             <?php else: ?>
+                <a href="feed.php?action=dashboard" class="qa-nav-link <?= $is_dashboard_active ? 'active' : '' ?>">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Dashboard
+                </a>
                 <a href="feed.php?action=accreditation" class="qa-nav-link <?= $is_accreditation_active ? 'active' : '' ?>">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     Accreditation Tracking
@@ -421,6 +425,7 @@ $home_href = (!isset($_SESSION['user_id']) || $can_access_all_modules) ? 'feed.p
                 <a href="feed.php?action=evaluationmonitoring" class="qa-nav-link" style="padding-left: 1.5rem;">Evaluation Monitoring</a>
                 <a href="feed.php?action=actmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             <?php else: ?>
+                <a href="feed.php?action=dashboard" class="qa-nav-link <?= $is_dashboard_active ? 'active' : '' ?>">Dashboard</a>
                 <a href="feed.php?action=accreditation" class="qa-nav-link <?= $is_accreditation_active ? 'active' : '' ?>">Accreditation Tracking</a>
             <?php endif; ?>
             

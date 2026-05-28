@@ -47,7 +47,7 @@ if (isset($_SESSION['user_id'])) {
     $can_access_all_modules = qa_current_user_can_access_all_modules($db);
     $restricted_to_accreditation_tracking = !$can_access_all_modules;
 
-    if ($restricted_to_accreditation_tracking && !in_array($action, ['accreditation', 'login', 'signup'], true)) {
+    if ($restricted_to_accreditation_tracking && !in_array($action, ['dashboard', '', 'accreditation', 'login', 'signup'], true)) {
         $action = 'accreditation';
         $_GET['action'] = 'accreditation';
     }
