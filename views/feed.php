@@ -2,6 +2,8 @@
 session_start();
 
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/component/access.php';
 
 /**
  * Show a readable error in the content area when a page crashes (common on shared hosting with display_errors off).
@@ -36,6 +38,21 @@ register_shutdown_function(function () {
     );
 });
 
+$action = $_GET['action'] ?? '';
+$can_access_all_modules = false;
+$restricted_to_accreditation_tracking = false;
+
+if (isset($_SESSION['user_id'])) {
+    $db = $db ?? (new Database())->getConnection();
+    $can_access_all_modules = qa_current_user_can_access_all_modules($db);
+    $restricted_to_accreditation_tracking = !$can_access_all_modules;
+
+    if ($restricted_to_accreditation_tracking && !in_array($action, ['accreditation', 'login', 'signup'], true)) {
+        $action = 'accreditation';
+        $_GET['action'] = 'accreditation';
+    }
+}
+
 require_once __DIR__ . '/component/header.php';
 require_once __DIR__ . '/component/navbar.php';
 require_once __DIR__ . '/component/confirmationpane.php';
@@ -49,8 +66,6 @@ if (isset($_SESSION['success'])) {
     echo '<div style="background-color: #dcfce7; color: #166534; padding: 1rem; text-align: center; font-weight: 500; border-bottom: 1px solid #4ade80;">' . htmlspecialchars($_SESSION['success']) . '</div>';
     unset($_SESSION['success']);
 }
-
-$action = $_GET['action'] ?? '';
 
 $content_file = null;
 if (isset($_SESSION['user_id'])) {

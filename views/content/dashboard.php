@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../component/access.php';
 $db = (new Database())->getConnection();
 
 function safe_trim_text($text, $width = 40): string {
@@ -137,12 +138,18 @@ $today = new DateTimeImmutable('today');
             ['name' => 'Fretzel Vann L. Ayo-on, LPT', 'role' => 'Administrative Assistant', 'init' => 'FVA'],
             ['name' => 'Teddy Justin C. Bermudo', 'role' => 'Intern', 'init' => 'TJB'],
         ];
+        $canAccessAllModules = qa_current_user_can_access_all_modules($db);
         $modules = [
             ['title' => 'Activity Evaluation', 'desc' => 'Manage evaluation forms, responses, interpretation, and activity records.', 'href' => 'feed.php?action=activity', 'color' => '#1d4ed8', 'bg' => '#eff6ff', 'icon' => 'activity'],
             ['title' => 'Accreditation Tracking', 'desc' => 'Track standards, proof requirements, submissions, review status, and deadlines.', 'href' => 'feed.php?action=accreditation', 'color' => '#b45309', 'bg' => '#fffbeb', 'icon' => 'check'],
             ['title' => 'Accreditation Mapping', 'desc' => 'Map requirements to institutional documents and proof sources.', 'href' => 'feed.php?action=accmapping', 'color' => '#7c3aed', 'bg' => '#f5f3ff', 'icon' => 'map'],
             ['title' => 'Document Management', 'desc' => 'Maintain master documents, categories, offices of origin, and linkages.', 'href' => 'feed.php?action=docmasterlist', 'color' => '#047857', 'bg' => '#ecfdf5', 'icon' => 'file'],
         ];
+        if (!$canAccessAllModules) {
+            $modules = array_values(array_filter($modules, function ($module) {
+                return $module['href'] === 'feed.php?action=accreditation';
+            }));
+        }
     ?>
 
     <div class="dash-shell">
