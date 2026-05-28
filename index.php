@@ -6,6 +6,8 @@ $db = (new Database())->getConnection();
 // Fetch Latest News
 $stmt = $db->query("SELECT * FROM news ORDER BY created_at DESC LIMIT 6");
 $news_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$admin_email = getenv('ADMIN_EMAIL') ?: ($_ENV['ADMIN_EMAIL'] ?? '');
+$contact_status = $_GET['contact'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -41,6 +43,7 @@ $news_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <a href="#about">About</a>
             <a href="#news">Updates</a>
             <a href="#features">Features</a>
+            <a href="#contact">Contact</a>
         </div>
         <a href="./views/feed.php" class="btn btn-primary">Open Portal</a>
     </nav>
@@ -232,6 +235,63 @@ $news_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <h3>Document Control</h3>
             <p>Keep QA documents easier to find, review, and align with current accreditation and compliance needs.</p>
+        </div>
+    </section>
+
+    <section class="contact" id="contact">
+        <div class="contact-shell">
+            <div class="contact-copy">
+                <span class="section-kicker">Contact Us</span>
+                <h2>Send a message to the Quality Assurance Office</h2>
+                <p>For accreditation, document, activity evaluation, or general quality assurance inquiries, send a message directly to the administrator account configured for this system.</p>
+                <div class="contact-note">
+                    <strong>Recipient</strong>
+                    <span><?= htmlspecialchars($admin_email ?: 'ADMIN_EMAIL is not configured') ?></span>
+                </div>
+            </div>
+            <form class="email-form" action="api/contact.php" method="POST">
+                <?php if ($contact_status): ?>
+                    <?php
+                        $contact_messages = [
+                            'sent' => ['type' => 'success', 'text' => 'Your message has been sent successfully.'],
+                            'missing' => ['type' => 'error', 'text' => 'Please complete all message fields.'],
+                            'invalid_email' => ['type' => 'error', 'text' => 'Please enter a valid inquiree email address.'],
+                            'too_long' => ['type' => 'error', 'text' => 'Your subject or message is too long.'],
+                            'config_error' => ['type' => 'error', 'text' => 'The administrator email is not configured correctly.'],
+                            'failed' => ['type' => 'error', 'text' => 'Your message could not be sent. Please try again later.'],
+                        ];
+                        $contact_message = $contact_messages[$contact_status] ?? null;
+                    ?>
+                    <?php if ($contact_message): ?>
+                        <div class="contact-alert <?= $contact_message['type'] ?>">
+                            <?= htmlspecialchars($contact_message['text']) ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <div class="email-header">
+                    <label>
+                        <span>Subject</span>
+                        <input type="text" name="subject" maxlength="160" placeholder="e.g. Accreditation document inquiry" required>
+                    </label>
+                    <label>
+                        <span>Recipient</span>
+                        <input type="email" value="<?= htmlspecialchars($admin_email) ?>" readonly>
+                    </label>
+                    <label>
+                        <span>Inquiree Email</span>
+                        <input type="email" name="inquiree_email" placeholder="your.email@example.com" required>
+                    </label>
+                </div>
+                <label class="email-body">
+                    <span>Message Body</span>
+                    <textarea name="message" rows="9" maxlength="5000" placeholder="Write your inquiry here..." required></textarea>
+                </label>
+                <div class="email-actions">
+                    <p>The message will be delivered through the configured SMTP account.</p>
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </div>
+            </form>
         </div>
     </section>
 

@@ -565,11 +565,170 @@ a {
     font-size: 0.95rem;
 }
 
+.contact {
+    background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+    padding: 5rem 5% 1rem;
+}
+
+.contact-shell {
+    align-items: stretch;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-soft);
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: minmax(260px, 0.75fr) minmax(320px, 1.25fr);
+    margin: 0 auto;
+    max-width: 1200px;
+    padding: 2rem;
+}
+
+.contact-copy {
+    background:
+        linear-gradient(180deg, rgba(0, 28, 87, 0.92), rgba(0, 28, 87, 0.86)),
+        url('../img/nbsc_campus.jpg') center/cover;
+    border-radius: 8px;
+    color: #ffffff;
+    padding: 2rem;
+}
+
+.contact-copy .section-kicker {
+    color: var(--accent-gold);
+}
+
+.contact-copy h2 {
+    color: #ffffff;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    margin-bottom: 1rem;
+}
+
+.contact-copy p {
+    color: #dbeafe;
+}
+
+.contact-note {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 2rem;
+    padding: 1rem;
+}
+
+.contact-note strong {
+    color: var(--accent-gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.contact-note span {
+    color: #ffffff;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.email-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.email-header {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.email-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.email-header label {
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.9rem 1rem;
+}
+
+.email-header label:last-child {
+    border-bottom: 0;
+}
+
+.email-form span {
+    color: var(--accent-blue);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.email-form input,
+.email-form textarea {
+    background: #ffffff;
+    border: 0;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.98rem;
+    outline: none;
+    width: 100%;
+}
+
+.email-form input[readonly] {
+    color: var(--text-muted);
+}
+
+.email-body {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.email-form textarea {
+    line-height: 1.7;
+    min-height: 220px;
+    resize: vertical;
+}
+
+.email-actions {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.email-actions p {
+    color: var(--text-muted);
+    font-size: 0.86rem;
+}
+
+.contact-alert {
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.9rem 1rem;
+}
+
+.contact-alert.success {
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+}
+
+.contact-alert.error {
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
 footer {
     border-top: 1px solid var(--border-color);
     padding: 4rem 5% 2rem;
     background-color: var(--surface-soft);
-    margin-top: 4rem;
+    margin-top: 0;
 }
 
 .footer-content {
@@ -687,6 +846,16 @@ footer {
         grid-template-columns: 1fr;
     }
 
+    .contact-shell {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+
+    .email-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
     .footer-content {
         flex-direction: column;
         text-align: center;
@@ -710,7 +879,8 @@ footer {
     .hero,
     .about,
     .news,
-    .features {
+    .features,
+    .contact {
         padding-left: 1.25rem;
         padding-right: 1.25rem;
     }

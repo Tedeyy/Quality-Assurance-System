@@ -5,21 +5,81 @@ use PHPMailer\PHPMailer\Exception;
 require_once __DIR__ . '/../vendor/autoload.php';
 
 class MailService {
-    public static function sendAcknowledgment($toEmail, $userName, $activityTitle, $answers) {
+    private static function configureMailer(): PHPMailer {
         $mail = new PHPMailer(true);
 
-        try {
-            // Server settings
-            $mail->isSMTP();
-            $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-            $mail->SMTPAuth   = true;
-            $mail->Username   = getenv('SMTP_USER');
-            $mail->Password   = getenv('SMTP_PASS');
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = getenv('SMTP_PORT') ?: 587;
+        $mail->isSMTP();
+        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = getenv('SMTP_USER');
+        $mail->Password   = getenv('SMTP_PASS');
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = getenv('SMTP_PORT') ?: 587;
+        $mail->setFrom(getenv('SMTP_FROM'), 'Quality Assurance Office');
 
+        return $mail;
+    }
+
+    public static function sendContactInquiry($fromEmail, $subject, $message): bool {
+        $adminEmail = getenv('ADMIN_EMAIL');
+        if (empty($adminEmail)) {
+            error_log('Contact inquiry could not be sent: ADMIN_EMAIL is not configured.');
+            return false;
+        }
+
+        $mail = self::configureMailer();
+
+        try {
+            $safeFrom = htmlspecialchars($fromEmail, ENT_QUOTES, 'UTF-8');
+            $safeSubject = htmlspecialchars($subject, ENT_QUOTES, 'UTF-8');
+            $safeMessage = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+
+            $mail->addAddress($adminEmail, 'Quality Assurance Administrator');
+            $mail->addReplyTo($fromEmail);
+            $mail->isHTML(true);
+            $mail->Subject = '[QAO Inquiry] ' . $subject;
+            $mail->Body = "
+                <div style='font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;'>
+                    <div style='background: #001C57; color: #ffffff; padding: 20px 24px;'>
+                        <h2 style='margin: 0; font-size: 20px;'>Quality Assurance Office Inquiry</h2>
+                        <p style='margin: 6px 0 0; color: #dbeafe; font-size: 14px;'>Message submitted from the public landing page.</p>
+                    </div>
+                    <div style='padding: 24px;'>
+                        <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>
+                            <tr>
+                                <td style='width: 130px; padding: 8px 0; color: #64748b; font-weight: 700;'>From</td>
+                                <td style='padding: 8px 0; color: #0f172a;'>{$safeFrom}</td>
+                            </tr>
+                            <tr>
+                                <td style='padding: 8px 0; color: #64748b; font-weight: 700;'>Recipient</td>
+                                <td style='padding: 8px 0; color: #0f172a;'>{$adminEmail}</td>
+                            </tr>
+                            <tr>
+                                <td style='padding: 8px 0; color: #64748b; font-weight: 700;'>Subject</td>
+                                <td style='padding: 8px 0; color: #0f172a;'>{$safeSubject}</td>
+                            </tr>
+                        </table>
+                        <div style='border-top: 1px solid #e2e8f0; padding-top: 20px; color: #1e293b; line-height: 1.7;'>
+                            {$safeMessage}
+                        </div>
+                    </div>
+                </div>
+            ";
+            $mail->AltBody = "From: {$fromEmail}\nRecipient: {$adminEmail}\nSubject: {$subject}\n\n{$message}";
+
+            $mail->send();
+            return true;
+        } catch (Exception $e) {
+            error_log("Contact inquiry could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            return false;
+        }
+    }
+
+    public static function sendAcknowledgment($toEmail, $userName, $activityTitle, $answers) {
+        $mail = self::configureMailer();
+
+        try {
             // Recipients
-            $mail->setFrom(getenv('SMTP_FROM'), 'Quality Assurance Office');
             $mail->addAddress($toEmail, $userName);
 
             // Attachments (Embedded)
