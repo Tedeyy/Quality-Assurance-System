@@ -226,7 +226,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
             $cb_color = '#ef4444';
         }
         ?>
-        <div style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
+        <div id="requirement-<?= $req_id ?>" data-requirement-id="<?= $req_id ?>" style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
                 <div style="display: flex; align-items: flex-start; gap: 8px;">
                     <?php if ($depth > 0): ?>
@@ -1872,6 +1872,32 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 }
             }
         });
+
+        const focusedRequirementId = new URLSearchParams(window.location.search).get('requirement_id');
+        if (focusedRequirementId) {
+            const target = document.getElementById(`requirement-${focusedRequirementId}`);
+            if (target) {
+                let parent = target.parentElement;
+                while (parent) {
+                    if (parent.classList && parent.classList.contains('category-content')) {
+                        parent.style.display = 'block';
+                        const header = parent.previousElementSibling;
+                        const chevron = header ? header.querySelector('.chevron') : null;
+                        if (chevron) chevron.style.transform = 'rotate(90deg)';
+                    }
+                    parent = parent.parentElement;
+                }
+
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.style.background = '#fef3c7';
+                target.style.border = '1px solid #f59e0b';
+                target.style.borderRadius = '8px';
+                target.style.padding = '0.35rem 0.5rem';
+                setTimeout(() => {
+                    target.style.background = '';
+                }, 2600);
+            }
+        }
     });
 
     function toggleActionMenu(e, menuId) {
