@@ -360,7 +360,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
     }
 }
 
-function renderCategories($parent_id, $categories_by_parent, $db, $category_stats)
+function renderCategories($parent_id, $categories_by_parent, $requirements_by_category, $category_stats)
 {
     global $submissions, $is_qao;
     if (!isset($categories_by_parent[$parent_id]))
@@ -474,9 +474,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <!-- Category Content -->
             <div class="category-content" data-id="cat-content-<?= $cat_id ?>" style="display: none; padding: 0.6rem 0.8rem;">
                 <?php
-                $stmt = $db->prepare("SELECT * FROM accreditation_requirement WHERE category_id = :cat_id");
-                $stmt->execute(['cat_id' => $cat['category_id']]);
-                $all_reqs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $all_reqs = $requirements_by_category[$cat_id] ?? [];
 
                 if (!empty($all_reqs)) {
                     // Group requirements by parent for this category
@@ -491,7 +489,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     </div>
                     <?php
                 }
-                renderCategories($cat['category_id'], $categories_by_parent, $db, $category_stats);
+                renderCategories($cat['category_id'], $categories_by_parent, $requirements_by_category, $category_stats);
                 ?>
             </div>
         </div>
@@ -717,7 +715,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                         <p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No categories defined for
                             this accreditation.</p>
                     <?php else: ?>
-                        <?php renderCategories(0, $categories_by_parent, $db, $category_stats); ?>
+                        <?php renderCategories(0, $categories_by_parent, $requirements_by_category, $category_stats); ?>
                     <?php endif; ?>
                 </div>
 
