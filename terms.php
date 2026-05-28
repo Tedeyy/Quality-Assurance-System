@@ -241,7 +241,7 @@
                 </p>
             </section>
 
-            <p class="updated">Last updated: May 21, 2026</p>
+            <p class="updated">Last updated: March 9, 2026</p>
         </article>
     </main>
 </body>

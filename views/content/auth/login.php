@@ -40,26 +40,29 @@
         <div class="login-form-pane">
             <img src="../assets/img/QAO_logo.png" alt="QAO Logo" class="login-logo">
             
-            <form action="../api/auth.php?action=login" method="POST" class="auth-form">
+            <form action="../api/auth.php?action=login" method="POST" class="auth-form" id="loginForm">
                 <div class="form-group">
                     <label class="form-label">Email Address</label>
-                    <input type="email" name="email" required class="form-control" placeholder="Enter your email">
+                    <input type="email" name="email" required class="form-control login-submit-field" placeholder="Enter your email">
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Password</label>
                     <div class="input-wrapper">
-                        <input type="password" name="password" id="password" required class="form-control" placeholder="Enter your password">
+                        <input type="password" name="password" id="password" required class="form-control login-submit-field" placeholder="Enter your password">
                         <div class="password-toggle" onclick="togglePassword()">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         </div>
                     </div>
                 </div>
 
-                <button type="submit" class="btn-signin">
+                <button type="submit" class="btn-signin" id="signInButton">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                     Sign In
                 </button>
+                <p class="signin-notice">
+                    By signing in, you agree to the <a href="../terms.php">Terms of Use and Conditions</a>.
+                </p>
 
                 <div style="margin: 1.5rem 0; display: flex; align-items: center; gap: 10px;">
                     <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
@@ -91,4 +94,13 @@ function togglePassword() {
     const pwd = document.getElementById('password');
     pwd.type = pwd.type === 'password' ? 'text' : 'password';
 }
-</script>
+
+document.querySelectorAll('.login-submit-field').forEach((field) => {
+    field.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            document.getElementById('signInButton').click();
+        }
+    });
+});
+</script>
