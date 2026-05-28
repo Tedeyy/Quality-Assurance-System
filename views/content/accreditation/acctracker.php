@@ -1,40 +1,28 @@
 <?php
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../cache_helpers.php';
 $db = (new Database())->getConnection();
 
-// Fetch all accreditations
-$accreditations = [];
-try {
+function buildAccTrackerListCache(PDO $db): array {
     $stmt = $db->query("SELECT * FROM accreditations ORDER BY name ASC");
-    $accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("acctracker accreditations query failed: " . $e->getMessage());
+    return ['accreditations' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
 }
 
-// Selected accreditation (default to first one or from GET)
-$selected_id = $_GET['accreditation_id'] ?? ($accreditations[0]['accreditation_id'] ?? null);
-
-$current_acc = null;
-$categories = [];
-
-if ($selected_id) {
+function buildAccTrackerSelectedCache(PDO $db, int $selected_id): array {
     $stmt = $db->prepare("SELECT * FROM accreditations WHERE accreditation_id = :id");
     $stmt->execute(['id' => $selected_id]);
     $current_acc = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Fetch categories
     $stmt = $db->prepare("SELECT * FROM accreditation_categories WHERE accreditation_id = :acc_id ORDER BY name ASC");
     $stmt->execute(['acc_id' => $selected_id]);
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group categories by parent
     $categories_by_parent = [];
     foreach ($categories as $cat) {
         $parent_id = $cat['parent_category_id'] ?? 0;
         $categories_by_parent[$parent_id][] = $cat;
     }
 
-    // Fetch all requirements for this accreditation
     $stmt = $db->prepare("
         SELECT r.* 
         FROM accreditation_requirement r
@@ -44,13 +32,11 @@ if ($selected_id) {
     $stmt->execute(['acc_id' => $selected_id]);
     $all_requirements = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group requirements by category_id
     $requirements_by_category = [];
     foreach ($all_requirements as $req) {
         $requirements_by_category[$req['category_id']][] = $req;
     }
 
-    // Fetch submissions for this accreditation
     $stmt = $db->prepare("
         SELECT s.*, u.fname, u.lname, d.name as division_name, o.name as office_name,
                m.fname as marker_fname, m.lname as marker_lname
@@ -69,7 +55,6 @@ if ($selected_id) {
         $submissions[$row['requirement_id']] = $row;
     }
 
-    // Fetch document bridges/proofs of compliance for this accreditation
     $stmt = $db->prepare("
         SELECT b.*, doc.doc_code, doc.category as doc_category, doc.purpose as doc_purpose,
                s.status as sub_status, s.google_drive_link as sub_link, s.file_path as sub_path,
@@ -91,15 +76,68 @@ if ($selected_id) {
     $stmt->execute(['acc_id' => $selected_id]);
     $document_bridges = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Group bridges by requirement_id
     $bridges_by_requirement = [];
     foreach ($document_bridges as $bridge) {
         $bridges_by_requirement[$bridge['requirement_id']][] = $bridge;
     }
 
-    // Fetch institutional documents for selection
     $stmt = $db->query("SELECT doc_id, doc_code, category, purpose FROM documents ORDER BY doc_code ASC");
     $all_inst_docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return compact(
+        'current_acc',
+        'categories',
+        'categories_by_parent',
+        'all_requirements',
+        'requirements_by_category',
+        'submissions',
+        'document_bridges',
+        'bridges_by_requirement',
+        'all_inst_docs'
+    );
+}
+
+$acc_tracker_list = qa_cached_dataset($db, 'acctracker_list_cache', ['accreditations'], 'buildAccTrackerListCache');
+$accreditations = $acc_tracker_list['accreditations'];
+
+// Selected accreditation (default to first one or from GET)
+$selected_id = $_GET['accreditation_id'] ?? ($accreditations[0]['accreditation_id'] ?? null);
+
+$current_acc = null;
+$categories = [];
+$categories_by_parent = [];
+$all_requirements = [];
+$requirements_by_category = [];
+$submissions = [];
+$document_bridges = [];
+$bridges_by_requirement = [];
+$all_inst_docs = [];
+
+if ($selected_id) {
+    $selected_id = (int)$selected_id;
+    $acc_tracker_selected = qa_cached_dataset($db, 'acctracker_selected_cache_' . $selected_id, [
+        'accreditations',
+        'accreditation_categories',
+        'accreditation_requirement',
+        'accreditation_requirement_submissions',
+        'document_bridge',
+        'documents',
+        'divisions',
+        'divisions_offices',
+        'users',
+    ], function (PDO $db) use ($selected_id) {
+        return buildAccTrackerSelectedCache($db, $selected_id);
+    });
+
+    $current_acc = $acc_tracker_selected['current_acc'];
+    $categories = $acc_tracker_selected['categories'];
+    $categories_by_parent = $acc_tracker_selected['categories_by_parent'];
+    $all_requirements = $acc_tracker_selected['all_requirements'];
+    $requirements_by_category = $acc_tracker_selected['requirements_by_category'];
+    $submissions = $acc_tracker_selected['submissions'];
+    $document_bridges = $acc_tracker_selected['document_bridges'];
+    $bridges_by_requirement = $acc_tracker_selected['bridges_by_requirement'];
+    $all_inst_docs = $acc_tracker_selected['all_inst_docs'];
 
     // Robust QAO check
     $stmt = $db->prepare("
@@ -181,11 +219,9 @@ if ($selected_id) {
             $direct_approved = 0;
             if (isset($requirements_by_category[$cat_id])) {
                 foreach ($requirements_by_category[$cat_id] as $req) {
-                    $direct_total++;
                     $progress = getRequirementProgress($req['requirement_id'], $bridges_by_requirement, $submissions[$req['requirement_id']] ?? null);
-                    if ($progress['status'] === 'Approved') {
-                        $direct_approved++;
-                    }
+                    $direct_total += $progress['total'];
+                    $direct_approved += $progress['approved'];
                 }
             }
 
@@ -226,7 +262,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
             $cb_color = '#ef4444';
         }
         ?>
-        <div style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
+        <div id="requirement-<?= $req_id ?>" data-requirement-id="<?= $req_id ?>" style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
                 <div style="display: flex; align-items: flex-start; gap: 8px;">
                     <?php if ($depth > 0): ?>
@@ -322,7 +358,7 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
     }
 }
 
-function renderCategories($parent_id, $categories_by_parent, $db, $category_stats)
+function renderCategories($parent_id, $categories_by_parent, $requirements_by_category, $category_stats)
 {
     global $submissions, $is_qao;
     if (!isset($categories_by_parent[$parent_id]))
@@ -436,9 +472,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             <!-- Category Content -->
             <div class="category-content" data-id="cat-content-<?= $cat_id ?>" style="display: none; padding: 0.6rem 0.8rem;">
                 <?php
-                $stmt = $db->prepare("SELECT * FROM accreditation_requirement WHERE category_id = :cat_id");
-                $stmt->execute(['cat_id' => $cat['category_id']]);
-                $all_reqs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $all_reqs = $requirements_by_category[$cat_id] ?? [];
 
                 if (!empty($all_reqs)) {
                     // Group requirements by parent for this category
@@ -453,7 +487,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                     </div>
                     <?php
                 }
-                renderCategories($cat['category_id'], $categories_by_parent, $db, $category_stats);
+                renderCategories($cat['category_id'], $categories_by_parent, $requirements_by_category, $category_stats);
                 ?>
             </div>
         </div>
@@ -679,7 +713,7 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                         <p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No categories defined for
                             this accreditation.</p>
                     <?php else: ?>
-                        <?php renderCategories(0, $categories_by_parent, $db, $category_stats); ?>
+                        <?php renderCategories(0, $categories_by_parent, $requirements_by_category, $category_stats); ?>
                     <?php endif; ?>
                 </div>
 
@@ -1499,7 +1533,38 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
             });
             const result = await response.json();
             if (result.success) {
-                window.location.reload();
+                const linkedDoc = allInstitutionalDocs.find(doc => String(doc.doc_id) === String(docId));
+                activeRequirementBridges = activeRequirementBridges.map(bridge => {
+                    if (String(bridge.bridge_id) !== String(bridgeId)) {
+                        return bridge;
+                    }
+
+                    return {
+                        ...bridge,
+                        document_id: docId,
+                        doc_code: linkedDoc ? linkedDoc.doc_code : bridge.doc_code,
+                        doc_category: linkedDoc ? linkedDoc.category : bridge.doc_category,
+                        doc_purpose: linkedDoc ? linkedDoc.purpose : bridge.doc_purpose,
+                        submission_id: null,
+                        sub_status: null,
+                        sub_link: null,
+                        sub_path: null,
+                        google_drive_file_id: null,
+                        sub_remarks: null,
+                        sub_user_id: null,
+                        uploader_fname: null,
+                        uploader_lname: null,
+                        reviewer_fname: null,
+                        reviewer_lname: null
+                    };
+                });
+
+                openComplianceTracker(
+                    currentRequirement.id,
+                    currentRequirement.name,
+                    currentRequirement.codename || '',
+                    activeRequirementBridges
+                );
             } else {
                 showConfirmation({ title: 'Error', message: result.message, type: 'danger' });
             }
@@ -1872,6 +1937,32 @@ function renderCategories($parent_id, $categories_by_parent, $db, $category_stat
                 }
             }
         });
+
+        const focusedRequirementId = new URLSearchParams(window.location.search).get('requirement_id');
+        if (focusedRequirementId) {
+            const target = document.getElementById(`requirement-${focusedRequirementId}`);
+            if (target) {
+                let parent = target.parentElement;
+                while (parent) {
+                    if (parent.classList && parent.classList.contains('category-content')) {
+                        parent.style.display = 'block';
+                        const header = parent.previousElementSibling;
+                        const chevron = header ? header.querySelector('.chevron') : null;
+                        if (chevron) chevron.style.transform = 'rotate(90deg)';
+                    }
+                    parent = parent.parentElement;
+                }
+
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.style.background = '#fef3c7';
+                target.style.border = '1px solid #f59e0b';
+                target.style.borderRadius = '8px';
+                target.style.padding = '0.35rem 0.5rem';
+                setTimeout(() => {
+                    target.style.background = '';
+                }, 2600);
+            }
+        }
     });
 
     function toggleActionMenu(e, menuId) {

@@ -1,63 +1,51 @@
 <?php
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../cache_helpers.php';
 $db = (new Database())->getConnection();
 
-// Fetch all documents with their tags list
-$query = "
-    SELECT d.*, 
-           GROUP_CONCAT(t.tag_name SEPARATOR ', ') as tags_list
-    FROM documents d
-    LEFT JOIN document_tags dt ON d.doc_id = dt.doc_id
-    LEFT JOIN tags t ON dt.tag_id = t.tag_id
-    GROUP BY d.doc_id
-    ORDER BY d.created_at DESC
-";
-$documents = [];
-try {
+function buildDocTrackerCache(PDO $db): array {
+    $query = "
+        SELECT d.*, 
+               GROUP_CONCAT(t.tag_name SEPARATOR ', ') as tags_list
+        FROM documents d
+        LEFT JOIN document_tags dt ON d.doc_id = dt.doc_id
+        LEFT JOIN tags t ON dt.tag_id = t.tag_id
+        GROUP BY d.doc_id
+        ORDER BY d.created_at DESC
+    ";
     $stmt = $db->query($query);
     $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("doctracker documents query failed: " . $e->getMessage());
-}
 
-// Fetch distinct categories for the dropdown and tabs
-$db_categories = [];
-try {
     $cat_stmt = $db->query("SELECT DISTINCT category FROM documents WHERE category IS NOT NULL AND category != '' ORDER BY category ASC");
     $db_categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
-} catch (PDOException $e) {
-    error_log("doctracker categories query failed: " . $e->getMessage());
+
+    $office_stmt = $db->query("SELECT DISTINCT office_of_origin FROM documents ORDER BY office_of_origin ASC");
+    $offices = $office_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $sys_offices_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
+    $sys_offices = $sys_offices_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $all_tags_stmt = $db->query("SELECT tag_name FROM tags ORDER BY tag_name ASC");
+    $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    return compact('documents', 'db_categories', 'offices', 'sys_offices', 'existing_tags');
 }
+
+$doc_cache = qa_cached_dataset($db, 'doctracker_dataset_cache', [
+    'documents',
+    'document_tags' => null,
+    'tags' => null,
+    'divisions_offices',
+], 'buildDocTrackerCache');
+
+$documents = $doc_cache['documents'];
+$db_categories = $doc_cache['db_categories'];
 $default_categories = ['Policy', 'Manual', 'Guidelines', 'SOP', 'Form', 'Report', 'Minutes', 'Contract'];
 $categories = array_unique(array_merge($default_categories, $db_categories));
 sort($categories);
-
-// Fetch distinct offices for the dropdown filter
-$offices = [];
-try {
-    $office_stmt = $db->query("SELECT DISTINCT office_of_origin FROM documents ORDER BY office_of_origin ASC");
-    $offices = $office_stmt->fetchAll(PDO::FETCH_COLUMN);
-} catch (PDOException $e) {
-    error_log("doctracker offices filter query failed: " . $e->getMessage());
-}
-
-// Fetch all divisions/offices from system to populate the Add form
-$sys_offices = [];
-try {
-    $sys_offices_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
-    $sys_offices = $sys_offices_stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("doctracker sys offices query failed: " . $e->getMessage());
-}
-
-// Fetch all existing tags for the datalist drop-down list
-$existing_tags = [];
-try {
-    $all_tags_stmt = $db->query("SELECT tag_name FROM tags ORDER BY tag_name ASC");
-    $existing_tags = $all_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
-} catch (PDOException $e) {
-    error_log("doctracker tags query failed: " . $e->getMessage());
-}
+$offices = $doc_cache['offices'];
+$sys_offices = $doc_cache['sys_offices'];
+$existing_tags = $doc_cache['existing_tags'];
 
 // Confidentiality Labels
 $confidentiality_levels = [

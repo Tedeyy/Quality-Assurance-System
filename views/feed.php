@@ -76,6 +76,8 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/document/doctracker.php';
     } elseif ($action === 'docmasterlist') {
         $content_file = __DIR__ . '/content/document/docmasterlist.php';
+    } elseif ($action === 'doclinkage') {
+        $content_file = __DIR__ . '/content/document/doclinkage.php';
     } else {
         $content_file = __DIR__ . '/content/dashboard.php';
     }

@@ -42,5 +42,87 @@ The system integrates several external services to enhance functionality and dat
 3. **Onboarding Gate**: System validates profile completeness; missing data triggers a mandatory cascading address selector.
 4. **Module Interaction**: Centralized routing through `feed.php` handles module switching (`accreditation`, `activity`, `document`).
 
+## Major Parts of this system
+## 1. Activity Monitoring and Evaluation
+
+## Pages:
+1. Activity Masterlist
+2. Activity Evaluation
+3. Evaluation Monitoring
+
+## Page Contents:
+1. Activity Masterlist
+	This page consist of the standard listing of all the registered activities.
+
+2. Activity Evaluation
+	This page contains the complete details and statistical data of the activity.
+
+3. Evaluation Monitoring
+	A sub-system to monitor the status and the actions taken to reach or to comply with the suggestions and/or complaints.
+
+## Features:
+1. Activity CRUD
+2. Google Form CRUD
+3. Has Analytics for the Quantitative Data gathered 
+4. Uses Gmail API to go and search for the Email Request
+5. Toggle AI Interpretation for Suggestions and Complaints
+
+## In Development:
+1. Activity Archival
+2. Evaluation Monitoring Page
+
+## 2. Accrediitation Tracking and File Archiving
+
+## Pages:
+1. Accreditation Masterlist
+2. Accreditation Mapping
+3. Accreditation Tracker
+
+## Page Contents:
+1. Accreditation Masterlist
+  This page consist of the standard listing of all the registered accreditations.
+
+2. Accreditation Mapping
+  This page is more focused on mapping similar or the same documents for other accreditations to improve effeciency with document retrieval.
+
+3. Accreditation Tracker
+  This page is mainly for the File Archival and Progression Tracking. This is the only page accessible for non-Quality Assurance Office Staffs.
+
+## Features:
+1. Google Drive API for the File Upload.
+2. Quality Assurance Office staff only File Approval.
+3. Bulk Upload for accreditation registry. Template for SUC, AACCUP Institutional and Program, COPC
+4. AI Interpretation for Bulk Registry
+5. Action Logging
+6. Accreditation, Categories and Requirments CRUD
+
+## In Development:
+1. Email SMTP for the service.
+2. Proof Management for Document Bridging
+
+## 3. Document Registry
+
+## Pages:
+1. Document Masterlist
+2. Document Mapping
+3. Accreditation Linkage
+
+## Page Content:
+1. Document Masterlist
+  This page consist of the standard listing of all the registered documents.
+
+2. Document Mapping
+  Page to look for similar documents from the same office and other offices using similarity scoring.
+
+3. Accreditation Linkage
+  Main purpose of this page is to link proof to documents and look for different accreditation requirements using the same or closely similar documents.
+
+## Features:
+1. Similarity Scoring with Lightweight AI solutions
+2. Document CRUD
+
+## In Developemnt:
+1. Systemic Flow(Data Deprived)
+
 ---
 *Developed for Northern Bukidnon State College (NBSC) Quality Assurance Office.*

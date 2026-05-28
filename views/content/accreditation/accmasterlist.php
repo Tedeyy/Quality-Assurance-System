@@ -1,24 +1,34 @@
 <?php
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../cache_helpers.php';
 $db = (new Database())->getConnection();
 
-// Query accreditations with total and approved counts of requirements
-$query = "
-    SELECT a.*, 
-           (SELECT COUNT(*) 
-            FROM accreditation_requirement r 
-            JOIN accreditation_categories c ON r.category_id = c.category_id 
-            WHERE c.accreditation_id = a.accreditation_id) as total_reqs,
-           (SELECT COUNT(*) 
-            FROM accreditation_requirement r 
-            JOIN accreditation_categories c ON r.category_id = c.category_id 
-            JOIN accreditation_requirement_submissions s ON r.requirement_id = s.requirement_id
-            WHERE c.accreditation_id = a.accreditation_id AND s.status = 'Approved') as approved_reqs
-    FROM accreditations a
-    ORDER BY a.name ASC
-";
-$stmt = $db->query($query);
-$accreditations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+function buildAccMasterlistCache(PDO $db): array {
+    $query = "
+        SELECT a.*, 
+               (SELECT COUNT(*) 
+                FROM accreditation_requirement r 
+                JOIN accreditation_categories c ON r.category_id = c.category_id 
+                WHERE c.accreditation_id = a.accreditation_id) as total_reqs,
+               (SELECT COUNT(*) 
+                FROM accreditation_requirement r 
+                JOIN accreditation_categories c ON r.category_id = c.category_id 
+                JOIN accreditation_requirement_submissions s ON r.requirement_id = s.requirement_id
+                WHERE c.accreditation_id = a.accreditation_id AND s.status = 'Approved') as approved_reqs
+        FROM accreditations a
+        ORDER BY a.name ASC
+    ";
+    $stmt = $db->query($query);
+    return ['accreditations' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
+}
+
+$acc_master_cache = qa_cached_dataset($db, 'accmasterlist_dataset_cache', [
+    'accreditations',
+    'accreditation_categories',
+    'accreditation_requirement',
+    'accreditation_requirement_submissions',
+], 'buildAccMasterlistCache');
+$accreditations = $acc_master_cache['accreditations'];
 ?>
 
 <style>
