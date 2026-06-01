@@ -96,6 +96,9 @@ $today = new DateTimeImmutable('today');
     .dash-history-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 1rem; margin-top: 1rem; align-items: stretch; }
     .dash-card { border: 1px solid var(--dash-border); border-radius: 8px; background: #fff; padding: 1rem; }
     .dash-chip { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; padding: 0.4rem 0.7rem; font-size: 0.75rem; font-weight: 900; border: 1px solid #dbeafe; background: #eff6ff; color: #1e40af; }
+    .dash-user-meta { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: -0.2rem 0 0.85rem; }
+    .dash-user-meta-item { display: inline-flex; align-items: center; gap: 0.45rem; background: rgba(255, 255, 255, 0.76); border: 1px solid var(--dash-border); border-radius: 8px; color: var(--dash-ink); font-size: 0.82rem; font-weight: 850; padding: 0.45rem 0.65rem; line-height: 1.25; }
+    .dash-user-meta-label { color: var(--dash-muted); font-size: 0.68rem; font-weight: 950; letter-spacing: 0.06em; text-transform: uppercase; }
     .dash-icon { width: 42px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .module-card { text-decoration: none; color: inherit; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
     .module-card:hover { transform: translateY(-2px); border-color: #b7c5dc; box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08); }
@@ -162,9 +165,19 @@ $today = new DateTimeImmutable('today');
                     <div>
                         <p class="dash-kicker">Quality Assurance System</p>
                         <h1 style="margin: 0 0 0.65rem; color: var(--dash-ink); font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.06; font-weight: 950;">Welcome, <?= htmlspecialchars($displayName) ?></h1>
+                        <div class="dash-user-meta" aria-label="User office information">
+                            <div class="dash-user-meta-item">
+                                <span><?= htmlspecialchars($officeName) ?><?= $officeAcronym ? ' (' . htmlspecialchars($officeAcronym) . ')' : '' ?></span>
+                            </div>
+                            <div class="dash-user-meta-item">
+                                <span><?= htmlspecialchars($divisionName) ?></span>
+                            </div>
+                            <div class="dash-user-meta-item">
+                                <span><?= htmlspecialchars($positionName) ?></span>
+                            </div>
+                        </div>
                         <p class="dash-copy" style="max-width: 720px;">A professional workspace for monitoring accreditation readiness, institutional documents, activity evaluations, and quality assurance operations.</p>
                         <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem;">
-                            <span class="dash-chip"><?= htmlspecialchars($positionName) ?></span>
                             <span class="dash-chip" style="background:#ecfdf5;color:#047857;border-color:#bbf7d0;"><?= $needsProfileCompletion ? 'Profile needs update' : 'Profile complete' ?></span>
                             <span class="dash-chip" style="background:#fff7ed;color:#9a3412;border-color:#fed7aa;"><?= count($active_accreditation_deadlines) ?> active deadlines</span>
                         </div>
@@ -190,16 +203,6 @@ $today = new DateTimeImmutable('today');
                         <div>
                             <h3 style="margin: 0 0 0.45rem; color: var(--dash-ink); font-size: 1.1rem;"><?= htmlspecialchars($officeName) ?><?= $officeAcronym ? ' (' . htmlspecialchars($officeAcronym) . ')' : '' ?></h3>
                             <p class="dash-copy">The office coordinates quality assurance mechanisms for accreditation, document management, activity evaluation, evidence monitoring, and continuous improvement initiatives across the institution.</p>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.7rem; margin-top: 1rem;">
-                                <div style="background:#f8fafc;border:1px solid var(--dash-border);border-radius:8px;padding:0.8rem;">
-                                    <div style="font-size:0.72rem;color:var(--dash-muted);font-weight:900;text-transform:uppercase;">Division</div>
-                                    <div style="margin-top:0.25rem;color:var(--dash-ink);font-weight:850;"><?= htmlspecialchars($divisionName) ?></div>
-                                </div>
-                                <div style="background:#f8fafc;border:1px solid var(--dash-border);border-radius:8px;padding:0.8rem;">
-                                    <div style="font-size:0.72rem;color:var(--dash-muted);font-weight:900;text-transform:uppercase;">Your Role</div>
-                                    <div style="margin-top:0.25rem;color:var(--dash-ink);font-weight:850;"><?= htmlspecialchars($positionName) ?></div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div class="dash-card">
