@@ -15,7 +15,7 @@ function ensureArchivedActivityColumns(PDO $db): void {
 $activities = [];
 try {
     ensureArchivedActivityColumns($db);
-    $query = "SELECT a.*, s.overall_average, e.response_rate,
+    $query = "SELECT a.*, o.position AS office_position, s.overall_average, e.response_rate,
                      (
                         SELECT GROUP_CONCAT(sdg.title SEPARATOR ', ')
                         FROM activity_sdgs asg
@@ -29,6 +29,7 @@ try {
                         WHERE asg.activity_id = a.activity_id
                      ) AS sdg_ids
               FROM activities a
+              LEFT JOIN divisions_offices o ON a.requesting_office_id = o.office_id
               LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
               LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
               WHERE COALESCE(a.is_archived, 0) = 1
@@ -37,6 +38,21 @@ try {
     $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Archived AME activities query failed: " . $e->getMessage());
+}
+
+$offices = [];
+$office_positions = [];
+try {
+    $office_stmt = $db->query("SELECT office_id, name, acronym, position FROM divisions_offices ORDER BY name ASC");
+    $offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($offices as $office) {
+        if (!empty($office['position']) && !in_array($office['position'], $office_positions, true)) {
+            $office_positions[] = $office['position'];
+        }
+    }
+    sort($office_positions);
+} catch (PDOException $e) {
+    error_log("Archived AME offices query failed: " . $e->getMessage());
 }
 
 $months = [];
@@ -142,11 +158,18 @@ usort($months, function($a, $b) {
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" id="archiveSearch" onkeyup="handleArchiveFilterChange()" placeholder="Search archived activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
-            <select id="archiveStatusFilter" onchange="handleArchiveFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
-                <option value="all">All Status</option>
-                <option value="upcoming">Upcoming (Pending)</option>
-                <option value="ongoing">In Progress (Ongoing)</option>
-                <option value="completed">Completed</option>
+
+            <select id="archivePositionFilter" onchange="handleArchivePositionFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 170px; background: white;">
+                <option value="all">All Positions</option>
+                <?php foreach ($office_positions as $position): ?>
+                    <option value="<?= htmlspecialchars($position) ?>"><?= htmlspecialchars($position) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <select id="archiveOfficeFilter" onchange="handleArchiveOfficeFilterChange()" disabled style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 210px; background: #f8fafc; color: #94a3b8; cursor: not-allowed;">
+                <option value="all">All Offices</option>
+                <?php foreach ($offices as $office): ?>
+                    <option value="<?= (int)$office['office_id'] ?>" data-position="<?= htmlspecialchars((string)($office['position'] ?? '')) ?>"><?= htmlspecialchars($office['name']) ?><?= !empty($office['acronym']) ? ' (' . htmlspecialchars($office['acronym']) . ')' : '' ?></option>
+                <?php endforeach; ?>
             </select>
         </div>
 
@@ -183,6 +206,8 @@ usort($months, function($a, $b) {
                             <tr class="archive-row"
                                 data-month="<?= $eventTs ? date('F Y', $eventTs) : '' ?>"
                                 data-status="<?= htmlspecialchars($status_val) ?>"
+                                data-office-id="<?= htmlspecialchars((string)($activity['requesting_office_id'] ?? '')) ?>"
+                                data-office-position="<?= htmlspecialchars((string)($activity['office_position'] ?? '')) ?>"
                                 style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;"
                                 onmouseover="this.style.background='#f8fafc'"
                                 onmouseout="this.style.background='transparent'">
@@ -275,6 +300,38 @@ usort($months, function($a, $b) {
         searchArchived(false);
     }
 
+    function handleArchivePositionFilterChange() {
+        const officeFilter = document.getElementById('archiveOfficeFilter');
+        if (officeFilter) officeFilter.value = 'all';
+        archiveCurrentPage = 1;
+        updateArchiveOfficeFilterState();
+        searchArchived(false);
+    }
+
+    function handleArchiveOfficeFilterChange() {
+        archiveCurrentPage = 1;
+        searchArchived(false);
+    }
+
+    function updateArchiveOfficeFilterState() {
+        const officeFilter = document.getElementById('archiveOfficeFilter');
+        const positionFilter = document.getElementById('archivePositionFilter');
+        if (!officeFilter || !positionFilter) return;
+
+        const selectedPosition = positionFilter.value;
+        const enabled = selectedPosition !== 'all';
+        officeFilter.disabled = !enabled;
+        if (!enabled) officeFilter.value = 'all';
+
+        Array.from(officeFilter.options).forEach(option => {
+            option.hidden = option.value !== 'all' && option.dataset.position !== selectedPosition;
+        });
+
+        officeFilter.style.background = enabled ? 'white' : '#f8fafc';
+        officeFilter.style.color = enabled ? '#0f172a' : '#94a3b8';
+        officeFilter.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+
     function handleArchiveFilterChange() {
         archiveCurrentPage = 1;
         searchArchived(false);
@@ -283,15 +340,18 @@ usort($months, function($a, $b) {
     function searchArchived(resetPage = true) {
         if (resetPage) archiveCurrentPage = 1;
         const search = document.getElementById('archiveSearch').value.toLowerCase();
-        const status = document.getElementById('archiveStatusFilter').value;
+        const positionFilter = document.getElementById('archivePositionFilter') ? document.getElementById('archivePositionFilter').value : 'all';
+        const officeFilter = document.getElementById('archiveOfficeFilter') ? document.getElementById('archiveOfficeFilter').value : 'all';
         const rows = Array.from(document.querySelectorAll('.archive-row'));
         const filtered = [];
 
         rows.forEach(row => {
             const matchesSearch = row.innerText.toLowerCase().includes(search);
-            const matchesStatus = status === 'all' || row.dataset.status === status;
             const matchesMonth = archiveMonthFilter === 'all' || row.dataset.month === archiveMonthFilter;
-            if (matchesSearch && matchesStatus && matchesMonth) {
+            const matchesPosition = positionFilter === 'all' || row.dataset.officePosition === positionFilter;
+            const matchesOffice = officeFilter === 'all' || row.dataset.officeId === officeFilter;
+            
+            if (matchesSearch && matchesMonth && matchesPosition && matchesOffice) {
                 filtered.push(row);
             } else {
                 row.style.display = 'none';
