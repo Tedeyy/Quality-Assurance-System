@@ -54,8 +54,9 @@ $query = "SELECT a.*, o.name as office_name, e.*, s.*,
           LEFT JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
           WHERE 1=1";
 
+$is_archived = isset($_GET['is_archived']) && $_GET['is_archived'] === '1' ? 1 : 0;
 $params = [];
-$where = ["COALESCE(a.is_archived, 0) = 0"];
+$where = ["COALESCE(a.is_archived, 0) = " . $is_archived];
 
 if (strpos($type, 'office') !== false && !$office_id) {
     export_report_fail('Please select a requesting office before exporting this report.');
