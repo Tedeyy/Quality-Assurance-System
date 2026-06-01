@@ -126,6 +126,77 @@ usort($months, function($a, $b) {
         cursor: not-allowed;
         opacity: 0.45;
     }
+    .action-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .three-dots-btn {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: all 0.2s;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .three-dots-btn:hover {
+        background: #f1f5f9;
+        color: var(--accent-blue);
+    }
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        min-width: 180px;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        z-index: 1000;
+        padding: 8px 0;
+        margin-top: 5px;
+        animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        color: #334155;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: background 0.2s;
+        cursor: pointer;
+        border: none;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+    }
+    .dropdown-item:hover {
+        background: #f8fafc;
+        color: var(--accent-blue);
+    }
+    .dropdown-item svg {
+        color: #94a3b8;
+    }
+    .dropdown-item:hover svg {
+        color: var(--accent-blue);
+    }
+    .dropdown-item.delete:hover {
+        color: #ef4444;
+        background: #fef2f2;
+    }
+    .dropdown-item.delete:hover svg {
+        color: #ef4444; 
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem;">
@@ -191,12 +262,13 @@ usort($months, function($a, $b) {
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Status</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Rating</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Archived</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($activities)): ?>
                         <tr>
-                            <td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                            <td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
                                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="color: #cbd5e1;"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                                     <p>No archived activities yet.</p>
@@ -276,6 +348,26 @@ usort($months, function($a, $b) {
                                 </td>
                                 <td style="padding: 1.2rem;">
                                     <div style="font-size: 0.85rem; font-weight: 700; color: #475569;"><?= $archivedTs ? date('M d, Y', $archivedTs) : 'Archived' ?></div>
+                                </td>
+                                <td style="padding: 1.2rem; text-align: right;">
+                                    <div class="action-dropdown">
+                                        <button type="button" class="three-dots-btn" onclick="toggleDropdown(<?= (int)$activity['activity_id'] ?>, event)">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                                            </svg>
+                                        </button>
+                                        <div id="dropdown-<?= $activity['activity_id'] ?>" class="dropdown-menu">
+                                            <button class="dropdown-item" onclick="viewActivity(<?= $activity['activity_id'] ?>)">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                View Activity
+                                            </button>
+                                            <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                                            <button class="dropdown-item delete" onclick="deleteActivity(<?= $activity['activity_id'] ?>)">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                                Delete Activity
+                                            </button>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -403,6 +495,32 @@ usort($months, function($a, $b) {
 </script>
 
 <script>
+    function toggleDropdown(id, event) {
+        event.stopPropagation();
+        const allDropdowns = document.querySelectorAll('.dropdown-menu');
+        allDropdowns.forEach(menu => {
+            if (menu.id !== `dropdown-${id}`) menu.style.display = 'none';
+        });
+        const dropdown = document.getElementById(`dropdown-${id}`);
+        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    }
+
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.action-dropdown')) {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => menu.style.display = 'none');
+        }
+    });
+
+    function viewActivity(id) {
+        window.location.href = `feed.php?action=view_activity&id=${id}`;
+    }
+
+    function deleteActivity(id) {
+        if (confirm('Are you sure you want to permanently delete this activity and all related evaluation data?')) {
+            window.location.href = `../api/activities.php?action=delete&id=${id}&redirect=${encodeURIComponent('../views/feed.php?action=archived_activities')}`;
+        }
+    }
+
     const archiveRowsPerPage = 10;
     let archiveCurrentPage = 1;
     let archiveMonthFilter = 'all';
