@@ -515,25 +515,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">Track, evaluate, and report institutional activities and faculty performance.</p>
             </div>
             <div style="display: flex; gap: 10px;">
-                <div class="action-dropdown">
-                    <button type="button" class="btn btn-secondary" onclick="toggleArchiveMenu(event)" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
-                        </svg>
-                        Archive
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <div id="archiveHeaderMenu" class="dropdown-menu" style="right: auto; left: 0; min-width: 210px;">
-                        <button type="button" class="dropdown-item" onclick="openArchiveModal(); closeArchiveMenu();">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-                            Archive Activity
-                        </button>
-                        <a href="feed.php?action=archived_activities" class="dropdown-item" style="text-decoration: none;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3z"/><path d="M5 7v14h14V7"/><path d="M10 12h4"/></svg>
-                            See Archived Activities
-                        </a>
-                    </div>
-                </div>
+                <a href="feed.php?action=archived_activities" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; text-decoration: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
+                    </svg>
+                    Archived Activities
+                </a>
                 <button class="btn btn-secondary" onclick="openExportModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -549,37 +536,11 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
             </div>
         </div>
 
-        <!-- Archive Modal -->
-        <div id="archiveModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
-            <form action="../api/activities.php?action=archive" method="POST" onsubmit="return confirmArchiveActivity()" style="background: white; width: 450px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; animation: modalPop 0.3s ease;">
-                <input type="hidden" name="redirect_url" value="../views/feed.php?action=activity">
-                <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
-                    <h2 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-                        Archive Activity
-                    </h2>
-                    <button type="button" onclick="closeArchiveModal()" style="background: none; border: none; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                </div>
-                <div style="padding: 24px; display: flex; flex-direction: column; gap: 12px;">
-                    <label for="archiveActivityId" style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Select Activity</label>
-                    <select id="archiveActivityId" name="activity_id" required style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem;">
-                        <option value="">Choose an activity to archive</option>
-                        <?php foreach ($activities as $activity): ?>
-                            <option value="<?= (int)$activity['activity_id'] ?>">
-                                <?= htmlspecialchars($activity['title']) ?> - <?= date('M d, Y', strtotime($activity['eventdate'])) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <p style="margin: 0; color: #64748b; font-size: 0.85rem; line-height: 1.5;">Archived activities are hidden from the active Activity Evaluation list, but their records stay in the database.</p>
-                </div>
-                <div style="padding: 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
-                    <button type="button" onclick="closeArchiveModal()" style="padding: 12px 20px; border-radius: 10px; border: 1px solid #cbd5e1; background: white; color: #475569; font-weight: 700; cursor: pointer; transition: all 0.2s;">Cancel</button>
-                    <button type="submit" style="padding: 12px 24px; border-radius: 10px; border: none; background: #475569; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(71, 85, 105, 0.2);">Archive</button>
-                </div>
-            </form>
-        </div>
+        <!-- Hidden Archive Form -->
+        <form id="inlineArchiveForm" action="../api/activities.php?action=archive" method="POST" style="display: none;">
+            <input type="hidden" name="activity_id" id="inlineArchiveActivityId" value="">
+            <input type="hidden" name="redirect_url" value="../views/feed.php?action=activity">
+        </form>
 
         <!-- Export Modal -->
         <div id="exportModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
@@ -642,34 +603,11 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         </div>
 
         <script>
-            function toggleArchiveMenu(e) {
-                e.stopPropagation();
-                const menu = document.getElementById('archiveHeaderMenu');
-                if (!menu) return;
-                document.querySelectorAll('.dropdown-menu').forEach(item => {
-                    if (item !== menu) item.style.display = 'none';
-                });
-                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-            }
-            function closeArchiveMenu() {
-                const menu = document.getElementById('archiveHeaderMenu');
-                if (menu) menu.style.display = 'none';
-            }
-            function openArchiveModal() {
-                document.getElementById('archiveModal').style.display = 'flex';
-            }
-            function closeArchiveModal() {
-                document.getElementById('archiveModal').style.display = 'none';
-            }
-            function confirmArchiveActivity() {
-                const select = document.getElementById('archiveActivityId');
-                if (!select.value) {
-                    alert('Please select an activity to archive.');
-                    return false;
+            function archiveActivity(id, title) {
+                if (confirm(`Are you sure you want to archive this activity?\n\n${title}`)) {
+                    document.getElementById('inlineArchiveActivityId').value = id;
+                    document.getElementById('inlineArchiveForm').submit();
                 }
-
-                const title = select.options[select.selectedIndex].text.trim();
-                return confirm(`Archive this activity?\n\n${title}`);
             }
             function openExportModal() {
                 document.getElementById('exportModal').style.display = 'flex';
@@ -1008,6 +946,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                                                 Edit Activity
                                             </button>
                                             <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                                            <button class="dropdown-item" onclick="archiveActivity(<?= $activity['activity_id'] ?>, '<?= addslashes(htmlspecialchars($activity['title'], ENT_QUOTES, 'UTF-8')) ?>')">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                                Archive Activity
+                                            </button>
                                             <button class="dropdown-item delete" onclick="deleteActivity(<?= $activity['activity_id'] ?>)">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                                 Delete Activity
