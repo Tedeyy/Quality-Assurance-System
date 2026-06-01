@@ -2,6 +2,8 @@
 session_start();
 
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/component/access.php';
 
 /**
  * Show a readable error in the content area when a page crashes (common on shared hosting with display_errors off).
@@ -36,6 +38,21 @@ register_shutdown_function(function () {
     );
 });
 
+$action = $_GET['action'] ?? '';
+$can_access_all_modules = false;
+$restricted_to_accreditation_tracking = false;
+
+if (isset($_SESSION['user_id'])) {
+    $db = $db ?? (new Database())->getConnection();
+    $can_access_all_modules = qa_current_user_can_access_all_modules($db);
+    $restricted_to_accreditation_tracking = !$can_access_all_modules;
+
+    if ($restricted_to_accreditation_tracking && !in_array($action, ['dashboard', '', 'accreditation', 'login', 'signup'], true)) {
+        $action = 'accreditation';
+        $_GET['action'] = 'accreditation';
+    }
+}
+
 require_once __DIR__ . '/component/header.php';
 require_once __DIR__ . '/component/navbar.php';
 require_once __DIR__ . '/component/confirmationpane.php';
@@ -50,8 +67,6 @@ if (isset($_SESSION['success'])) {
     unset($_SESSION['success']);
 }
 
-$action = $_GET['action'] ?? '';
-
 $content_file = null;
 if (isset($_SESSION['user_id'])) {
     if ($action === 'dashboard' || $action === '' || $action === 'login' || $action === 'signup') {
@@ -64,8 +79,8 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/accreditation/accmapping.php';
     } elseif ($action === 'activity') {
         $content_file = __DIR__ . '/content/ame/activityevaluation.php';
-    } elseif ($action === 'actmasterlist') {
-        $content_file = __DIR__ . '/content/ame/actmasterlist.php';
+    } elseif ($action === 'archived_activities') {
+        $content_file = __DIR__ . '/content/ame/archived.php';
     } elseif ($action === 'evaluationmonitoring') {
         $content_file = __DIR__ . '/content/ame/evaluationmonitoring.php';
     } elseif ($action === 'view_activity') {
@@ -74,8 +89,6 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/ame/evaluations.php';
     } elseif ($action === 'document') {
         $content_file = __DIR__ . '/content/document/doctracker.php';
-    } elseif ($action === 'docmasterlist') {
-        $content_file = __DIR__ . '/content/document/docmasterlist.php';
     } elseif ($action === 'doclinkage') {
         $content_file = __DIR__ . '/content/document/doclinkage.php';
     } else {

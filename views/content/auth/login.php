@@ -7,10 +7,10 @@
             <div class="brand-content">
                 <h1 class="brand-title">Quality Assurance</h1>
                 <div class="brand-subtitle">Centralized Management System</div>
-                
+
                 <p class="brand-description">
-                    Welcome to the centralized portal for managing accreditations, 
-                    streamlining document control, and tracking institutional 
+                    Welcome to the centralized portal for managing accreditations,
+                    streamlining document control, and tracking institutional
                     procedures. Our goal is to maintain excellence and compliance.
                 </p>
 
@@ -39,13 +39,11 @@
         <!-- Right Pane -->
         <div class="login-form-pane">
             <img src="../assets/img/QAO_logo.png" alt="QAO Logo" class="login-logo">
-            
             <form action="../api/auth.php?action=login" method="POST" class="auth-form" id="loginForm">
                 <div class="form-group">
                     <label class="form-label">Email Address</label>
                     <input type="email" name="email" required class="form-control login-submit-field" placeholder="Enter your email">
                 </div>
-                
                 <div class="form-group">
                     <label class="form-label">Password</label>
                     <div class="input-wrapper">

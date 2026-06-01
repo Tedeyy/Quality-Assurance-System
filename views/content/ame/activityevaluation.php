@@ -6,14 +6,31 @@ $db = (new Database())->getConnection();
 $activities = [];
 $sdgs = [];
 $offices = [];
+$office_positions = [];
 $sdg_stats = [];
 $speaker_ratings = [];
 $organizer_ratings = [];
 
+function ensureActivityArchiveColumns(PDO $db): void {
+    $columns = $db->query("SHOW COLUMNS FROM activities")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('is_archived', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER eventstatus");
+    }
+    if (!in_array('archived_at', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN archived_at DATETIME DEFAULT NULL AFTER is_archived");
+    }
+}
+
+try {
+    ensureActivityArchiveColumns($db);
+} catch (PDOException $e) {
+    error_log("AME archive column migration failed: " . $e->getMessage());
+}
+
 // Fetch activities with their ratings and SDGs.
 // Use lowercase `sdgs`; table names are case-sensitive on Linux hosting.
 try {
-    $query = "SELECT a.*, s.overall_average, e.response_rate,
+    $query = "SELECT a.*, o.position AS office_position, s.overall_average, e.response_rate,
                      (
                         SELECT GROUP_CONCAT(sdg.title SEPARATOR ', ')
                         FROM activity_sdgs asg
@@ -27,8 +44,10 @@ try {
                         WHERE asg.activity_id = a.activity_id
                      ) AS sdg_ids
               FROM activities a
+              LEFT JOIN divisions_offices o ON a.requesting_office_id = o.office_id
               LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
               LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
+              WHERE COALESCE(a.is_archived, 0) = 0
               ORDER BY a.eventdate DESC";
     $stmt = $db->query($query);
     $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -46,8 +65,14 @@ try {
 
 // Fetch offices for the dropdown
 try {
-    $office_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
+    $office_stmt = $db->query("SELECT office_id, name, acronym, position FROM divisions_offices ORDER BY name ASC");
     $offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($offices as $office) {
+        if (!empty($office['position']) && !in_array($office['position'], $office_positions, true)) {
+            $office_positions[] = $office['position'];
+        }
+    }
+    sort($office_positions);
 } catch (PDOException $e) {
     error_log("AME offices query failed: " . $e->getMessage());
 }
@@ -67,9 +92,10 @@ usort($months, function($a, $b) {
 });
 
 // Fetch all SDGs and their activity counts for the dashboard
-$sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(asg.activity_id) as count 
+$sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(a.activity_id) as count 
                      FROM sdgs s 
                      LEFT JOIN activity_sdgs asg ON s.sdg_id = asg.sdg_id 
+                     LEFT JOIN activities a ON asg.activity_id = a.activity_id AND COALESCE(a.is_archived, 0) = 0
                      GROUP BY s.sdg_id, s.title
                      ORDER BY s.sdg_id ASC";
 try {
@@ -438,6 +464,39 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     .badge-1 { background: #fef3c7; color: #92400e; border: 2px solid #fbbf24; }
     .badge-2 { background: #f1f5f9; color: #475569; border: 2px solid #cbd5e1; }
     .badge-3 { background: #ffedd5; color: #9a3412; border: 2px solid #fdba74; }
+    .activity-rank-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        min-width: 150px;
+    }
+    .activity-rank-pill {
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+        padding: 0.45rem 0.55rem;
+    }
+    .activity-rank-pill span:first-child {
+        color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .activity-rank-value {
+        color: #0f172a;
+        font-size: 0.78rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+    .activity-rank-value.pending {
+        color: #94a3b8;
+        font-weight: 800;
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem;">
@@ -456,6 +515,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">Track, evaluate, and report institutional activities and faculty performance.</p>
             </div>
             <div style="display: flex; gap: 10px;">
+                <a href="feed.php?action=archived_activities" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; text-decoration: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
+                    </svg>
+                    Archived Activities
+                </a>
                 <button class="btn btn-secondary" onclick="openExportModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -470,6 +535,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 </button>
             </div>
         </div>
+
+        <!-- Hidden Archive Form -->
+        <form id="inlineArchiveForm" action="../api/activities.php?action=archive" method="POST" style="display: none;">
+            <input type="hidden" name="activity_id" id="inlineArchiveActivityId" value="">
+            <input type="hidden" name="redirect_url" value="../views/feed.php?action=activity">
+        </form>
 
         <!-- Export Modal -->
         <div id="exportModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
@@ -532,6 +603,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         </div>
 
         <script>
+            function archiveActivity(id, title) {
+                if (confirm(`Are you sure you want to archive this activity?\n\n${title}`)) {
+                    document.getElementById('inlineArchiveActivityId').value = id;
+                    document.getElementById('inlineArchiveForm').submit();
+                }
+            }
             function openExportModal() {
                 document.getElementById('exportModal').style.display = 'flex';
             }
@@ -551,14 +628,32 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 const start = document.getElementById('exportStart').value;
                 const end = document.getElementById('exportEnd').value;
 
-                let url = `../api/export_report.php?type=${type}`;
-                if (office && type.includes('office')) url += `&office_id=${office}`;
-                if (type === 'office_month' && month) url += `&month=${month}`;
-                if (type.includes('range')) {
-                    if (start) url += `&start_date=${start}`;
-                    if (end) url += `&end_date=${end}`;
+                if (type.includes('office') && !office) {
+                    alert('Please select a requesting office.');
+                    return;
                 }
 
+                if (type.includes('range')) {
+                    if (!start || !end) {
+                        alert('Please select both start and end dates.');
+                        return;
+                    }
+
+                    if (start > end) {
+                        alert('Start date cannot be later than end date.');
+                        return;
+                    }
+                }
+
+                const params = new URLSearchParams({ type });
+                if (type.includes('office')) params.set('office_id', office);
+                if (type === 'office_month' && month) params.set('month', month);
+                if (type.includes('range')) {
+                    params.set('start_date', start);
+                    params.set('end_date', end);
+                }
+
+                const url = `../api/export_report.php?${params.toString()}`;
                 window.location.href = url;
                 closeExportModal();
             }
@@ -687,11 +782,17 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" id="activitySearch" onkeyup="handleActivityFilterChange()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
-            <select id="statusFilter" onchange="handleActivityFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
-                <option value="all">All Status</option>
-                <option value="upcoming">Upcoming (Pending)</option>
-                <option value="ongoing">In Progress (Ongoing)</option>
-                <option value="completed">Completed</option>
+            <select id="officePositionFilter" onchange="handlePositionFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 170px; background: white;">
+                <option value="all">All Positions</option>
+                <?php foreach ($office_positions as $position): ?>
+                    <option value="<?= htmlspecialchars($position) ?>"><?= htmlspecialchars($position) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <select id="officeFilter" onchange="handleOfficeFilterChange()" disabled style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 210px; background: #f8fafc; color: #94a3b8; cursor: not-allowed;">
+                <option value="all">All Offices</option>
+                <?php foreach ($offices as $office): ?>
+                    <option value="<?= (int)$office['office_id'] ?>" data-position="<?= htmlspecialchars((string)($office['position'] ?? '')) ?>"><?= htmlspecialchars($office['name']) ?><?= !empty($office['acronym']) ? ' (' . htmlspecialchars($office['acronym']) . ')' : '' ?></option>
+                <?php endforeach; ?>
             </select>
         </div>
 
@@ -705,13 +806,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Date</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Status</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Rating</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Rankings</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($activities)): ?>
                         <tr>
-                            <td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                            <td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
                                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color: #cbd5e1;">
                                         <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>
@@ -731,6 +833,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                                 data-date="<?= $activity['eventdate'] ?>"
                                 data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" 
                                 data-status="<?= $status_val ?>" 
+                                data-office-id="<?= htmlspecialchars((string)($activity['requesting_office_id'] ?? '')) ?>"
+                                data-office-position="<?= htmlspecialchars((string)($activity['office_position'] ?? '')) ?>"
                                 data-sdgs="<?= $activity['sdg_ids'] ?>"
                                 data-title="<?= htmlspecialchars($activity['title']) ?>"
                                 data-response-rate="<?= (float)$activity['response_rate'] ?>"
@@ -813,6 +917,18 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                                         <span style="color: #94a3b8; font-size: 0.85rem;">Pending</span>
                                     <?php endif; ?>
                                 </td>
+                                <td style="padding: 1.2rem;">
+                                    <div class="activity-rank-stack">
+                                        <div class="activity-rank-pill">
+                                            <span>Participation</span>
+                                            <strong class="activity-rank-value participation-rank">-</strong>
+                                        </div>
+                                        <div class="activity-rank-pill">
+                                            <span>Performance</span>
+                                            <strong class="activity-rank-value performance-rank">-</strong>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td style="padding: 1.2rem; text-align: right;">
                                     <div class="action-dropdown">
                                         <button type="button" class="three-dots-btn" onclick="toggleDropdown(<?= (int)$activity['activity_id'] ?>, event)">
@@ -830,6 +946,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                                                 Edit Activity
                                             </button>
                                             <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                                            <button class="dropdown-item" onclick="archiveActivity(<?= $activity['activity_id'] ?>, '<?= addslashes(htmlspecialchars($activity['title'], ENT_QUOTES, 'UTF-8')) ?>')">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                                                Archive Activity
+                                            </button>
                                             <button class="dropdown-item delete" onclick="deleteActivity(<?= $activity['activity_id'] ?>)">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                                 Delete Activity
@@ -848,31 +968,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <div class="activity-pagination" id="activityPagination"></div>
             </div>
         </div>
-        <!-- Ranking Section -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; margin-bottom: 3rem;">
-            <div class="ranking-card">
-                <div class="ranking-title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Top Participation (Response Rate)
-                </div>
-                <div id="participationRanking">
-                    <!-- Dynamic Items -->
-                </div>
-            </div>
-
-            <div class="ranking-card">
-                <div class="ranking-title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DFB641" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    Top Performance (Overall Average)
-                </div>
-                <div id="performanceRanking">
-                    <!-- Dynamic Items -->
-                </div>
-            </div>
-        </div>
 
         <!-- Facilitator Ranking Section -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 0rem; margin-bottom: 3rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; margin-bottom: 3rem;">
             <div class="ranking-card">
                 <div class="ranking-title">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -916,6 +1014,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 }
             });
         }
+        updateOfficeFilterState();
         
         searchActivities(); // Initialize rankings and counts
     });
@@ -933,8 +1032,39 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         if (btn) {
             btn.classList.add('active');
         }
-        
         searchActivities(false); // Trigger general filter
+    }
+
+    function handlePositionFilterChange() {
+        const officeFilter = document.getElementById('officeFilter');
+        if (officeFilter) officeFilter.value = 'all';
+        currentActivityPage = 1;
+        updateOfficeFilterState();
+        searchActivities(false);
+    }
+
+    function handleOfficeFilterChange() {
+        currentActivityPage = 1;
+        searchActivities(false);
+    }
+
+    function updateOfficeFilterState() {
+        const officeFilter = document.getElementById('officeFilter');
+        const positionFilter = document.getElementById('officePositionFilter');
+        if (!officeFilter || !positionFilter) return;
+
+        const selectedPosition = positionFilter.value;
+        const enabled = selectedPosition !== 'all';
+        officeFilter.disabled = !enabled;
+        if (!enabled) officeFilter.value = 'all';
+
+        Array.from(officeFilter.options).forEach(option => {
+            option.hidden = option.value !== 'all' && option.dataset.position !== selectedPosition;
+        });
+
+        officeFilter.style.background = enabled ? 'white' : '#f8fafc';
+        officeFilter.style.color = enabled ? '#0f172a' : '#94a3b8';
+        officeFilter.style.cursor = enabled ? 'pointer' : 'not-allowed';
     }
 
     function handleActivityFilterChange() {
@@ -946,7 +1076,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         if (resetPage) currentActivityPage = 1;
 
         const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
-        const statusFilter = document.getElementById('statusFilter').value;
+        const officeFilter = document.getElementById('officeFilter').value;
+        const positionFilter = document.getElementById('officePositionFilter').value;
         const rows = document.querySelectorAll('.activity-row');
         
         const activeActivities = [];
@@ -956,15 +1087,17 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
-            const status = row.dataset.status;
             const month = row.dataset.month;
+            const officeId = row.dataset.officeId || '';
+            const officePosition = row.dataset.officePosition || '';
             const sdgs = row.dataset.sdgs ? row.dataset.sdgs.split(',') : [];
 
             const matchesSearch = text.includes(searchTerm);
-            const matchesStatus = statusFilter === 'all' || status === statusFilter;
             const matchesMonth = currentMonthFilter === 'all' || month === currentMonthFilter;
+            const matchesOffice = officeFilter === 'all' || officeId === officeFilter;
+            const matchesPosition = positionFilter === 'all' || officePosition === positionFilter;
 
-            if (matchesSearch && matchesStatus && matchesMonth) {
+            if (matchesSearch && matchesMonth && matchesOffice && matchesPosition) {
                 filteredRows.push(row);
                 
                 // Collect data for rankings and stats
@@ -1014,7 +1147,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         document.getElementById('stat-total-label').innerText = monthLabel + ' Activities';
         document.getElementById('stat-upcoming-subtext').innerText = 'Scheduled ' + (currentMonthFilter === 'all' ? 'overall' : 'for ' + currentMonthFilter);
 
-        // Update Rankings
+        updateActivityRankColumns(activeActivities);
+
+        // Update facilitator rankings
         updateRankings(activeActivities);
 
         // Update SDG UI
@@ -1141,19 +1276,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     function updateRankings(activities) {
         const activeIds = activities.map(a => a.id);
 
-        // 1. Activity Participation Ranking (Top 5)
-        const participation = [...activities]
-            .sort((a, b) => b.rate - a.rate)
-            .slice(0, 5);
-        renderRankingList('participationRanking', participation, 'rate', '%', '#2563eb');
-
-        // 2. Activity Performance Ranking (Top 5)
-        const performance = [...activities]
-            .sort((a, b) => b.avg - a.avg)
-            .slice(0, 5);
-        renderRankingList('performanceRanking', performance, 'avg', '%', '#b45309');
-
-        // 3. Speaker Ranking
+        // 1. Speaker Ranking
         const speakerMap = {};
         speakerRatingsData.forEach(r => {
             if (activeIds.includes(r.activity_id.toString())) {
@@ -1172,7 +1295,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         })).sort((a, b) => b.score - a.score).slice(0, 5);
         renderRankingList('speakerRanking', speakers, 'score', '%', '#ef4444');
 
-        // 4. Organizer Ranking
+        // 2. Organizer Ranking
         const organizerMap = {};
         organizerRatingsData.forEach(r => {
             if (activeIds.includes(r.activity_id.toString())) {
@@ -1187,6 +1310,46 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
             score: (organizerMap[name].sum / organizerMap[name].count) * 20
         })).sort((a, b) => b.score - a.score).slice(0, 5);
         renderRankingList('organizerRanking', organizers, 'score', '%', '#0ea5e9');
+    }
+
+    function updateActivityRankColumns(activities) {
+        document.querySelectorAll('.activity-row').forEach(row => {
+            setActivityRank(row, 'participation-rank', null, null, 'No data');
+            setActivityRank(row, 'performance-rank', null, null, 'Pending');
+        });
+
+        const participation = [...activities]
+            .filter(activity => activity.rate > 0)
+            .sort((a, b) => b.rate - a.rate);
+
+        const performance = [...activities]
+            .filter(activity => activity.avg > 0)
+            .sort((a, b) => b.avg - a.avg);
+
+        participation.forEach((activity, index) => {
+            const row = document.querySelector(`.activity-row[data-id="${activity.id}"]`);
+            setActivityRank(row, 'participation-rank', index + 1, activity.rate, 'No data');
+        });
+
+        performance.forEach((activity, index) => {
+            const row = document.querySelector(`.activity-row[data-id="${activity.id}"]`);
+            setActivityRank(row, 'performance-rank', index + 1, activity.avg, 'Pending');
+        });
+    }
+
+    function setActivityRank(row, className, rank, value, emptyLabel) {
+        if (!row) return;
+        const target = row.querySelector(`.${className}`);
+        if (!target) return;
+
+        if (!rank) {
+            target.textContent = emptyLabel;
+            target.classList.add('pending');
+            return;
+        }
+
+        target.textContent = `#${rank} (${value.toFixed(1)}%)`;
+        target.classList.remove('pending');
     }
 
     function renderRankingList(containerId, list, key, suffix, color) {

@@ -96,6 +96,18 @@ if ($response_db) {
     }
 }
 
+function normalize_response_score($value): float
+{
+    if (!is_numeric($value)) return 0.0;
+
+    $score = (float)$value;
+    if ($score >= 1 && $score <= 5) {
+        return ($score / 5) * 100;
+    }
+
+    return max(0, min(100, $score));
+}
+
 function respondent_average(array $response, array $rating_columns): float
 {
     $sum = 0;
@@ -103,7 +115,7 @@ function respondent_average(array $response, array $rating_columns): float
 
     foreach ($rating_columns as $column) {
         if (isset($response[$column]) && is_numeric($response[$column])) {
-            $sum += (float)$response[$column];
+            $sum += normalize_response_score($response[$column]);
             $count++;
         }
     }
@@ -124,7 +136,7 @@ function column_rating_label($value): string
 {
     if (!is_numeric($value)) return 'No Rating';
 
-    $score = (float)$value;
+    $score = normalize_response_score($value);
     if ($score >= 90) return 'Excellent';
     if ($score >= 75) return 'Very Satisfactory';
     if ($score >= 50) return 'Satisfactory';
@@ -1647,6 +1659,16 @@ if ($eval_id) {
                     }
                 }
 
+                async function parseSyncJson(response) {
+                    const text = await response.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (err) {
+                        const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                        throw new Error(plainText || 'The sync endpoint returned an invalid response.');
+                    }
+                }
+
                 // Lazy Background Sync
                 setTimeout(async () => {
                     const activityId = <?= (int)$activity_id ?>;
@@ -1658,7 +1680,7 @@ if ($eval_id) {
                     if (!lastSync || (now - parseInt(lastSync)) > 120000) {
                         try {
                             const response = await fetch(`../api/sync_google_responses.php?id=${activityId}`);
-                            const data = await response.json();
+                            const data = await parseSyncJson(response);
                             
                             if (data.success && data.count > 0) {
                                 const toast = document.createElement('div');

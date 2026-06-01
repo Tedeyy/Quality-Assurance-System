@@ -12,6 +12,38 @@ $month = $_GET['month'] ?? null;
 $start_date = $_GET['start_date'] ?? null;
 $end_date = $_GET['end_date'] ?? null;
 
+function export_report_fail(string $message, int $status = 400): void {
+    http_response_code($status);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo $message;
+    exit;
+}
+
+function is_valid_export_date(?string $date): bool {
+    if (!$date) {
+        return false;
+    }
+
+    $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $date);
+    return $parsed && $parsed->format('Y-m-d') === $date;
+}
+
+function ensureActivityArchiveColumns(PDO $db): void {
+    $columns = $db->query("SHOW COLUMNS FROM activities")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('is_archived', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER eventstatus");
+    }
+    if (!in_array('archived_at', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN archived_at DATETIME DEFAULT NULL AFTER is_archived");
+    }
+}
+
+try {
+    ensureActivityArchiveColumns($db);
+} catch (PDOException $e) {
+    error_log("Export report archive column migration failed: " . $e->getMessage());
+}
+
 $query = "SELECT a.*, o.name as office_name, e.*, s.*,
                  GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles
           FROM activities a 
@@ -22,8 +54,13 @@ $query = "SELECT a.*, o.name as office_name, e.*, s.*,
           LEFT JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
           WHERE 1=1";
 
+$is_archived = isset($_GET['is_archived']) && $_GET['is_archived'] === '1' ? 1 : 0;
 $params = [];
-$where = [];
+$where = ["COALESCE(a.is_archived, 0) = " . $is_archived];
+
+if (strpos($type, 'office') !== false && !$office_id) {
+    export_report_fail('Please select a requesting office before exporting this report.');
+}
 
 if ($office_id && strpos($type, 'office') !== false) {
     $where[] = "a.requesting_office_id = :oid";
@@ -33,8 +70,16 @@ if ($office_id && strpos($type, 'office') !== false) {
 if (strpos($type, 'month') !== false && $month) {
     $where[] = "DATE_FORMAT(a.eventdate, '%M %Y') = :month";
     $params['month'] = $month;
-} elseif (strpos($type, 'range') !== false && $start_date && $end_date) {
-    $where[] = "a.eventdate BETWEEN :start AND :end";
+} elseif (strpos($type, 'range') !== false) {
+    if (!is_valid_export_date($start_date) || !is_valid_export_date($end_date)) {
+        export_report_fail('Please select a valid start and end date before exporting this report.');
+    }
+
+    if ($start_date > $end_date) {
+        export_report_fail('Start date cannot be later than end date.');
+    }
+
+    $where[] = "DATE(a.eventdate) BETWEEN :start AND :end";
     $params['start'] = $start_date;
     $params['end'] = $end_date;
 }
@@ -49,14 +94,51 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+function percent_to_float($val): float {
+    if ($val === null || $val === '') {
+        return 0.0;
+    }
+
+    return (float) str_replace('%', '', (string)$val);
+}
+
+function build_rank_map(array $data, string $field): array {
+    $ranked = [];
+    foreach ($data as $row) {
+        $score = percent_to_float($row[$field] ?? null);
+        if ($score <= 0) {
+            continue;
+        }
+
+        $ranked[] = [
+            'activity_id' => (int)$row['activity_id'],
+            'score' => $score,
+        ];
+    }
+
+    usort($ranked, function ($a, $b) {
+        return $b['score'] <=> $a['score'];
+    });
+
+    $rankMap = [];
+    foreach ($ranked as $index => $row) {
+        $rankMap[$row['activity_id']] = '#' . ($index + 1);
+    }
+
+    return $rankMap;
+}
+
+$participationRanks = build_rank_map($data, 'response_rate');
+$performanceRanks = build_rank_map($data, 'overall_average');
+
 $rows = [
     [
         'Activity Title', 'SDG(s) Addressed', 'Request Email Link', 'Email Link', 'Requesting Office/Unit', 
         'Date', 'Venue', 'Speaker/s or Organizer\'s Office/Unit', 'Target Participants', 'AME Form Link', 
-        'Number of Participants', 'Number of Respondents', 'Response Rate (%)', 'Overall Service Rating', 
+        'Number of Participants', 'Number of Respondents', 'Response Rate (%)', 'Participation Rank', 'Overall Service Rating',
         'Weighted Average (OSR)', 'Presenter Effectiveness /Organizer Rating', 'Weighted Average (PE/OOR)', 
         'Program and Methodology', 'Weighted Average (PAM)', 'Program/Activity Management/ Logistics and Support Services', 
-        'Weighted Average (P/AM)', 'Overall Experience', 'Weighted Average (OE)', 'Overall Average', 
+        'Weighted Average (P/AM)', 'Overall Experience', 'Weighted Average (OE)', 'Overall Average', 'Performance Rank',
         'Complaints', 'Suggestions for Improvement', 'Published Options', 'Deadline (20 Working Days)', 
         'Date Released', 'Status', 'Justification Letter (If applicable)'
     ]
@@ -96,18 +178,20 @@ foreach ($data as $r) {
         $r['ame_form_link'],
         $r['number_of_participants'],
         $r['number_of_respondents'],
-        ensurePercent($r['response_rate']),      // M
-        $r['osr'],                                // N (Already formatted distribution)
-        ensurePercent($r['osr_wa']),              // O
-        $r['peor'],                               // P
-        ensurePercent($r['peor_wa']),             // Q
-        $r['pam'],                                // R
-        ensurePercent($r['pam_wa']),              // S
-        $r['pamlss'],                             // T
-        ensurePercent($r['pamlss_wa']),           // U
-        $r['oe'],                                 // V
-        ensurePercent($r['oe_wa']),               // W
-        ensurePercent($r['overall_average']),     // X
+        ensurePercent($r['response_rate']),
+        $participationRanks[(int)$r['activity_id']] ?? 'No data',
+        $r['osr'],
+        ensurePercent($r['osr_wa']),
+        $r['peor'],
+        ensurePercent($r['peor_wa']),
+        $r['pam'],
+        ensurePercent($r['pam_wa']),
+        $r['pamlss'],
+        ensurePercent($r['pamlss_wa']),
+        $r['oe'],
+        ensurePercent($r['oe_wa']),
+        ensurePercent($r['overall_average']),
+        $performanceRanks[(int)$r['activity_id']] ?? 'Pending',
         $r['complaints'],
         $r['suggestions_for_improvement'],
         $r['published_options'],

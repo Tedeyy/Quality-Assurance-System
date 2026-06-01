@@ -1,21 +1,49 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+ob_start();
+
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../config/responses_database.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
-header('Content-Type: application/json');
+function sync_json_response(array $payload, int $status = 200): void {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    http_response_code($status);
+    header('Content-Type: application/json');
+    echo json_encode($payload);
+    exit;
+}
+
+set_exception_handler(function (Throwable $e) {
+    error_log("Sync Google responses failed: " . $e->getMessage());
+    sync_json_response(['success' => false, 'message' => 'Sync failed: ' . $e->getMessage()], 500);
+});
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if (!$error || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+
+    error_log("Sync Google responses fatal error: {$error['message']} in {$error['file']}:{$error['line']}");
+    if (!headers_sent()) {
+        sync_json_response(['success' => false, 'message' => 'Sync failed due to a server error. Check the PHP error log for details.'], 500);
+    }
+});
 
 if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
-    exit;
+    sync_json_response(['success' => false, 'message' => 'Unauthorized'], 401);
 }
 
 $activity_id = $_GET['id'] ?? null;
 if (!$activity_id) {
-    echo json_encode(['success' => false, 'message' => 'Missing activity ID']);
-    exit;
+    sync_json_response(['success' => false, 'message' => 'Missing activity ID'], 400);
 }
 $activity_id = (int)$activity_id;
 
@@ -29,8 +57,7 @@ $stmt->execute(['aid' => $activity_id]);
 $eval = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$eval || empty($eval['ame_form_id'])) {
-    echo json_encode(['success' => false, 'message' => 'No Google Form is associated with this activity. Please generate one first.']);
-    exit;
+    sync_json_response(['success' => false, 'message' => 'No Google Form is associated with this activity. Please generate one first.'], 404);
 }
 $formId = $eval['ame_form_id'];
 
@@ -39,21 +66,42 @@ $stmt = $db->prepare("SELECT google_access_token, google_refresh_token FROM user
 $stmt->execute(['uid' => $_SESSION['user_id']]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (empty($user['google_access_token'])) {
-    echo json_encode(['success' => false, 'message' => 'Please link your Google account in your profile.']);
-    exit;
+if (empty($user['google_access_token']) && empty($user['google_refresh_token'])) {
+    sync_json_response(['success' => false, 'message' => 'Please link your Google account in your profile.'], 403);
 }
 
 $client = new Google\Client();
 $client->setClientId($_ENV['GOOGLE_CLIENT_ID']);
 $client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET']);
-$client->setAccessToken(json_decode($user['google_access_token'], true));
 
-if ($client->isAccessTokenExpired() && $user['google_refresh_token']) {
+$storedAccessToken = json_decode($user['google_access_token'], true);
+$hasValidStoredAccessToken = json_last_error() === JSON_ERROR_NONE && is_array($storedAccessToken) && !empty($storedAccessToken);
+
+if ($hasValidStoredAccessToken) {
+    $client->setAccessToken($storedAccessToken);
+} elseif (!empty($user['google_refresh_token'])) {
     $newToken = $client->fetchAccessTokenWithRefreshToken($user['google_refresh_token']);
+    if (!empty($newToken['error'])) {
+        sync_json_response(['success' => false, 'message' => 'Google access could not be refreshed. Please link your Google account again.'], 403);
+    }
+
     $client->setAccessToken($newToken);
     $stmt = $db->prepare("UPDATE users SET google_access_token = :token WHERE user_id = :uid");
     $stmt->execute(['token' => json_encode($client->getAccessToken()), 'uid' => $_SESSION['user_id']]);
+} else {
+    sync_json_response(['success' => false, 'message' => 'Stored Google access is invalid. Please link your Google account again.'], 403);
+}
+
+if ($client->isAccessTokenExpired() && $user['google_refresh_token']) {
+    $newToken = $client->fetchAccessTokenWithRefreshToken($user['google_refresh_token']);
+    if (!empty($newToken['error'])) {
+        sync_json_response(['success' => false, 'message' => 'Google access could not be refreshed. Please link your Google account again.'], 403);
+    }
+    $client->setAccessToken($newToken);
+    $stmt = $db->prepare("UPDATE users SET google_access_token = :token WHERE user_id = :uid");
+    $stmt->execute(['token' => json_encode($client->getAccessToken()), 'uid' => $_SESSION['user_id']]);
+} elseif ($client->isAccessTokenExpired()) {
+    sync_json_response(['success' => false, 'message' => 'Google access expired. Please link your Google account again.'], 403);
 }
 
 $formsService = new Google\Service\Forms($client);
@@ -153,15 +201,6 @@ try {
             if(!$qId) continue;
             if(isset($answers[$qId])) {
                 $val = $answers[$qId]['textAnswers']['answers'][0]['value'] ?? null;
-                
-                // Convert 1-5 scale to 0-100 scale for rating columns
-                if ($val !== null && (strpos($colName, 'fac_') === 0 || strpos($colName, 'prog_') === 0 || strpos($colName, 'log_') === 0 || in_array($colName, ['osr', 'oe']))) {
-                    if (is_numeric($val) && in_array((int)$val, [1, 2, 3, 4, 5])) {
-                        $rating_map = [1 => 0, 2 => 25, 3 => 50, 4 => 75, 5 => 100];
-                        $val = $rating_map[(int)$val];
-                    }
-                }
-                
                 $row[$colName] = $val;
             } else {
                 $row[$colName] = null;
@@ -196,13 +235,14 @@ try {
         $totalCount = $countStmt->fetchColumn();
     }
     
-    echo json_encode([
+    sync_json_response([
         'success' => true, 
         'message' => "Successfully synced $insertedCount new responses.",
         'count' => $insertedCount,
         'total' => $totalCount
     ]);
 
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'API Error: ' . $e->getMessage()]);
+} catch (Throwable $e) {
+    error_log("Sync Google responses API error: " . $e->getMessage());
+    sync_json_response(['success' => false, 'message' => 'API Error: ' . $e->getMessage()], 500);
 }

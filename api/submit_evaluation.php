@@ -79,26 +79,18 @@ if ($rdb) {
 
     $cols = []; $vals = []; $params = [];
     $fields = ['email', 'fullname', 'age', 'gender', 'contact', 'unit', 'osr', 'best_topics', 'improvements', 'oe'];
-    $rating_map = [1 => 0, 2 => 25, 3 => 50, 4 => 75, 5 => 100];
 
     foreach ($fields as $f) {
         if (isset($_POST[$f])) {
             $cols[] = $f;
             $vals[] = ":$f";
-            $val = $_POST[$f];
-            if (in_array($f, ['osr', 'oe']) && isset($rating_map[$val])) {
-                $val = $rating_map[$val];
-            }
-            $params[$f] = $val;
+            $params[$f] = $_POST[$f];
         }
     }
     foreach ($_POST as $key => $val) {
         if (strpos($key, 'fac_') === 0 || strpos($key, 'prog_') === 0 || strpos($key, 'log_') === 0) {
             $cols[] = $key;
             $vals[] = ":$key";
-            if (isset($rating_map[$val])) {
-                $val = $rating_map[$val];
-            }
             $params[$key] = $val;
         }
     }
