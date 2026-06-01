@@ -77,14 +77,51 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+function percent_to_float($val): float {
+    if ($val === null || $val === '') {
+        return 0.0;
+    }
+
+    return (float) str_replace('%', '', (string)$val);
+}
+
+function build_rank_map(array $data, string $field): array {
+    $ranked = [];
+    foreach ($data as $row) {
+        $score = percent_to_float($row[$field] ?? null);
+        if ($score <= 0) {
+            continue;
+        }
+
+        $ranked[] = [
+            'activity_id' => (int)$row['activity_id'],
+            'score' => $score,
+        ];
+    }
+
+    usort($ranked, function ($a, $b) {
+        return $b['score'] <=> $a['score'];
+    });
+
+    $rankMap = [];
+    foreach ($ranked as $index => $row) {
+        $rankMap[$row['activity_id']] = '#' . ($index + 1);
+    }
+
+    return $rankMap;
+}
+
+$participationRanks = build_rank_map($data, 'response_rate');
+$performanceRanks = build_rank_map($data, 'overall_average');
+
 $rows = [
     [
         'Activity Title', 'SDG(s) Addressed', 'Request Email Link', 'Email Link', 'Requesting Office/Unit', 
         'Date', 'Venue', 'Speaker/s or Organizer\'s Office/Unit', 'Target Participants', 'AME Form Link', 
-        'Number of Participants', 'Number of Respondents', 'Response Rate (%)', 'Overall Service Rating', 
+        'Number of Participants', 'Number of Respondents', 'Response Rate (%)', 'Participation Rank', 'Overall Service Rating',
         'Weighted Average (OSR)', 'Presenter Effectiveness /Organizer Rating', 'Weighted Average (PE/OOR)', 
         'Program and Methodology', 'Weighted Average (PAM)', 'Program/Activity Management/ Logistics and Support Services', 
-        'Weighted Average (P/AM)', 'Overall Experience', 'Weighted Average (OE)', 'Overall Average', 
+        'Weighted Average (P/AM)', 'Overall Experience', 'Weighted Average (OE)', 'Overall Average', 'Performance Rank',
         'Complaints', 'Suggestions for Improvement', 'Published Options', 'Deadline (20 Working Days)', 
         'Date Released', 'Status', 'Justification Letter (If applicable)'
     ]
@@ -124,18 +161,20 @@ foreach ($data as $r) {
         $r['ame_form_link'],
         $r['number_of_participants'],
         $r['number_of_respondents'],
-        ensurePercent($r['response_rate']),      // M
-        $r['osr'],                                // N (Already formatted distribution)
-        ensurePercent($r['osr_wa']),              // O
-        $r['peor'],                               // P
-        ensurePercent($r['peor_wa']),             // Q
-        $r['pam'],                                // R
-        ensurePercent($r['pam_wa']),              // S
-        $r['pamlss'],                             // T
-        ensurePercent($r['pamlss_wa']),           // U
-        $r['oe'],                                 // V
-        ensurePercent($r['oe_wa']),               // W
-        ensurePercent($r['overall_average']),     // X
+        ensurePercent($r['response_rate']),
+        $participationRanks[(int)$r['activity_id']] ?? 'No data',
+        $r['osr'],
+        ensurePercent($r['osr_wa']),
+        $r['peor'],
+        ensurePercent($r['peor_wa']),
+        $r['pam'],
+        ensurePercent($r['pam_wa']),
+        $r['pamlss'],
+        ensurePercent($r['pamlss_wa']),
+        $r['oe'],
+        ensurePercent($r['oe_wa']),
+        ensurePercent($r['overall_average']),
+        $performanceRanks[(int)$r['activity_id']] ?? 'Pending',
         $r['complaints'],
         $r['suggestions_for_improvement'],
         $r['published_options'],
