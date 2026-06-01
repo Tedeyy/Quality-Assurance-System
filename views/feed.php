@@ -79,6 +79,8 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/accreditation/accmapping.php';
     } elseif ($action === 'activity') {
         $content_file = __DIR__ . '/content/ame/activityevaluation.php';
+    } elseif ($action === 'archived_activities') {
+        $content_file = __DIR__ . '/content/ame/archived.php';
     } elseif ($action === 'evaluationmonitoring') {
         $content_file = __DIR__ . '/content/ame/evaluationmonitoring.php';
     } elseif ($action === 'view_activity') {

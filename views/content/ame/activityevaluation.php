@@ -84,9 +84,10 @@ usort($months, function($a, $b) {
 });
 
 // Fetch all SDGs and their activity counts for the dashboard
-$sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(asg.activity_id) as count 
+$sdg_counts_query = "SELECT s.sdg_id, s.title, COUNT(a.activity_id) as count 
                      FROM sdgs s 
                      LEFT JOIN activity_sdgs asg ON s.sdg_id = asg.sdg_id 
+                     LEFT JOIN activities a ON asg.activity_id = a.activity_id AND COALESCE(a.is_archived, 0) = 0
                      GROUP BY s.sdg_id, s.title
                      ORDER BY s.sdg_id ASC";
 try {
@@ -506,12 +507,25 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <p style="color: var(--text-secondary); font-size: 0.95rem;">Track, evaluate, and report institutional activities and faculty performance.</p>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-secondary" onclick="openArchiveModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
-                    </svg>
-                    Archive Activity
-                </button>
+                <div class="action-dropdown">
+                    <button type="button" class="btn btn-secondary" onclick="toggleArchiveMenu(event)" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>
+                        </svg>
+                        Archive
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div id="archiveHeaderMenu" class="dropdown-menu" style="right: auto; left: 0; min-width: 210px;">
+                        <button type="button" class="dropdown-item" onclick="openArchiveModal(); closeArchiveMenu();">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                            Archive Activity
+                        </button>
+                        <a href="feed.php?action=archived_activities" class="dropdown-item" style="text-decoration: none;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3z"/><path d="M5 7v14h14V7"/><path d="M10 12h4"/></svg>
+                            See Archived Activities
+                        </a>
+                    </div>
+                </div>
                 <button class="btn btn-secondary" onclick="openExportModal()" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -620,6 +634,19 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         </div>
 
         <script>
+            function toggleArchiveMenu(e) {
+                e.stopPropagation();
+                const menu = document.getElementById('archiveHeaderMenu');
+                if (!menu) return;
+                document.querySelectorAll('.dropdown-menu').forEach(item => {
+                    if (item !== menu) item.style.display = 'none';
+                });
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            }
+            function closeArchiveMenu() {
+                const menu = document.getElementById('archiveHeaderMenu');
+                if (menu) menu.style.display = 'none';
+            }
             function openArchiveModal() {
                 document.getElementById('archiveModal').style.display = 'flex';
             }
