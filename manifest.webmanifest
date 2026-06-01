@@ -1,0 +1,43 @@
+{
+  "name": "Quality Assurance System",
+  "short_name": "QA System",
+  "description": "Northern Bukidnon State College Quality Assurance Office portal.",
+  "start_url": "./views/feed.php?action=dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f7fb",
+  "theme_color": "#001c57",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "./assets/img/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/img/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "./views/feed.php?action=dashboard"
+    },
+    {
+      "name": "Activity Evaluation",
+      "short_name": "Activities",
+      "url": "./views/feed.php?action=activity"
+    },
+    {
+      "name": "Accreditation Tracking",
+      "short_name": "Accreditation",
+      "url": "./views/feed.php?action=accreditation"
+    }
+  ]
+}
