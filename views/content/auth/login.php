@@ -39,13 +39,11 @@
         <!-- Right Pane -->
         <div class="login-form-pane">
             <img src="../assets/img/QAO_logo.png" alt="QAO Logo" class="login-logo">
-
             <form action="../api/auth.php?action=login" method="POST" class="auth-form" id="loginForm">
                 <div class="form-group">
                     <label class="form-label">Email Address</label>
                     <input type="email" name="email" required class="form-control login-submit-field" placeholder="Enter your email">
                 </div>
-
                 <div class="form-group">
                     <label class="form-label">Password</label>
                     <div class="input-wrapper">
