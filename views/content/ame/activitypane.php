@@ -399,6 +399,16 @@ if ($evaluation) {
                     }
                 }
 
+                async function parseSyncJson(response) {
+                    const text = await response.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (err) {
+                        const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                        throw new Error(plainText || 'The sync endpoint returned an invalid response.');
+                    }
+                }
+
                 async function syncGoogleResponses(id) {
                     try {
                         const btn = event.currentTarget;
@@ -407,7 +417,7 @@ if ($evaluation) {
                         btn.disabled = true;
 
                         const response = await fetch(`../api/sync_google_responses.php?id=${id}`);
-                        const data = await response.json();
+                        const data = await parseSyncJson(response);
                         
                         if (data.success) {
                             alert(data.message);
@@ -418,7 +428,7 @@ if ($evaluation) {
                             btn.disabled = false;
                         }
                     } catch (err) {
-                        alert('Failed to sync responses.');
+                        alert('Failed to sync responses: ' + err.message);
                     }
                 }
 
@@ -712,6 +722,18 @@ if ($evaluation) {
     </div>
 </main>
 <script>
+if (typeof window.parseSyncJson !== 'function') {
+    window.parseSyncJson = async function(response) {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (err) {
+            const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            throw new Error(plainText || 'The sync endpoint returned an invalid response.');
+        }
+    };
+}
+
 // Lazy Background Sync
 setTimeout(async () => {
     const activityId = <?= (int)$activity_id ?>;
@@ -723,7 +745,7 @@ setTimeout(async () => {
     if (!lastSync || (now - parseInt(lastSync)) > 120000) {
         try {
             const response = await fetch(`../api/sync_google_responses.php?id=${activityId}`);
-            const data = await response.json();
+            const data = await parseSyncJson(response);
             
             if (data.success && data.count > 0) {
                 const toast = document.createElement('div');

@@ -1647,6 +1647,16 @@ if ($eval_id) {
                     }
                 }
 
+                async function parseSyncJson(response) {
+                    const text = await response.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (err) {
+                        const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                        throw new Error(plainText || 'The sync endpoint returned an invalid response.');
+                    }
+                }
+
                 // Lazy Background Sync
                 setTimeout(async () => {
                     const activityId = <?= (int)$activity_id ?>;
@@ -1658,7 +1668,7 @@ if ($eval_id) {
                     if (!lastSync || (now - parseInt(lastSync)) > 120000) {
                         try {
                             const response = await fetch(`../api/sync_google_responses.php?id=${activityId}`);
-                            const data = await response.json();
+                            const data = await parseSyncJson(response);
                             
                             if (data.success && data.count > 0) {
                                 const toast = document.createElement('div');
