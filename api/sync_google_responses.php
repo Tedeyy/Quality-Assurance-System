@@ -201,15 +201,6 @@ try {
             if(!$qId) continue;
             if(isset($answers[$qId])) {
                 $val = $answers[$qId]['textAnswers']['answers'][0]['value'] ?? null;
-                
-                // Convert 1-5 scale to 0-100 scale for rating columns
-                if ($val !== null && (strpos($colName, 'fac_') === 0 || strpos($colName, 'prog_') === 0 || strpos($colName, 'log_') === 0 || in_array($colName, ['osr', 'oe']))) {
-                    if (is_numeric($val) && in_array((int)$val, [1, 2, 3, 4, 5])) {
-                        $rating_map = [1 => 0, 2 => 25, 3 => 50, 4 => 75, 5 => 100];
-                        $val = $rating_map[(int)$val];
-                    }
-                }
-                
                 $row[$colName] = $val;
             } else {
                 $row[$colName] = null;

@@ -1,4 +1,23 @@
 <?php
+function normalizeStoredRating($val): int {
+    if ($val === null || $val === '' || !is_numeric($val)) {
+        return 0;
+    }
+
+    $numeric = (float)$val;
+    if ($numeric >= 1 && $numeric <= 5) {
+        return (int)round($numeric);
+    }
+
+    if ($numeric >= 90) return 5;
+    if ($numeric >= 75) return 4;
+    if ($numeric >= 50) return 3;
+    if ($numeric >= 25) return 2;
+    if ($numeric === 0.0) return 1;
+
+    return 0;
+}
+
 function recalculateActivityStatistics(PDO $db, PDO $rdb, int $activity_id, int $evaluation_id, string $table_name) {
     $resp_stmt = $rdb->query("SELECT * FROM $table_name");
     $all_responses = $resp_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -30,13 +49,7 @@ function recalculateActivityStatistics(PDO $db, PDO $rdb, int $activity_id, int 
 
         foreach ($all_responses as $resp) {
             foreach ($config['fields'] as $f) {
-                $val = $resp[$f];
-                $rating = 0;
-                if ($val == 100) $rating = 5;
-                elseif ($val == 75) $rating = 4;
-                elseif ($val == 50) $rating = 3;
-                elseif ($val == 25) $rating = 2;
-                elseif ($val === '0' || $val === 0) $rating = 1;
+                $rating = normalizeStoredRating($resp[$f] ?? null);
 
                 if ($rating > 0) {
                     $counts[$rating]++;
@@ -94,13 +107,7 @@ function recalculateActivityStatistics(PDO $db, PDO $rdb, int $activity_id, int 
         
         foreach ($all_responses as $resp) {
             foreach (['eff', 'mot', 'atf'] as $m) {
-                $val = $resp["fac_{$i}_{$m}"];
-                $rating = 0;
-                if ($val == 100) $rating = 5;
-                elseif ($val == 75) $rating = 4;
-                elseif ($val == 50) $rating = 3;
-                elseif ($val == 25) $rating = 2;
-                elseif ($val === '0' || $val === 0) $rating = 1;
+                $rating = normalizeStoredRating($resp["fac_{$i}_{$m}"] ?? null);
                 
                 if ($rating > 0) {
                     $f_totals[$m] += $rating;

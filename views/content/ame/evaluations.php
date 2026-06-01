@@ -96,6 +96,18 @@ if ($response_db) {
     }
 }
 
+function normalize_response_score($value): float
+{
+    if (!is_numeric($value)) return 0.0;
+
+    $score = (float)$value;
+    if ($score >= 1 && $score <= 5) {
+        return ($score / 5) * 100;
+    }
+
+    return max(0, min(100, $score));
+}
+
 function respondent_average(array $response, array $rating_columns): float
 {
     $sum = 0;
@@ -103,7 +115,7 @@ function respondent_average(array $response, array $rating_columns): float
 
     foreach ($rating_columns as $column) {
         if (isset($response[$column]) && is_numeric($response[$column])) {
-            $sum += (float)$response[$column];
+            $sum += normalize_response_score($response[$column]);
             $count++;
         }
     }
@@ -124,7 +136,7 @@ function column_rating_label($value): string
 {
     if (!is_numeric($value)) return 'No Rating';
 
-    $score = (float)$value;
+    $score = normalize_response_score($value);
     if ($score >= 90) return 'Excellent';
     if ($score >= 75) return 'Very Satisfactory';
     if ($score >= 50) return 'Satisfactory';
