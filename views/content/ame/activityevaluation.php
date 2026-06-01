@@ -6,6 +6,7 @@ $db = (new Database())->getConnection();
 $activities = [];
 $sdgs = [];
 $offices = [];
+$office_positions = [];
 $sdg_stats = [];
 $speaker_ratings = [];
 $organizer_ratings = [];
@@ -29,7 +30,7 @@ try {
 // Fetch activities with their ratings and SDGs.
 // Use lowercase `sdgs`; table names are case-sensitive on Linux hosting.
 try {
-    $query = "SELECT a.*, s.overall_average, e.response_rate,
+    $query = "SELECT a.*, o.position AS office_position, s.overall_average, e.response_rate,
                      (
                         SELECT GROUP_CONCAT(sdg.title SEPARATOR ', ')
                         FROM activity_sdgs asg
@@ -43,6 +44,7 @@ try {
                         WHERE asg.activity_id = a.activity_id
                      ) AS sdg_ids
               FROM activities a
+              LEFT JOIN divisions_offices o ON a.requesting_office_id = o.office_id
               LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
               LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
               WHERE COALESCE(a.is_archived, 0) = 0
@@ -63,8 +65,14 @@ try {
 
 // Fetch offices for the dropdown
 try {
-    $office_stmt = $db->query("SELECT office_id, name, acronym FROM divisions_offices ORDER BY name ASC");
+    $office_stmt = $db->query("SELECT office_id, name, acronym, position FROM divisions_offices ORDER BY name ASC");
     $offices = $office_stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($offices as $office) {
+        if (!empty($office['position']) && !in_array($office['position'], $office_positions, true)) {
+            $office_positions[] = $office['position'];
+        }
+    }
+    sort($office_positions);
 } catch (PDOException $e) {
     error_log("AME offices query failed: " . $e->getMessage());
 }
@@ -836,11 +844,17 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" id="activitySearch" onkeyup="handleActivityFilterChange()" placeholder="Search activities by title, description or facilitator..." style="width: 100%; padding: 0.7rem 0.7rem 0.7rem 2.5rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem;">
             </div>
-            <select id="statusFilter" onchange="handleActivityFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 150px; background: white;">
-                <option value="all">All Status</option>
-                <option value="upcoming">Upcoming (Pending)</option>
-                <option value="ongoing">In Progress (Ongoing)</option>
-                <option value="completed">Completed</option>
+            <select id="officePositionFilter" onchange="handlePositionFilterChange()" style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 170px; background: white;">
+                <option value="all">All Positions</option>
+                <?php foreach ($office_positions as $position): ?>
+                    <option value="<?= htmlspecialchars($position) ?>"><?= htmlspecialchars($position) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <select id="officeFilter" onchange="handleOfficeFilterChange()" disabled style="padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: 0.9rem; min-width: 210px; background: #f8fafc; color: #94a3b8; cursor: not-allowed;">
+                <option value="all">All Offices</option>
+                <?php foreach ($offices as $office): ?>
+                    <option value="<?= (int)$office['office_id'] ?>" data-position="<?= htmlspecialchars((string)($office['position'] ?? '')) ?>"><?= htmlspecialchars($office['name']) ?><?= !empty($office['acronym']) ? ' (' . htmlspecialchars($office['acronym']) . ')' : '' ?></option>
+                <?php endforeach; ?>
             </select>
         </div>
 
@@ -881,6 +895,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                                 data-date="<?= $activity['eventdate'] ?>"
                                 data-month="<?= date('F Y', strtotime($activity['eventdate'])) ?>" 
                                 data-status="<?= $status_val ?>" 
+                                data-office-id="<?= htmlspecialchars((string)($activity['requesting_office_id'] ?? '')) ?>"
+                                data-office-position="<?= htmlspecialchars((string)($activity['office_position'] ?? '')) ?>"
                                 data-sdgs="<?= $activity['sdg_ids'] ?>"
                                 data-title="<?= htmlspecialchars($activity['title']) ?>"
                                 data-response-rate="<?= (float)$activity['response_rate'] ?>"
@@ -1056,6 +1072,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 }
             });
         }
+        updateOfficeFilterState();
         
         searchActivities(); // Initialize rankings and counts
     });
@@ -1073,8 +1090,39 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         if (btn) {
             btn.classList.add('active');
         }
-        
         searchActivities(false); // Trigger general filter
+    }
+
+    function handlePositionFilterChange() {
+        const officeFilter = document.getElementById('officeFilter');
+        if (officeFilter) officeFilter.value = 'all';
+        currentActivityPage = 1;
+        updateOfficeFilterState();
+        searchActivities(false);
+    }
+
+    function handleOfficeFilterChange() {
+        currentActivityPage = 1;
+        searchActivities(false);
+    }
+
+    function updateOfficeFilterState() {
+        const officeFilter = document.getElementById('officeFilter');
+        const positionFilter = document.getElementById('officePositionFilter');
+        if (!officeFilter || !positionFilter) return;
+
+        const selectedPosition = positionFilter.value;
+        const enabled = selectedPosition !== 'all';
+        officeFilter.disabled = !enabled;
+        if (!enabled) officeFilter.value = 'all';
+
+        Array.from(officeFilter.options).forEach(option => {
+            option.hidden = option.value !== 'all' && option.dataset.position !== selectedPosition;
+        });
+
+        officeFilter.style.background = enabled ? 'white' : '#f8fafc';
+        officeFilter.style.color = enabled ? '#0f172a' : '#94a3b8';
+        officeFilter.style.cursor = enabled ? 'pointer' : 'not-allowed';
     }
 
     function handleActivityFilterChange() {
@@ -1086,7 +1134,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         if (resetPage) currentActivityPage = 1;
 
         const searchTerm = document.getElementById('activitySearch').value.toLowerCase();
-        const statusFilter = document.getElementById('statusFilter').value;
+        const officeFilter = document.getElementById('officeFilter').value;
+        const positionFilter = document.getElementById('officePositionFilter').value;
         const rows = document.querySelectorAll('.activity-row');
         
         const activeActivities = [];
@@ -1096,15 +1145,17 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
-            const status = row.dataset.status;
             const month = row.dataset.month;
+            const officeId = row.dataset.officeId || '';
+            const officePosition = row.dataset.officePosition || '';
             const sdgs = row.dataset.sdgs ? row.dataset.sdgs.split(',') : [];
 
             const matchesSearch = text.includes(searchTerm);
-            const matchesStatus = statusFilter === 'all' || status === statusFilter;
             const matchesMonth = currentMonthFilter === 'all' || month === currentMonthFilter;
+            const matchesOffice = officeFilter === 'all' || officeId === officeFilter;
+            const matchesPosition = positionFilter === 'all' || officePosition === positionFilter;
 
-            if (matchesSearch && matchesStatus && matchesMonth) {
+            if (matchesSearch && matchesMonth && matchesOffice && matchesPosition) {
                 filteredRows.push(row);
                 
                 // Collect data for rankings and stats
