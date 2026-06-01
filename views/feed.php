@@ -79,8 +79,6 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/accreditation/accmapping.php';
     } elseif ($action === 'activity') {
         $content_file = __DIR__ . '/content/ame/activityevaluation.php';
-    } elseif ($action === 'actmasterlist') {
-        $content_file = __DIR__ . '/content/ame/actmasterlist.php';
     } elseif ($action === 'evaluationmonitoring') {
         $content_file = __DIR__ . '/content/ame/evaluationmonitoring.php';
     } elseif ($action === 'view_activity') {
@@ -89,8 +87,6 @@ if (isset($_SESSION['user_id'])) {
         $content_file = __DIR__ . '/content/ame/evaluations.php';
     } elseif ($action === 'document') {
         $content_file = __DIR__ . '/content/document/doctracker.php';
-    } elseif ($action === 'docmasterlist') {
-        $content_file = __DIR__ . '/content/document/docmasterlist.php';
     } elseif ($action === 'doclinkage') {
         $content_file = __DIR__ . '/content/document/doclinkage.php';
     } else {

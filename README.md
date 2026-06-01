@@ -46,18 +46,14 @@ The system integrates several external services to enhance functionality and dat
 ## 1. Activity Monitoring and Evaluation
 
 ## Pages:
-1. Activity Masterlist
-2. Activity Evaluation
-3. Evaluation Monitoring
+1. Activity Evaluation
+2. Evaluation Monitoring
 
 ## Page Contents:
-1. Activity Masterlist
-	This page consist of the standard listing of all the registered activities.
-
-2. Activity Evaluation
+1. Activity Evaluation
 	This page contains the complete details and statistical data of the activity.
 
-3. Evaluation Monitoring
+2. Evaluation Monitoring
 	A sub-system to monitor the status and the actions taken to reach or to comply with the suggestions and/or complaints.
 
 ## Features:
@@ -103,18 +99,14 @@ The system integrates several external services to enhance functionality and dat
 ## 3. Document Registry
 
 ## Pages:
-1. Document Masterlist
-2. Document Mapping
-3. Accreditation Linkage
+1. Document Mapping
+2. Accreditation Linkage
 
 ## Page Content:
-1. Document Masterlist
-  This page consist of the standard listing of all the registered documents.
-
-2. Document Mapping
+1. Document Mapping
   Page to look for similar documents from the same office and other offices using similarity scoring.
 
-3. Accreditation Linkage
+2. Accreditation Linkage
   Main purpose of this page is to link proof to documents and look for different accreditation requirements using the same or closely similar documents.
 
 ## Features:

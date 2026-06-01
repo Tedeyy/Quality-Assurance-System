@@ -4,9 +4,9 @@ require_once __DIR__ . '/access.php';
 
 $current_action = $_GET['action'] ?? '';
 $is_dashboard_active = ($current_action === 'dashboard' || $current_action === '');
-$is_document_active = ($current_action === 'document' || $current_action === 'docmasterlist' || $current_action === 'doclinkage');
+$is_document_active = ($current_action === 'document' || $current_action === 'doclinkage');
 $is_accreditation_active = ($current_action === 'accreditation' || $current_action === 'accmasterlist' || $current_action === 'accmapping');
-$is_activity_active = ($current_action === 'activity' || $current_action === 'actmasterlist' || $current_action === 'view_activity' || $current_action === 'respondents' || $current_action === 'evaluationmonitoring');
+$is_activity_active = ($current_action === 'activity' || $current_action === 'view_activity' || $current_action === 'respondents' || $current_action === 'evaluationmonitoring');
 $can_access_all_modules = false;
 if (isset($_SESSION['user_id'])) {
     $db = $db ?? (new Database())->getConnection();
@@ -315,9 +315,6 @@ $home_href = 'feed.php?action=dashboard';
                         <svg class="qa-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.25s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
                     </button>
                     <div class="qa-dropdown-menu">
-                        <a href="feed.php?action=docmasterlist" class="qa-dropdown-item">
-                            <span>Masterlist</span>
-                        </a>
                         <a href="feed.php?action=document" class="qa-dropdown-item">
                             <span>Mapping</span>
                         </a>
@@ -374,9 +371,6 @@ $home_href = 'feed.php?action=dashboard';
                         <a href="feed.php?action=evaluationmonitoring" class="qa-dropdown-item">
                             <span>Evaluation Monitoring</span>
                         </a>
-                        <a href="feed.php?action=actmasterlist" class="qa-dropdown-item">
-                            <span>Masterlist</span>
-                        </a>
                     </div>
                 </div>
             <?php endif; ?>
@@ -411,7 +405,6 @@ $home_href = 'feed.php?action=dashboard';
                 <a href="feed.php?action=dashboard" class="qa-nav-link <?= $is_dashboard_active ? 'active' : '' ?>">Dashboard</a>
 
                 <div class="qa-drawer-heading">Document</div>
-                <a href="feed.php?action=docmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
                 <a href="feed.php?action=document" class="qa-nav-link" style="padding-left: 1.5rem;">Mapping</a>
                 <a href="feed.php?action=doclinkage" class="qa-nav-link" style="padding-left: 1.5rem;">Accreditation Linkages</a>
 
@@ -423,7 +416,6 @@ $home_href = 'feed.php?action=dashboard';
                 <div class="qa-drawer-heading">Activity</div>
                 <a href="feed.php?action=activity" class="qa-nav-link" style="padding-left: 1.5rem;">Activity Evaluation</a>
                 <a href="feed.php?action=evaluationmonitoring" class="qa-nav-link" style="padding-left: 1.5rem;">Evaluation Monitoring</a>
-                <a href="feed.php?action=actmasterlist" class="qa-nav-link" style="padding-left: 1.5rem;">Masterlist</a>
             <?php else: ?>
                 <a href="feed.php?action=dashboard" class="qa-nav-link <?= $is_dashboard_active ? 'active' : '' ?>">Dashboard</a>
                 <a href="feed.php?action=accreditation" class="qa-nav-link <?= $is_accreditation_active ? 'active' : '' ?>">Accreditation Tracking</a>
