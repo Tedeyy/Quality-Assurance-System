@@ -551,14 +551,32 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 const start = document.getElementById('exportStart').value;
                 const end = document.getElementById('exportEnd').value;
 
-                let url = `../api/export_report.php?type=${type}`;
-                if (office && type.includes('office')) url += `&office_id=${office}`;
-                if (type === 'office_month' && month) url += `&month=${month}`;
-                if (type.includes('range')) {
-                    if (start) url += `&start_date=${start}`;
-                    if (end) url += `&end_date=${end}`;
+                if (type.includes('office') && !office) {
+                    alert('Please select a requesting office.');
+                    return;
                 }
 
+                if (type.includes('range')) {
+                    if (!start || !end) {
+                        alert('Please select both start and end dates.');
+                        return;
+                    }
+
+                    if (start > end) {
+                        alert('Start date cannot be later than end date.');
+                        return;
+                    }
+                }
+
+                const params = new URLSearchParams({ type });
+                if (type.includes('office')) params.set('office_id', office);
+                if (type === 'office_month' && month) params.set('month', month);
+                if (type.includes('range')) {
+                    params.set('start_date', start);
+                    params.set('end_date', end);
+                }
+
+                const url = `../api/export_report.php?${params.toString()}`;
                 window.location.href = url;
                 closeExportModal();
             }

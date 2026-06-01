@@ -12,6 +12,22 @@ $month = $_GET['month'] ?? null;
 $start_date = $_GET['start_date'] ?? null;
 $end_date = $_GET['end_date'] ?? null;
 
+function export_report_fail(string $message, int $status = 400): void {
+    http_response_code($status);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo $message;
+    exit;
+}
+
+function is_valid_export_date(?string $date): bool {
+    if (!$date) {
+        return false;
+    }
+
+    $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $date);
+    return $parsed && $parsed->format('Y-m-d') === $date;
+}
+
 $query = "SELECT a.*, o.name as office_name, e.*, s.*,
                  GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles
           FROM activities a 
@@ -25,6 +41,10 @@ $query = "SELECT a.*, o.name as office_name, e.*, s.*,
 $params = [];
 $where = [];
 
+if (strpos($type, 'office') !== false && !$office_id) {
+    export_report_fail('Please select a requesting office before exporting this report.');
+}
+
 if ($office_id && strpos($type, 'office') !== false) {
     $where[] = "a.requesting_office_id = :oid";
     $params['oid'] = $office_id;
@@ -33,8 +53,16 @@ if ($office_id && strpos($type, 'office') !== false) {
 if (strpos($type, 'month') !== false && $month) {
     $where[] = "DATE_FORMAT(a.eventdate, '%M %Y') = :month";
     $params['month'] = $month;
-} elseif (strpos($type, 'range') !== false && $start_date && $end_date) {
-    $where[] = "a.eventdate BETWEEN :start AND :end";
+} elseif (strpos($type, 'range') !== false) {
+    if (!is_valid_export_date($start_date) || !is_valid_export_date($end_date)) {
+        export_report_fail('Please select a valid start and end date before exporting this report.');
+    }
+
+    if ($start_date > $end_date) {
+        export_report_fail('Start date cannot be later than end date.');
+    }
+
+    $where[] = "DATE(a.eventdate) BETWEEN :start AND :end";
     $params['start'] = $start_date;
     $params['end'] = $end_date;
 }
