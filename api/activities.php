@@ -40,6 +40,16 @@ function generateUniqueCode($db) {
     return $code;
 }
 
+function ensureActivityArchiveColumns(PDO $db): void {
+    $columns = $db->query("SHOW COLUMNS FROM activities")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('is_archived', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER eventstatus");
+    }
+    if (!in_array('archived_at', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN archived_at DATETIME DEFAULT NULL AFTER is_archived");
+    }
+}
+
 /**
  * Sync activity_facilitators rows for a given activity.
  * Deletes all old rows and re-inserts the new set atomically (within the
@@ -229,6 +239,29 @@ if ($action === 'get' && (isset($_GET['id']) || isset($_GET['code']))) {
 }
 
 // ── UPDATE ───────────────────────────────────────────────────────────────────
+if ($action === 'archive' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $activity_id = $_POST['activity_id'] ?? null;
+    $redirect = $_POST['redirect_url'] ?? '../views/feed.php?action=activity';
+
+    if (!$activity_id) {
+        $_SESSION['error'] = 'Please select an activity to archive.';
+        header("Location: " . $redirect);
+        exit;
+    }
+
+    try {
+        ensureActivityArchiveColumns($db);
+        $stmt = $db->prepare("UPDATE activities SET is_archived = 1, archived_at = NOW() WHERE activity_id = :id");
+        $stmt->execute([':id' => $activity_id]);
+        $_SESSION['success'] = 'Activity archived successfully.';
+    } catch (Exception $e) {
+        $_SESSION['error'] = 'Error archiving activity: ' . $e->getMessage();
+    }
+
+    header("Location: " . $redirect);
+    exit;
+}
+
 if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();

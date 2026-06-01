@@ -28,6 +28,22 @@ function is_valid_export_date(?string $date): bool {
     return $parsed && $parsed->format('Y-m-d') === $date;
 }
 
+function ensureActivityArchiveColumns(PDO $db): void {
+    $columns = $db->query("SHOW COLUMNS FROM activities")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('is_archived', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0 AFTER eventstatus");
+    }
+    if (!in_array('archived_at', $columns, true)) {
+        $db->exec("ALTER TABLE activities ADD COLUMN archived_at DATETIME DEFAULT NULL AFTER is_archived");
+    }
+}
+
+try {
+    ensureActivityArchiveColumns($db);
+} catch (PDOException $e) {
+    error_log("Export report archive column migration failed: " . $e->getMessage());
+}
+
 $query = "SELECT a.*, o.name as office_name, e.*, s.*,
                  GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles
           FROM activities a 
@@ -39,7 +55,7 @@ $query = "SELECT a.*, o.name as office_name, e.*, s.*,
           WHERE 1=1";
 
 $params = [];
-$where = [];
+$where = ["COALESCE(a.is_archived, 0) = 0"];
 
 if (strpos($type, 'office') !== false && !$office_id) {
     export_report_fail('Please select a requesting office before exporting this report.');
