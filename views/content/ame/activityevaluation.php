@@ -438,6 +438,39 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     .badge-1 { background: #fef3c7; color: #92400e; border: 2px solid #fbbf24; }
     .badge-2 { background: #f1f5f9; color: #475569; border: 2px solid #cbd5e1; }
     .badge-3 { background: #ffedd5; color: #9a3412; border: 2px solid #fdba74; }
+    .activity-rank-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        min-width: 150px;
+    }
+    .activity-rank-pill {
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+        padding: 0.45rem 0.55rem;
+    }
+    .activity-rank-pill span:first-child {
+        color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .activity-rank-value {
+        color: #0f172a;
+        font-size: 0.78rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+    .activity-rank-value.pending {
+        color: #94a3b8;
+        font-weight: 800;
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem;">
@@ -723,13 +756,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Date</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Status</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Rating</th>
+                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Rankings</th>
                         <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($activities)): ?>
                         <tr>
-                            <td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                            <td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
                                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color: #cbd5e1;">
                                         <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>
@@ -831,6 +865,18 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                                         <span style="color: #94a3b8; font-size: 0.85rem;">Pending</span>
                                     <?php endif; ?>
                                 </td>
+                                <td style="padding: 1.2rem;">
+                                    <div class="activity-rank-stack">
+                                        <div class="activity-rank-pill">
+                                            <span>Participation</span>
+                                            <strong class="activity-rank-value participation-rank">-</strong>
+                                        </div>
+                                        <div class="activity-rank-pill">
+                                            <span>Performance</span>
+                                            <strong class="activity-rank-value performance-rank">-</strong>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td style="padding: 1.2rem; text-align: right;">
                                     <div class="action-dropdown">
                                         <button type="button" class="three-dots-btn" onclick="toggleDropdown(<?= (int)$activity['activity_id'] ?>, event)">
@@ -866,31 +912,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
                 <div class="activity-pagination" id="activityPagination"></div>
             </div>
         </div>
-        <!-- Ranking Section -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; margin-bottom: 3rem;">
-            <div class="ranking-card">
-                <div class="ranking-title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Top Participation (Response Rate)
-                </div>
-                <div id="participationRanking">
-                    <!-- Dynamic Items -->
-                </div>
-            </div>
-
-            <div class="ranking-card">
-                <div class="ranking-title">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DFB641" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    Top Performance (Overall Average)
-                </div>
-                <div id="performanceRanking">
-                    <!-- Dynamic Items -->
-                </div>
-            </div>
-        </div>
 
         <!-- Facilitator Ranking Section -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 0rem; margin-bottom: 3rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; margin-bottom: 3rem;">
             <div class="ranking-card">
                 <div class="ranking-title">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1032,7 +1056,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         document.getElementById('stat-total-label').innerText = monthLabel + ' Activities';
         document.getElementById('stat-upcoming-subtext').innerText = 'Scheduled ' + (currentMonthFilter === 'all' ? 'overall' : 'for ' + currentMonthFilter);
 
-        // Update Rankings
+        updateActivityRankColumns(activeActivities);
+
+        // Update facilitator rankings
         updateRankings(activeActivities);
 
         // Update SDG UI
@@ -1159,19 +1185,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     function updateRankings(activities) {
         const activeIds = activities.map(a => a.id);
 
-        // 1. Activity Participation Ranking (Top 5)
-        const participation = [...activities]
-            .sort((a, b) => b.rate - a.rate)
-            .slice(0, 5);
-        renderRankingList('participationRanking', participation, 'rate', '%', '#2563eb');
-
-        // 2. Activity Performance Ranking (Top 5)
-        const performance = [...activities]
-            .sort((a, b) => b.avg - a.avg)
-            .slice(0, 5);
-        renderRankingList('performanceRanking', performance, 'avg', '%', '#b45309');
-
-        // 3. Speaker Ranking
+        // 1. Speaker Ranking
         const speakerMap = {};
         speakerRatingsData.forEach(r => {
             if (activeIds.includes(r.activity_id.toString())) {
@@ -1190,7 +1204,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         })).sort((a, b) => b.score - a.score).slice(0, 5);
         renderRankingList('speakerRanking', speakers, 'score', '%', '#ef4444');
 
-        // 4. Organizer Ranking
+        // 2. Organizer Ranking
         const organizerMap = {};
         organizerRatingsData.forEach(r => {
             if (activeIds.includes(r.activity_id.toString())) {
@@ -1205,6 +1219,46 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
             score: (organizerMap[name].sum / organizerMap[name].count) * 20
         })).sort((a, b) => b.score - a.score).slice(0, 5);
         renderRankingList('organizerRanking', organizers, 'score', '%', '#0ea5e9');
+    }
+
+    function updateActivityRankColumns(activities) {
+        document.querySelectorAll('.activity-row').forEach(row => {
+            setActivityRank(row, 'participation-rank', null, null, 'No data');
+            setActivityRank(row, 'performance-rank', null, null, 'Pending');
+        });
+
+        const participation = [...activities]
+            .filter(activity => activity.rate > 0)
+            .sort((a, b) => b.rate - a.rate);
+
+        const performance = [...activities]
+            .filter(activity => activity.avg > 0)
+            .sort((a, b) => b.avg - a.avg);
+
+        participation.forEach((activity, index) => {
+            const row = document.querySelector(`.activity-row[data-id="${activity.id}"]`);
+            setActivityRank(row, 'participation-rank', index + 1, activity.rate, 'No data');
+        });
+
+        performance.forEach((activity, index) => {
+            const row = document.querySelector(`.activity-row[data-id="${activity.id}"]`);
+            setActivityRank(row, 'performance-rank', index + 1, activity.avg, 'Pending');
+        });
+    }
+
+    function setActivityRank(row, className, rank, value, emptyLabel) {
+        if (!row) return;
+        const target = row.querySelector(`.${className}`);
+        if (!target) return;
+
+        if (!rank) {
+            target.textContent = emptyLabel;
+            target.classList.add('pending');
+            return;
+        }
+
+        target.textContent = `#${rank} (${value.toFixed(1)}%)`;
+        target.classList.remove('pending');
     }
 
     function renderRankingList(containerId, list, key, suffix, color) {
