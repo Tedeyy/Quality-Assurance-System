@@ -1115,79 +1115,137 @@ function renderCategories($parent_id, $categories_by_parent, $requirements_by_ca
 
 <!-- Review Submission Modal -->
 <div id="reviewSubmissionModal" class="modal-overlay"
-    style="display: none; align-items: center; justify-content: center;">
+    style="display: none; align-items: center; justify-content: center; z-index: 1050;">
     <div class="modal-content"
-        style="max-width: 900px; width: 90%; height: 80vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 id="review_title" style="color: var(--accent-blue); margin: 0; font-size: 1.25rem;">Review Submission
-            </h2>
+        style="max-width: 1100px; width: 96%; height: 90vh; display: flex; flex-direction: column; padding: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 64px rgba(0,28,87,0.22);">
+
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.75rem; border-bottom: 1px solid #e2e8f0; background: #fff; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 36px; height: 36px; border-radius: 10px; background: #eff6ff; display: flex; align-items: center; justify-content: center;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div>
+                    <div style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 1px;">Document Review</div>
+                    <h2 id="review_title" style="color: #0f172a; margin: 0; font-size: 1.1rem; font-weight: 700; line-height: 1.2;">Review Submission</h2>
+                </div>
+            </div>
             <button onclick="document.getElementById('reviewSubmissionModal').style.display='none'"
-                style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+                style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; color: #64748b; transition: all 0.2s;"
+                onmouseover="this.style.background='#fee2e2'; this.style.color='#ef4444'"
+                onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b'">&#x2715;</button>
         </div>
 
-        <div style="display: flex; gap: 2rem; flex: 1; overflow: hidden;">
-            <div style="flex: 2; background: #f1f5f9; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
-                <div style="padding: 10px; background: #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
-                    <span>Document Preview</span>
-                    <a id="rev_drive_link" href="#" target="_blank" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.75rem; text-decoration: none;">
-                        Open in Google Drive ↗
+        <!-- Body -->
+        <div style="display: flex; flex: 1; overflow: hidden;">
+
+            <!-- Left: Document Preview -->
+            <div style="flex: 2.2; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; overflow: hidden;">
+                <div style="padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; font-weight: 600;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Document Preview
+                    </div>
+                    <a id="rev_drive_link" href="#" target="_blank"
+                        style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--accent-blue); color: white; border-radius: 7px; text-decoration: none; font-size: 0.75rem; font-weight: 700; transition: background 0.2s;"
+                        onmouseover="this.style.background='#1e3a8a'" onmouseout="this.style.background='var(--accent-blue)'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Open in Google Drive
                     </a>
                 </div>
-                <iframe id="preview_frame" src="" style="width: 100%; flex: 1; border: none;"></iframe>
+                <iframe id="preview_frame" src="" style="width: 100%; flex: 1; border: none; display: block;"></iframe>
             </div>
 
-            <!-- Details and Actions -->
-            <div
-                style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; padding-right: 10px;">
-                <div
-                    style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <h3 style="font-size: 0.9rem; margin: 0 0 1rem 0; color: var(--accent-blue);">Submission Details
-                    </h3>
-                    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem;">
-                        <div><strong>Uploaded by:</strong> <span id="rev_user"></span></div>
-                        <div><strong>Division:</strong> <span id="rev_division"></span></div>
-                        <div><strong>Office:</strong> <span id="rev_office"></span></div>
-                        <div><strong>Date:</strong> <span id="rev_date"></span></div>
-                        <div><strong>Status:</strong> <span id="rev_status_badge" class="user-badge"
-                                style="padding: 2px 8px; font-size: 0.7rem;"></span></div>
-                        <div id="rev_marker_container"
-                            style="display: none; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e2e8f0;">
-                            <strong>Marked by:</strong> <span id="rev_marker"></span>
+            <!-- Right: Details & Actions -->
+            <div style="flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: #fff;">
+
+                <!-- Submission Details -->
+                <div style="padding: 1.5rem 1.5rem 1rem;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 1rem;">Submission Details</div>
+                    <div style="display: flex; flex-direction: column; gap: 0;">
+                        <div style="display: flex; flex-direction: column; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                            <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600; margin-bottom: 2px;">Uploaded by</span>
+                            <span id="rev_user" style="font-size: 0.9rem; font-weight: 600; color: #1e293b;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                            <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600; margin-bottom: 2px;">Division</span>
+                            <span id="rev_division" style="font-size: 0.9rem; font-weight: 600; color: #1e293b;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                            <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600; margin-bottom: 2px;">Office</span>
+                            <span id="rev_office" style="font-size: 0.9rem; font-weight: 600; color: #1e293b;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                            <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600; margin-bottom: 2px;">Date</span>
+                            <span id="rev_date" style="font-size: 0.9rem; font-weight: 600; color: #1e293b;"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; padding: 10px 0;">
+                            <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600; margin-bottom: 5px;">Status</span>
+                            <span id="rev_status_badge" class="user-badge" style="align-self: flex-start; padding: 3px 10px; font-size: 0.72rem;"></span>
+                        </div>
+                        <div id="rev_marker_container" style="display: none; padding: 10px 0; border-top: 1px solid #f1f5f9;">
+                            <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600; margin-bottom: 2px; display: block;">Marked by</span>
+                            <span id="rev_marker" style="font-size: 0.9rem; font-weight: 600; color: #1e293b;"></span>
                         </div>
                     </div>
                 </div>
 
-                <div id="remarks_container" style="display: none;">
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem;">Review
-                        Remarks</label>
+                <!-- Review Remarks -->
+                <div id="remarks_container" style="display: none; padding: 0 1.5rem 1rem;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 0.75rem;">Review Remarks</div>
                     <div id="remarks_display"
-                        style="display: none; padding: 10px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        style="display: none; padding: 10px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.875rem; color: #92400e; margin-bottom: 10px; line-height: 1.5;">
                     </div>
-                    <textarea id="review_remarks" rows="5" class="form-control"
+                    <textarea id="review_remarks" rows="4" class="form-control"
                         placeholder="Add feedback or reasons for disapproval..."
-                        style="resize: none; font-size: 0.9rem;"></textarea>
+                        style="resize: none; font-size: 0.875rem; border-radius: 8px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box; padding: 10px 12px; outline: none; transition: border-color 0.2s;"
+                        onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
                 </div>
 
-                <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+                <!-- Spacer -->
+                <div style="flex: 1;"></div>
+
+                <!-- Actions -->
+                <div style="padding: 1.25rem 1.5rem; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;">
                     <?php if ($is_qao): ?>
                         <div id="review_actions" style="display: flex; gap: 10px;">
-                            <button onclick="submitReview('Approved')" class="btn btn-success"
-                                style="flex: 1; padding: 0.8rem; background: #22c55e;">Approve</button>
-                            <button onclick="submitReview('Disapproved')" class="btn btn-danger"
-                                style="flex: 1; padding: 0.8rem; background: #ef4444;">Disapprove</button>
+                            <button onclick="submitReview('Approved')"
+                                style="flex: 1; padding: 0.75rem; background: #22c55e; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                                onmouseover="this.style.background='#16a34a'; this.style.boxShadow='0 4px 8px rgba(34,197,94,0.3)'"
+                                onmouseout="this.style.background='#22c55e'; this.style.boxShadow='none'">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                Approve
+                            </button>
+                            <button onclick="submitReview('Disapproved')"
+                                style="flex: 1; padding: 0.75rem; background: #ef4444; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                                onmouseover="this.style.background='#dc2626'; this.style.boxShadow='0 4px 8px rgba(239,68,68,0.3)'"
+                                onmouseout="this.style.background='#ef4444'; this.style.boxShadow='none'">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                Disapprove
+                            </button>
                         </div>
                     <?php endif; ?>
 
                     <div id="uploader_actions" style="display: none; gap: 10px;">
-                        <button onclick="reopenUpload()" class="btn btn-secondary"
-                            style="flex: 2; padding: 0.8rem;">Update / Replace Files</button>
-                        <button onclick="removeSubmission()" class="btn btn-danger"
-                            style="flex: 1; padding: 0.8rem; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;">Remove</button>
+                        <button onclick="reopenUpload()"
+                            style="flex: 2; padding: 0.75rem; background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; border-radius: 10px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                            Update / Replace Files
+                        </button>
+                        <button onclick="removeSubmission()"
+                            style="flex: 1; padding: 0.75rem; background: #fff; color: #ef4444; border: 1px solid #fecaca; border-radius: 10px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
+                            Remove
+                        </button>
                     </div>
-                    <button id="add_another_doc_btn" onclick="openUploadModalForCurrent()" class="btn btn-secondary" style="display: none; margin-top: 10px; width: 100%; padding: 0.6rem; font-size: 0.85rem; border: 1px dashed var(--accent-blue); color: var(--accent-blue); background: #f8fafc;">
+
+                    <button id="add_another_doc_btn" onclick="openUploadModalForCurrent()"
+                        style="display: none; width: 100%; padding: 0.65rem; background: #fff; color: var(--accent-blue); border: 1.5px dashed var(--accent-blue); border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;"
+                        onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">
                         + Add Another Document / Proof
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
