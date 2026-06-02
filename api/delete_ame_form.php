@@ -46,7 +46,7 @@ if (!$formId && !empty($data['ame_form_link']) && preg_match('/forms\/d\/(?:e\/)
     $formId = $matches[1];
 }
 
-if ($formId && !empty($data['google_access_token'])) {
+if (!empty($data['google_access_token'])) {
     // Initialize Google Client
     $client = new Google\Client();
     $client->setClientId($_ENV['GOOGLE_CLIENT_ID']);
@@ -65,12 +65,14 @@ if ($formId && !empty($data['google_access_token'])) {
     $driveService = new Google\Service\Drive($client);
     $sheetsService = new Google\Service\Sheets($client);
     
-    try {
-        // Delete from Drive
-        $driveService->files->delete($formId);
-    } catch (Exception $e) {
-        // If not found, we still want to clear the DB
-        error_log('AME form Drive delete failed: ' . $e->getMessage());
+    if ($formId) {
+        try {
+            // Delete from Drive
+            $driveService->files->delete($formId);
+        } catch (Exception $e) {
+            // If not found, we still want to clear the DB
+            error_log('AME form Drive delete failed: ' . $e->getMessage());
+        }
     }
 
     try {

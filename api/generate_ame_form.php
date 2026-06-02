@@ -81,6 +81,18 @@ $monthYear = date('F Y', $eventDate);
 $activityCode = $data['activity_code'];
 $activityTitle = $data['title'];
 $eventDateStr = $data['eventdate'] ? date('Y-m-d', $eventDate) : '';
+$eventDateDisplay = $data['eventdate'] ? date('F j, Y', $eventDate) : 'Date TBD';
+
+$sdg_stmt = $db->prepare(
+    "SELECT CONCAT('SDG ', s.sdg_id, ': ', s.title) AS sdg_title
+     FROM activity_sdgs asg
+     JOIN sdgs s ON asg.sdg_id = s.sdg_id
+     WHERE asg.activity_id = :id
+     ORDER BY s.sdg_id"
+);
+$sdg_stmt->execute(['id' => $activity_id]);
+$sdgTitles = $sdg_stmt->fetchAll(PDO::FETCH_COLUMN);
+$sdgDisplay = $sdgTitles ? implode("\n", $sdgTitles) : 'Not Specified';
 
 function getOrCreateDriveFolder($driveService, $folderName, $parentFolderId) {
     $query = "name = '" . str_replace("'", "\'", $folderName) . "' and mimeType = 'application/vnd.google-apps.folder' and '" . $parentFolderId . "' in parents and trashed = false";
@@ -179,14 +191,28 @@ $facilitatorsCount = count($facilitators_list);
 $requests = [];
 $index = 0;
 
-function createTextQuestion($title, &$index, $paragraph = false) {
+function makeBoldText($text) {
+    $normal = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    $bold = [
+        '𝐀','𝐁','𝐂','𝐃','𝐄','𝐅','𝐆','𝐇','𝐈','𝐉','𝐊','𝐋','𝐌','𝐍','𝐎','𝐏','𝐐','𝐑','𝐒','𝐓','𝐔','𝐕','𝐖','𝐗','𝐘','𝐙',
+        '𝐚','𝐛','𝐜','𝐝','𝐞','𝐟','𝐠','𝐡','𝐢','𝐣','𝐤','𝐥','𝐦','𝐧','𝐨','𝐩','𝐪','𝐫','𝐬','𝐭','𝐮','𝐯','𝐰','𝐱','𝐲','𝐳',
+        '𝟎','𝟏','𝟐','𝟑','𝟒','𝟓','𝟔','𝟕','𝟖','𝟗'
+    ];
+    $map = [];
+    for ($i = 0; $i < strlen($normal); $i++) {
+        $map[$normal[$i]] = $bold[$i];
+    }
+    return strtr((string) $text, $map);
+}
+
+function createTextQuestion($title, &$index, $paragraph = false, $required = true) {
     return new \Google\Service\Forms\Request([
         'createItem' => [
             'item' => [
                 'title' => $title,
                 'questionItem' => [
                     'question' => [
-                        'required' => true,
+                        'required' => $required,
                         'textQuestion' => [
                             'paragraph' => $paragraph
                         ]
@@ -310,13 +336,13 @@ $privacyText = "This activity evaluation form/client satisfaction survey, in lin
 $requests[] = createChoiceQuestion("DATA PRIVACY NOTICE", ["Yes, I acknowledge", "I'd rather opt out."], $index, $privacyText);
 
 // Section 2-5: Activity Information
-$requests[] = createTextItem("TITLE", $activityTitle, $index);
-$requests[] = createTextItem("VENUE", $data['eventvenue'] ?: 'Location TBD', $index);
-$requests[] = createTextItem("DATE", $eventDateStr, $index);
-$requests[] = createTextItem("SDG", $data['sdg_titles'] ?: 'Not Specified', $index);
+$requests[] = createTextItem("ACTIVITY NAME", makeBoldText($activityTitle), $index);
+$requests[] = createTextItem("VENUE", makeBoldText($data['eventvenue'] ?: 'Location TBD'), $index);
+$requests[] = createTextItem("DATE", makeBoldText($eventDateDisplay), $index);
+$requests[] = createTextItem("SDG", makeBoldText(strtoupper($sdgDisplay)), $index);
 
 // Section 6-10: Profile & Demographics
-$requests[] = createTextQuestion("Name: (Last Name, First Name, M.I)", $index);
+$requests[] = createTextQuestion("Name: (Last Name, First Name, M.I)", $index, false, false);
 $requests[] = createChoiceQuestion("Age", ["18-24", "25-34", "35-44", "45-54", "55-64", "65 or over"], $index);
 $requests[] = createTextQuestion("Unit/Office/Institute/Division (abbreviation only)", $index);
 $requests[] = createTextQuestion("Contact Number", $index);
@@ -327,12 +353,12 @@ $requests[] = createScaleQuestion("I. Overall Service Rating", 1, 5, "Poor", "Ex
 // Section 13+: Facilitators
 foreach ($facilitators_list as $fac) {
     if ($fac['role'] === 'speaker') {
-        $requests[] = createTextItem("NAME", $fac['name'] . " (Speaker)", $index);
+        $requests[] = createTextItem("NAME", makeBoldText($fac['name'] . " (Speaker)"), $index);
         $requests[] = createScaleQuestion("Effectiveness", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Mastery of Topic", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Ability to Facilitate", 1, 5, "Poor", "Excellent", $index);
     } else {
-        $requests[] = createTextItem("ORGANIZER'S NAME", $fac['name'] . " (Organizer)", $index);
+        $requests[] = createTextItem("ORGANIZER'S NAME", makeBoldText($fac['name'] . " (Organizer)"), $index);
         $requests[] = createScaleQuestion("Organization and Coordination of the Event", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Clarity of Communication and Information Provided", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Engagement and Interaction Opportunities", 1, 5, "Poor", "Excellent", $index);
