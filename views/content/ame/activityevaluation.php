@@ -1019,7 +1019,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         searchActivities(); // Initialize rankings and counts
     });
 
-    const activitiesPerPage = 10;
+    const activitiesPerPage = 5;
     let currentActivityPage = 1;
     let currentMonthFilter = sessionStorage.getItem('ameMonthFilter') || 'all';
 
