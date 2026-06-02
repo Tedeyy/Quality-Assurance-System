@@ -165,13 +165,6 @@ foreach ($monitoring_data as $r) {
             <div class="em-stat-value" style="color:#7e22ce;"><?= $stats['suggestion'] ?></div>
         </div>
         <div class="em-stat-card">
-            <div class="em-stat-icon-wrapper" style="background: #dcfce7; color: #22c55e;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <div class="em-stat-title">Resolved</div>
-            <div class="em-stat-value" style="color:#15803d;"><?= $stats['resolved'] ?></div>
-        </div>
-        <div class="em-stat-card">
             <div class="em-stat-icon-wrapper" style="background: #fef3c7; color: #f59e0b;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </div>
@@ -211,7 +204,8 @@ foreach ($monitoring_data as $r) {
         <table class="em-table" id="emTable">
             <thead>
                 <tr>
-                    <th>ID & Date</th>
+                    <th>ID</th>
+                    <th>Date</th>
                     <th>Type</th>
                     <th>Activity Name</th>
                     <th style="width:35%;">Feedback</th>
@@ -242,6 +236,10 @@ foreach ($monitoring_data as $r) {
 
                             <td>
                                 <div style="font-weight:700; color:#1e293b; font-family:monospace; font-size:.95rem; letter-spacing: 0.5px;">#<?= htmlspecialchars($row['feedback_id']) ?></div>
+                                
+                            </td>
+
+                            <td>
                                 <div style="font-size:.8rem; color:#64748b; margin-top:4px; display: flex; align-items: center; gap: 4px;">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                                     <?= date('M d, Y', strtotime($row['created_at'])) ?>
