@@ -294,19 +294,29 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
 </style>
 
 <main class="md-page">
-    <div class="md-container">
+    <form method="POST" action="" class="md-container">
         
         <div class="md-topbar">
             <a href="?action=evaluationmonitoring" class="md-back">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                 Back to Monitoring
             </a>
-            <div style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 14px;">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-                    <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8;">Case No.</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 14px;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                        <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8;">Case No.</span>
+                    </div>
+                    <span style="font-family: 'Courier New', monospace; font-weight: 900; color: #334155; font-size: 0.95rem; letter-spacing: 1px;"><?= htmlspecialchars($details['feedback_id']) ?></span>
                 </div>
-                <span style="font-family: 'Courier New', monospace; font-weight: 900; color: #334155; font-size: 0.95rem; letter-spacing: 1px;"><?= htmlspecialchars($details['feedback_id']) ?></span>
+                
+                <div style="display: flex; align-items: center; gap: 8px; padding: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="padding: 4px 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Status</div>
+                    <select name="case_status" style="border: none; background: <?= $details['case_status'] === 'Resolved' ? '#dcfce7' : '#fee2e2' ?>; color: <?= $details['case_status'] === 'Resolved' ? '#15803d' : '#b91c1c' ?>; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; cursor: pointer; outline: none;">
+                        <option value="Unresolved" <?= $details['case_status'] === 'Unresolved' ? 'selected' : '' ?>>Unresolved</option>
+                        <option value="Resolved" <?= $details['case_status'] === 'Resolved' ? 'selected' : '' ?>>Resolved</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -318,50 +328,86 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
         <?php endif; ?>
 
         <!-- Top Div: Activity Details -->
-        <div class="md-card">
-            <div class="md-card-header">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Activity Information
+        <div class="md-card" style="background: linear-gradient(to bottom right, #ffffff, #f8fafc); border-top: 4px solid #3b82f6; position: relative; overflow: hidden;">
+            <!-- Abstract background shape -->
+            <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: #eff6ff; border-radius: 50%; opacity: 0.6; pointer-events: none;"></div>
+
+            <div class="md-card-header" style="border-bottom: none; padding-bottom: 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span style="color: #3b82f6;">Activity Information</span>
             </div>
-            <h2 class="md-activity-title"><?= htmlspecialchars($details['title']) ?></h2>
-            <div class="md-meta-grid">
-                <div class="md-meta-item">
-                    <small>Office of Origin</small>
-                    <strong><?= htmlspecialchars($details['office_name'] ?? 'Not specified') ?></strong>
+            <h2 class="md-activity-title" style="margin-top: 0.5rem; position: relative; z-index: 1;"><?= htmlspecialchars($details['title']) ?></h2>
+            
+            <div class="md-meta-grid" style="margin-top: 2rem;">
+                <div class="md-meta-item" style="display: flex; gap: 14px; align-items: flex-start; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.03); border-color: #e2e8f0; padding: 1rem;">
+                    <div style="padding: 10px; background: #eff6ff; border-radius: 10px; color: #3b82f6; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <div>
+                        <small>Office of Origin</small>
+                        <strong><?= htmlspecialchars($details['office_name'] ?? 'Not specified') ?></strong>
+                    </div>
                 </div>
-                <div class="md-meta-item">
-                    <small>Date & Venue</small>
-                    <strong><?= $details['eventdate'] ? date('M d, Y', strtotime($details['eventdate'])) : 'N/A' ?> • <?= htmlspecialchars($details['eventvenue'] ?: 'N/A') ?></strong>
+                
+                <div class="md-meta-item" style="display: flex; gap: 14px; align-items: flex-start; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.03); border-color: #e2e8f0; padding: 1rem;">
+                    <div style="padding: 10px; background: #fef2f2; border-radius: 10px; color: #ef4444; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <div>
+                        <small>Date & Venue</small>
+                        <strong><?= $details['eventdate'] ? date('M d, Y', strtotime($details['eventdate'])) : 'N/A' ?> <br/> <span style="color: #64748b; font-weight: 500; font-size: 0.9rem;"><?= htmlspecialchars($details['eventvenue'] ?: 'Venue TBA') ?></span></strong>
+                    </div>
                 </div>
+
                 <?php if (!empty($speaker_names)): ?>
-                <div class="md-meta-item">
-                    <small>Speaker/s</small>
-                    <strong><?= htmlspecialchars($speaker_str) ?></strong>
+                <div class="md-meta-item" style="display: flex; gap: 14px; align-items: flex-start; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.03); border-color: #e2e8f0; padding: 1rem;">
+                    <div style="padding: 10px; background: #fdf4ff; border-radius: 10px; color: #d946ef; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div>
+                        <small>Speaker/s</small>
+                        <strong><?= htmlspecialchars($speaker_str) ?></strong>
+                    </div>
                 </div>
                 <?php endif; ?>
+
                 <?php if (!empty($organizer_names)): ?>
-                <div class="md-meta-item">
-                    <small>Organizer/s</small>
-                    <strong><?= htmlspecialchars($organizer_str) ?></strong>
+                <div class="md-meta-item" style="display: flex; gap: 14px; align-items: flex-start; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.03); border-color: #e2e8f0; padding: 1rem;">
+                    <div style="padding: 10px; background: #fffbeb; border-radius: 10px; color: #d97706; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <div>
+                        <small>Organizer/s</small>
+                        <strong><?= htmlspecialchars($organizer_str) ?></strong>
+                    </div>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
 
         <!-- Middle Div: Feedback -->
-        <div class="md-card">
-            <div class="md-card-header" style="justify-content: space-between;">
+        <div class="md-card" style="background: <?= $details['tag'] === 'Complaint' ? '#fffafa' : '#fdfaff' ?>; border-color: <?= $details['tag'] === 'Complaint' ? '#fecaca' : '#e9d5ff' ?>;">
+            <div class="md-card-header" style="justify-content: space-between; border-bottom-color: <?= $details['tag'] === 'Complaint' ? '#fecaca' : '#e9d5ff' ?>;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3.5l-1 4.5 4.5-1z"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="<?= $details['tag'] === 'Complaint' ? '#f87171' : '#c084fc' ?>" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3.5l-1 4.5 4.5-1z"/></svg>
                     Reported Feedback
                 </div>
                 <span class="md-badge <?= $details['tag'] === 'Complaint' ? 'badge-complaint' : 'badge-suggestion' ?>">
                     <?= htmlspecialchars($details['tag']) ?>
                 </span>
             </div>
-            
-            <div class="md-feedback-text <?= $details['tag'] === 'Complaint' ? 'complaint-border' : 'suggestion-border' ?>">
-                <?= nl2br(htmlspecialchars($details['complaints'] ?: $details['suggestions_for_improvement'] ?: 'No feedback text.')) ?>
+
+            <!-- Pull-quote headline style -->
+            <div style="position: relative; padding: 1.5rem 1.5rem 1.5rem 2rem;">
+                <!-- Giant quotation mark -->
+                <div style="position: absolute; top: 0.25rem; left: 0.75rem; font-size: 5rem; line-height: 1; color: <?= $details['tag'] === 'Complaint' ? '#fecaca' : '#e9d5ff' ?>; font-family: Georgia, serif; pointer-events: none; user-select: none;">&ldquo;</div>
+
+                <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: <?= $details['tag'] === 'Complaint' ? '#7f1d1d' : '#4c1d95' ?>; line-height: 1.55; letter-spacing: -0.3px; position: relative; z-index: 1;">
+                    <?= nl2br(htmlspecialchars($details['complaints'] ?: $details['suggestions_for_improvement'] ?: 'No feedback text.')) ?>
+                </p>
+
+                <!-- Closing quotation mark -->
+                <div style="text-align: right; font-size: 5rem; line-height: 0.5; color: <?= $details['tag'] === 'Complaint' ? '#fecaca' : '#e9d5ff' ?>; font-family: Georgia, serif; pointer-events: none; user-select: none;">&rdquo;</div>
             </div>
         </div>
 
@@ -372,8 +418,7 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
                 Resolution & Actions
             </div>
             
-            <form method="POST" action="">
-                <div class="md-form-group">
+            <div class="md-form-group">
                     <label>Actions Taken / Interventions</label>
                     <textarea name="actions_taken" class="md-input" rows="4" placeholder="Describe what steps were taken to resolve or implement this..."><?= htmlspecialchars($details['actions_taken'] ?? '') ?></textarea>
                 </div>
@@ -395,14 +440,6 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
                     </div>
                 </div>
 
-                <div class="md-form-row">
-                    <div class="md-form-group">
-                        <label>Overall Case Status</label>
-                        <select name="case_status" class="md-input">
-                            <option value="Unresolved" <?= $details['case_status'] === 'Unresolved' ? 'selected' : '' ?>>Unresolved</option>
-                            <option value="Resolved" <?= $details['case_status'] === 'Resolved' ? 'selected' : '' ?>>Resolved</option>
-                        </select>
-                    </div>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
@@ -411,8 +448,7 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
                         Save Details
                     </button>
                 </div>
-            </form>
         </div>
 
-    </div>
+    </form>
 </main>
