@@ -77,6 +77,10 @@ try {
     // Delete existing entries for this evaluation first to avoid duplicates on re-analyze
     $db->prepare("DELETE FROM activity_evaluation_monitoring WHERE evaluation_id = ?")->execute([$evaluation_id]);
 
+    // Reset links on the evaluation row
+    $db->prepare("UPDATE activity_evaluation SET complaint_id = NULL, suggestion_id = NULL WHERE evaluation_id = ?")
+       ->execute([$evaluation_id]);
+
     $inserted_complaint_id  = null;
     $inserted_suggestion_id = null;
 
