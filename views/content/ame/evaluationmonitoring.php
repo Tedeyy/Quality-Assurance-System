@@ -1,45 +1,49 @@
 <?php
-// Sample Evaluation Monitoring Page
-// This displays dummy data to illustrate complaints/suggestions tracking and improvement.
+require_once __DIR__ . '/../../../config/database.php';
 
-$sample_data = [
-    [
-        'id' => 'EM-001',
-        'date' => '2026-05-10',
-        'activity' => 'Leadership Training Seminar',
-        'type' => 'Complaint',
-        'feedback' => 'The venue was too small for the number of participants, causing discomfort.',
-        'action_taken' => 'Secured a larger auditorium for the next session. Ensured RSVP count strictly matches venue capacity.',
-        'status' => 'Improved'
-    ],
-    [
-        'id' => 'EM-002',
-        'date' => '2026-05-14',
-        'activity' => 'Curriculum Review Workshop',
-        'type' => 'Suggestion',
-        'feedback' => 'Provide more interactive materials rather than just reading from presentations.',
-        'action_taken' => 'Instructed facilitators to include group activities. Currently monitoring upcoming workshop formats.',
-        'status' => 'In Progress'
-    ],
-    [
-        'id' => 'EM-003',
-        'date' => '2026-05-18',
-        'activity' => 'Research Ethics Forum',
-        'type' => 'Complaint',
-        'feedback' => 'Sound system was barely audible at the back of the room.',
-        'action_taken' => 'Requested IT department to inspect and upgrade sound equipment.',
-        'status' => 'Pending'
-    ],
-    [
-        'id' => 'EM-004',
-        'date' => '2026-05-20',
-        'activity' => 'Student Orientation',
-        'type' => 'Suggestion',
-        'feedback' => 'Allocate more time for Q&A sessions at the end of the program.',
-        'action_taken' => 'Revised the standard program flow template to ensure a dedicated 30-minute Q&A block.',
-        'status' => 'Improved'
-    ],
+$db = (new Database())->getConnection();
+
+// Fetch stats
+$stats = [
+    'total' => 0,
+    'improved' => 0,
+    'in_progress' => 0,
+    'pending' => 0
 ];
+
+$stat_query = $db->query("
+    SELECT status, COUNT(*) as count 
+    FROM activity_evaluation_monitoring 
+    GROUP BY status
+");
+
+while ($row = $stat_query->fetch(PDO::FETCH_ASSOC)) {
+    $stats['total'] += $row['count'];
+    if ($row['status'] === 'Improved' || $row['status'] === 'Solved') {
+        $stats['improved'] += $row['count'];
+    } elseif ($row['status'] === 'In Progress') {
+        $stats['in_progress'] += $row['count'];
+    } elseif ($row['status'] === 'Pending') {
+        $stats['pending'] += $row['count'];
+    }
+}
+
+// Fetch monitoring entries
+$query = "
+    SELECT 
+        m.feedback_id as id,
+        m.created_at as date,
+        a.title as activity,
+        m.tag as type,
+        COALESCE(m.complaints, m.suggestions_for_improvement) as feedback,
+        m.actions_taken as action_taken,
+        m.status
+    FROM activity_evaluation_monitoring m
+    JOIN activity_evaluation e ON m.evaluation_id = e.evaluation_id
+    JOIN activities a ON e.activity_id = a.activity_id
+    ORDER BY m.created_at DESC
+";
+$monitoring_data = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <style>
@@ -158,15 +162,6 @@ $sample_data = [
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem; padding-bottom: 4rem;">
     <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-        
-        <!-- In Development Banner -->
-        <div style="background-color: #fef3c7; color: #92400e; border-left: 4px solid #f59e0b; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; gap: 12px; font-weight: 500; font-size: 0.95rem;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #d97706; flex-shrink: 0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-            <div>
-                <strong style="display: block; margin-bottom: 2px;">In Development</strong>
-                This module is currently in development. The information displayed is sample data only.
-            </div>
-        </div>
 
         <div class="em-header">
             <h1 class="em-title">
@@ -182,19 +177,19 @@ $sample_data = [
         <div class="em-stats-container">
             <div class="em-stat-card">
                 <div class="em-stat-title">Total Feedbacks</div>
-                <div class="em-stat-value">4</div>
+                <div class="em-stat-value"><?= $stats['total'] ?></div>
             </div>
             <div class="em-stat-card">
                 <div class="em-stat-title">Improvements Made</div>
-                <div class="em-stat-value" style="color: #16a34a;">2</div>
+                <div class="em-stat-value" style="color: #16a34a;"><?= $stats['improved'] ?></div>
             </div>
             <div class="em-stat-card">
                 <div class="em-stat-title">In Progress</div>
-                <div class="em-stat-value" style="color: #2563eb;">1</div>
+                <div class="em-stat-value" style="color: #2563eb;"><?= $stats['in_progress'] ?></div>
             </div>
             <div class="em-stat-card">
                 <div class="em-stat-title">Pending Action</div>
-                <div class="em-stat-value" style="color: #ea580c;">1</div>
+                <div class="em-stat-value" style="color: #ea580c;"><?= $stats['pending'] ?></div>
             </div>
         </div>
 
@@ -216,43 +211,51 @@ $sample_data = [
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($sample_data as $row): ?>
+                    <?php if (empty($monitoring_data)): ?>
                         <tr>
-                            <td>
-                                <div style="font-weight: 700; color: #334155;"><?= $row['id'] ?></div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;"><?= date('M d, Y', strtotime($row['date'])) ?></div>
-                            </td>
-                            <td>
-                                <div style="font-weight: 600; color: var(--accent-blue); margin-bottom: 6px;"><?= $row['activity'] ?></div>
-                                <span class="em-badge <?= $row['type'] === 'Complaint' ? 'badge-complaint' : 'badge-suggestion' ?>">
-                                    <?= $row['type'] ?>
-                                </span>
-                            </td>
-                            <td>
-                                <p style="margin: 0; font-size: 0.9rem; color: #475569; line-height: 1.5;"><?= htmlspecialchars($row['feedback']) ?></p>
-                            </td>
-                            <td>
-                                <p style="margin: 0; font-size: 0.9rem; color: #475569; line-height: 1.5;">
-                                    <?php if ($row['action_taken']): ?>
-                                        <?= htmlspecialchars($row['action_taken']) ?>
-                                    <?php else: ?>
-                                        <span style="color: #94a3b8; font-style: italic;">No action recorded yet.</span>
-                                    <?php endif; ?>
-                                </p>
-                            </td>
-                            <td>
-                                <?php
-                                    $statusClass = '';
-                                    if ($row['status'] === 'Improved') $statusClass = 'badge-improved';
-                                    elseif ($row['status'] === 'In Progress') $statusClass = 'badge-inprogress';
-                                    else $statusClass = 'badge-pending';
-                                ?>
-                                <span class="em-badge <?= $statusClass ?>">
-                                    <?= $row['status'] ?>
-                                </span>
+                            <td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">
+                                <strong>No feedback records found.</strong>
+                                <p style="margin-top: 5px; font-size: 0.9rem;">Analyze activity evaluations to generate tracking entries.</p>
                             </td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php else: ?>
+                        <?php foreach ($monitoring_data as $row): ?>
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 700; color: #334155; font-family: monospace;">#<?= htmlspecialchars($row['id']) ?></div>
+                                    <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;"><?= date('M d, Y', strtotime($row['date'])) ?></div>
+                                </td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--accent-blue); margin-bottom: 6px;"><?= htmlspecialchars($row['activity']) ?></div>
+                                    <span class="em-badge <?= $row['type'] === 'Complaint' ? 'badge-complaint' : 'badge-suggestion' ?>">
+                                        <?= htmlspecialchars($row['type']) ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <p style="margin: 0; font-size: 0.9rem; color: #475569; line-height: 1.5;"><?= nl2br(htmlspecialchars($row['feedback'])) ?></p>
+                                </td>
+                                <td>
+                                    <p style="margin: 0; font-size: 0.9rem; color: #475569; line-height: 1.5;">
+                                        <?php if ($row['action_taken']): ?>
+                                            <?= nl2br(htmlspecialchars($row['action_taken'])) ?>
+                                        <?php else: ?>
+                                            <span style="color: #94a3b8; font-style: italic;">No action recorded yet.</span>
+                                        <?php endif; ?>
+                                    </p>
+                                </td>
+                                <td>
+                                    <?php
+                                        $statusClass = 'badge-pending';
+                                        if (in_array($row['status'], ['Improved', 'Solved', 'Implemented'])) $statusClass = 'badge-improved';
+                                        elseif ($row['status'] === 'In Progress') $statusClass = 'badge-inprogress';
+                                    ?>
+                                    <span class="em-badge <?= $statusClass ?>">
+                                        <?= htmlspecialchars($row['status']) ?>
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
