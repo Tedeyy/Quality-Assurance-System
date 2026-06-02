@@ -100,6 +100,37 @@ $evaluation = $eval_stmt->fetch(PDO::FETCH_ASSOC);
 if ($evaluation) {
     // Evaluation found
 }
+
+$formSetup = ['step1' => 0, 'step2' => 0, 'step3' => 0, 'step4' => 0];
+if ($evaluation && !empty($evaluation['evaluation_id'])) {
+    try {
+        $db->exec(
+            "CREATE TABLE IF NOT EXISTS form_setup (
+                form_id INT PRIMARY KEY AUTO_INCREMENT,
+                evaluation_id INT NOT NULL UNIQUE,
+                step1 TINYINT(1) NOT NULL DEFAULT 0,
+                step2 TINYINT(1) NOT NULL DEFAULT 0,
+                step3 TINYINT(1) NOT NULL DEFAULT 0,
+                step4 TINYINT(1) NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+        );
+        $setupStmt = $db->prepare("SELECT step1, step2, step3, step4 FROM form_setup WHERE evaluation_id = :eid");
+        $setupStmt->execute([':eid' => $evaluation['evaluation_id']]);
+        $savedSetup = $setupStmt->fetch(PDO::FETCH_ASSOC);
+        if ($savedSetup) {
+            $formSetup = array_map('intval', $savedSetup);
+        } elseif (!empty($evaluation['ame_form_link'])) {
+            $formSetup['step1'] = 1;
+        }
+    } catch (PDOException $e) {
+        error_log("activitypane form setup query failed: " . $e->getMessage());
+        if (!empty($evaluation['ame_form_link'])) {
+            $formSetup['step1'] = 1;
+        }
+    }
+}
 ?>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem;">
@@ -399,6 +430,55 @@ if ($evaluation) {
                     }
                 }
 
+                async function markFormSetupStep(step, btn) {
+                    const originalContent = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                    btn.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></span> Saving...';
+
+                    const formData = new FormData();
+                    formData.append('activity_id', '<?= (int)$activity_id ?>');
+                    formData.append('step', step);
+
+                    try {
+                        const response = await fetch('../api/update_form_setup.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await parseSyncJson(response);
+
+                        if (!data.success) {
+                            throw new Error(data.message || 'Could not update setup progress.');
+                        }
+
+                        btn.innerHTML = 'Done';
+                        btn.style.opacity = '1';
+                        btn.style.cursor = 'default';
+                        btn.style.background = '#dcfce7';
+                        btn.style.color = '#166534';
+                        btn.style.borderColor = '#bbf7d0';
+
+                        const status = document.querySelector(`[data-form-setup-status="${step}"]`);
+                        if (status) {
+                            status.innerHTML = `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                Complete
+                            `;
+                            status.style.color = '#16a34a';
+                            status.style.display = 'flex';
+                            status.style.alignItems = 'center';
+                            status.style.gap = '6px';
+                            status.style.fontSize = '0.8rem';
+                            status.style.fontWeight = '600';
+                        }
+                    } catch (err) {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        btn.innerHTML = originalContent;
+                        alert(err.message);
+                    }
+                }
+
                 async function parseSyncJson(response) {
                     const text = await response.text();
                     try {
@@ -690,15 +770,44 @@ if ($evaluation) {
                                     Generate Form
                                 </button>
                             <?php else: ?>
-                                <span style="font-size: 0.8rem; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                <span data-form-setup-status="1" style="font-size: 0.8rem; color: <?= !empty($formSetup['step1']) ? '#16a34a' : '#64748b' ?>; font-weight: 600; display: flex; align-items: center; gap: 6px;">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                    Generated
+                                    <?= !empty($formSetup['step1']) ? 'Complete' : 'Generated' ?>
                                 </span>
                             <?php endif; ?>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 2: Link Form</div>
-                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Create new spreadsheet and link it there.</div>
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 2: Set Banner</div>
+                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Copy the Banner link and open the form editor, then use Customize Theme > Header > Choose image.</div>
+                            <?php if ($evaluation && $evaluation['ame_form_link']): 
+                                $form_url = $evaluation['ame_form_link'];
+                                $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
+                                $banner_url = "https://drive.google.com/file/d/1NbZWTr2WoKReoGKaSyRywMla3TP1NDhw/view?usp=sharing";
+                            ?>
+                                <a href="<?= htmlspecialchars($edit_url) ?>" target="_blank" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: white; color: var(--accent-blue); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent-blue); text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='var(--accent-blue)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--accent-blue)'">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                    Open Form Editor
+                                </a>
+                                <button type="button" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($banner_url) ?>').then(() => alert('Banner image link copied!'))" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: #f8fafc; color: #334155; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                    Copy Banner Link
+                                </button>
+                                <?php if (!empty($formSetup['step2'])): ?>
+                                    <span data-form-setup-status="2" style="font-size: 0.8rem; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                        Complete
+                                    </span>
+                                <?php else: ?>
+                                    <button type="button" onclick="markFormSetupStep(2, this)" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: white; color: #16a34a; padding: 8px 12px; border-radius: 8px; border: 1px solid #86efac; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Mark Banner Done</button>
+                                    <span data-form-setup-status="2" style="display: none;"></span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Generate form first.</span>
+                            <?php endif; ?>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 3: Link Form</div>
+                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Open the generated form for review and response-sheet linking.</div>
                             <?php if ($evaluation && $evaluation['ame_form_link']): 
                                 $form_url = $evaluation['ame_form_link'];
                                 $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
@@ -707,12 +816,21 @@ if ($evaluation) {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                     Edit Form
                                 </a>
+                                <?php if (!empty($formSetup['step3'])): ?>
+                                    <span data-form-setup-status="3" style="font-size: 0.8rem; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                        Complete
+                                    </span>
+                                <?php else: ?>
+                                    <button type="button" onclick="markFormSetupStep(3, this)" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: white; color: #16a34a; padding: 8px 12px; border-radius: 8px; border: 1px solid #86efac; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Mark Link Done</button>
+                                    <span data-form-setup-status="3" style="display: none;"></span>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Generate form first.</span>
                             <?php endif; ?>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 3: Update Index</div>
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 4: Update Index</div>
                             <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Copy the response spreadsheet URL, then paste it into the Index Responses spreadsheet.</div>
                             <?php if ($evaluation && $evaluation['ame_form_link']): 
                                 $index_env = $_ENV['RESPONSES_GOOGLE_SHEET'] ?? '';
@@ -722,8 +840,17 @@ if ($evaluation) {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                                     Open Index Sheet
                                 </a>
+                                <?php if (!empty($formSetup['step4'])): ?>
+                                    <span data-form-setup-status="4" style="font-size: 0.8rem; color: #16a34a; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                        Complete
+                                    </span>
+                                <?php else: ?>
+                                    <button type="button" onclick="markFormSetupStep(4, this)" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 6px; background: white; color: #16a34a; padding: 8px 12px; border-radius: 8px; border: 1px solid #86efac; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Mark Index Done</button>
+                                    <span data-form-setup-status="4" style="display: none;"></span>
+                                <?php endif; ?>
                             <?php else: ?>
-                                <span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Complete Step 2 first.</span>
+                                <span style="font-size: 0.8rem; color: #94a3b8; font-style: italic;">Complete Step 3 first.</span>
                             <?php endif; ?>
                         </div>
                     </div>

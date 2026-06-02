@@ -103,11 +103,14 @@ $activityFolderId = getOrCreateDriveFolder($driveService, $activityCode, $monthY
 
 // 4. Form & Sheet Creation
 $formsService = new Google\Service\Forms($client);
-$formTitle = "AME Evaluation: " . $activityTitle;
+$documentTitle = "AME Evaluation: " . $activityTitle;
+$formTitle = "Activity Evaluation | Client Satisfaction Survey";
+$formDescription = "Dear Participant:\n\nGreetings from the Quality Assurance Office!\n\nThis is the Activity Evaluation Form/ Client Satisfaction Survey to the activity you have just participated. This Monitoring and Evaluation (M&E) implementation was presented and approved by the Administrative Council last March 11, 2024 to ensure the quality implementation of all PAPs (Programs/Activities/Projects) of NBSC.\nWe are interested in knowing your feedback on the activity and we would appreciate it if you could take a few seconds to complete this form.\n\nYour comments will enable us to continuously improve the Quality Management System of Northern Bukidnon State College in our programs/activities/projects.\n\nThank you very much and God bless you abundantly!\n\nSincerely,\n\nThe Quality Assurance Office";
+
+// Google Forms API only allows title on create; description/documentTitle go via batchUpdate
 $form = new Google\Service\Forms\Form();
 $form->setInfo(new Google\Service\Forms\Info([
     'title' => $formTitle,
-    'documentTitle' => $formTitle
 ]));
 
 $createdForm = $formsService->forms->create($form);
@@ -116,8 +119,10 @@ $formEditLink = "https://docs.google.com/forms/d/" . $formId . "/edit";
 $formResponseLink = "https://docs.google.com/forms/d/" . $formId . "/edit#responses";
 $responderUri = $createdForm->getResponderUri();
 
-$emptyFile = new Google\Service\Drive\DriveFile();
-$driveService->files->update($formId, $emptyFile, [
+$formFile = new Google\Service\Drive\DriveFile([
+    'name' => $documentTitle,
+]);
+$driveService->files->update($formId, $formFile, [
     'addParents' => $activityFolderId,
     'removeParents' => 'root',
     'fields' => 'id, parents'
@@ -193,25 +198,30 @@ function createTextQuestion($title, &$index, $paragraph = false) {
     ]);
 }
 
-function createChoiceQuestion($title, $options, &$index) {
+function createChoiceQuestion($title, $options, &$index, $description = null) {
     $choices = [];
     foreach($options as $opt) {
         $choices[] = ['value' => $opt];
     }
+    $item = [
+        'title' => $title,
+        'questionItem' => [
+            'question' => [
+                'required' => true,
+                'choiceQuestion' => [
+                    'type' => 'RADIO',
+                    'options' => $choices
+                ]
+            ]
+        ]
+    ];
+    if ($description !== null && $description !== '') {
+        $item['description'] = $description;
+    }
+
     return new \Google\Service\Forms\Request([
         'createItem' => [
-            'item' => [
-                'title' => $title,
-                'questionItem' => [
-                    'question' => [
-                        'required' => true,
-                        'choiceQuestion' => [
-                            'type' => 'RADIO',
-                            'options' => $choices
-                        ]
-                    ]
-                ]
-            ],
+            'item' => $item,
             'location' => ['index' => $index++]
         ]
     ]);
@@ -267,54 +277,111 @@ function createGridQuestion($title, $rows, $columns, &$index) {
     ]);
 }
 
-// Section 1: Profile
-$requests[] = createTextQuestion("Email Address", $index);
-$requests[] = createTextQuestion("Full Name (Last Name, First Name, Middle Initial)", $index);
-$requests[] = createTextQuestion("Age", $index);
+function createTextItem($title, $description, &$index) {
+    return new \Google\Service\Forms\Request([
+        'createItem' => [
+            'item' => [
+                'title' => $title,
+                'description' => $description,
+                'textItem' => new \stdClass()
+            ],
+            'location' => ['index' => $index++]
+        ]
+    ]);
+}
+
+function createImageItem($sourceUri, &$index) {
+    return new \Google\Service\Forms\Request([
+        'createItem' => [
+            'item' => [
+                'imageItem' => [
+                    'image' => [
+                        'sourceUri' => $sourceUri
+                    ]
+                ]
+            ],
+            'location' => ['index' => $index++]
+        ]
+    ]);
+}
+
+// Section 1: Data Privacy Consent
+$privacyText = "This activity evaluation form/client satisfaction survey, in line with the Data Privacy Act of 2012, is committed to protect and secure personal information obtained in the process of performance of its mandate. The personal and other information you provided manually herein will be processed and utilized solely for training purposes only. Collected personal information will be kept/stored and accessed only by the QA Secretariat and will not be shared with any outside parties unless written consent is secured. The summary of results will be the only information shared to the implementing unit. By affirming this, you agree to answer the following needed information with utmost willingness to take part to this survey.";
+$requests[] = createChoiceQuestion("DATA PRIVACY NOTICE", ["Yes, I acknowledge", "I'd rather opt out."], $index, $privacyText);
+
+// Section 2-5: Activity Information
+$requests[] = createTextItem("TITLE", $activityTitle, $index);
+$requests[] = createTextItem("VENUE", $data['eventvenue'] ?: 'Location TBD', $index);
+$requests[] = createTextItem("DATE", $eventDateStr, $index);
+$requests[] = createTextItem("SDG", $data['sdg_titles'] ?: 'Not Specified', $index);
+
+// Section 6-10: Profile & Demographics
+$requests[] = createTextQuestion("Name: (Last Name, First Name, M.I)", $index);
+$requests[] = createChoiceQuestion("Age", ["18-24", "25-34", "35-44", "45-54", "55-64", "65 or over"], $index);
+$requests[] = createTextQuestion("Unit/Office/Institute/Division (abbreviation only)", $index);
 $requests[] = createTextQuestion("Contact Number", $index);
-$requests[] = createTextQuestion("Unit / Office / Division", $index);
-$requests[] = createChoiceQuestion("Gender", ["Male", "Female", "Others"], $index);
+$requests[] = createChoiceQuestion("Gender (Please select the option that best describes your identity)", ["Male", "Female", "LGBTQIA+", "Prefer not to say"], $index);
+// Section 12: Overall Service Rating
+$requests[] = createScaleQuestion("I. Overall Service Rating", 1, 5, "Poor", "Excellent", $index);
 
-// Section 2: Quality Assessment
-$requests[] = createScaleQuestion("I. Overall Service Rating (General success of the totality of the activity execution)", 1, 5, "Poor", "Excellent", $index);
-
-// Section 3: Speakers
+// Section 13+: Facilitators
 foreach ($facilitators_list as $fac) {
-    $requests[] = createGridQuestion(
-        "II. Performance: " . $fac['name'] . " (" . ucfirst($fac['role']) . ")",
-        ["Expertise and Delivery", "Mastery of Topic", "Interaction & Engagement", "General Impact"],
-        ["1", "2", "3", "4", "5"],
-        $index
-    );
+    if ($fac['role'] === 'speaker') {
+        $requests[] = createTextItem("NAME", $fac['name'] . " (Speaker)", $index);
+        $requests[] = createScaleQuestion("Effectiveness", 1, 5, "Poor", "Excellent", $index);
+        $requests[] = createScaleQuestion("Mastery of Topic", 1, 5, "Poor", "Excellent", $index);
+        $requests[] = createScaleQuestion("Ability to Facilitate", 1, 5, "Poor", "Excellent", $index);
+    } else {
+        $requests[] = createTextItem("ORGANIZER'S NAME", $fac['name'] . " (Organizer)", $index);
+        $requests[] = createScaleQuestion("Organization and Coordination of the Event", 1, 5, "Poor", "Excellent", $index);
+        $requests[] = createScaleQuestion("Clarity of Communication and Information Provided", 1, 5, "Poor", "Excellent", $index);
+        $requests[] = createScaleQuestion("Engagement and Interaction Opportunities", 1, 5, "Poor", "Excellent", $index);
+    }
 }
 
-// Section 4: Program & Methodology
-$requests[] = createGridQuestion(
-    "III. Evaluation Results",
-    ["Program Flow", "Program Contents", "Relevance to Objective", "Future Applicability"],
-    ["1", "2", "3", "4", "5"],
-    $index
-);
+// Section 18: Program and Methodology
+$requests[] = createTextItem("III. Program and Methodology (Program flow, Program contents, and relevance)", "", $index);
+$requests[] = createScaleQuestion("Program Flow", 1, 5, "Poor", "Excellent", $index);
+$requests[] = createScaleQuestion("Program Contents", 1, 5, "Poor", "Excellent", $index);
+$requests[] = createScaleQuestion("Relevance", 1, 5, "Poor", "Excellent", $index);
 
-// Section 5: Management & Logistics
-$requests[] = createGridQuestion(
-    "IV. Logistics",
-    ["Secretariat Service", "Logistics/Venue", "Timing/Scheduling"],
-    ["1", "2", "3", "4", "5"],
-    $index
-);
+// Section 22: Activity Management
+$requests[] = createTextItem("IV. Activity Management (Facilitation/Secretariat Service, Venue and Physical Arrangements, Time Allotted)", "", $index);
+$requests[] = createScaleQuestion("Facilitation/Secretariat Service", 1, 5, "Poor", "Excellent", $index);
+$requests[] = createScaleQuestion("Venue and Physical Arrangements", 1, 5, "Poor", "Excellent", $index);
+$requests[] = createScaleQuestion("Time Allotted", 1, 5, "Poor", "Excellent", $index);
 
-// Section 6: Feedback
-$requests[] = createTextQuestion("Which of the topics did you like BEST? Why?", $index, true);
-$requests[] = createTextQuestion("Which parts could be improved? (Least Liked)", $index, true);
-$requests[] = createScaleQuestion("Overall Experience", 1, 5, "Poor", "Excellent", $index);
+// Section 26-29: Qualitative Feedback & Overall Experience
+$requests[] = createTextQuestion("V. What did you like most about the program/activity/project?", $index, true);
+$requests[] = createTextQuestion("VI. Which part of the activity do you like LEAST? Why?", $index, true);
+$requests[] = createTextQuestion("VII. Other comments/suggestions on how we can improve our program/activity/project.", $index, true);
+$requests[] = createScaleQuestion("Please rate your OVERALL experience", 1, 5, "Poor", "Excellent", $index);
 
+// (No footer image item — Google Forms does not support footer images)
+
+// Step 1: Update form metadata. Drive document title is updated through Drive above.
 try {
-    $batchRequest = new \Google\Service\Forms\BatchUpdateFormRequest(['requests' => $requests]);
-    $formsService->forms->batchUpdate($formId, $batchRequest);
+    $infoRequest = new \Google\Service\Forms\BatchUpdateFormRequest([
+        'requests' => [
+            new \Google\Service\Forms\Request([
+                'updateFormInfo' => [
+                    'info' => [
+                        'description' => $formDescription,
+                    ],
+                    'updateMask' => 'description',
+                ]
+            ])
+        ]
+    ]);
+    $formsService->forms->batchUpdate($formId, $infoRequest);
 } catch (Exception $e) {
-    // Ignore batch update errors, form is created anyway
+    // Non-fatal: metadata update failed, continue
+    error_log('Form info update failed: ' . $e->getMessage());
 }
+
+// Step 2: Add all form items
+$batchRequest = new \Google\Service\Forms\BatchUpdateFormRequest(['requests' => $requests]);
+$formsService->forms->batchUpdate($formId, $batchRequest);
 
 // Helper to add working days
 function addWorkingDays($startDate, $days) {
@@ -343,6 +410,29 @@ if ($eval) {
     $insert = $db->prepare("INSERT INTO activity_evaluation (activity_id, ame_form_link, ame_form_id, evaluation_status, published_options, date_released, deadline) VALUES (:aid, :link, :fid, 'Pending', 'Open', :dr, :dl)");
     $insert->execute(['aid' => $activity_id, 'link' => $responderUri, 'fid' => $formId, 'dr' => $date_released, 'dl' => $deadline]);
     $evaluation_id = $db->lastInsertId();
+}
+
+try {
+    $db->exec(
+        "CREATE TABLE IF NOT EXISTS form_setup (
+            form_id INT PRIMARY KEY AUTO_INCREMENT,
+            evaluation_id INT NOT NULL UNIQUE,
+            step1 TINYINT(1) NOT NULL DEFAULT 0,
+            step2 TINYINT(1) NOT NULL DEFAULT 0,
+            step3 TINYINT(1) NOT NULL DEFAULT 0,
+            step4 TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+    );
+    $setup = $db->prepare(
+        "INSERT INTO form_setup (evaluation_id, step1)
+         VALUES (:eid, 1)
+         ON DUPLICATE KEY UPDATE step1 = 1"
+    );
+    $setup->execute(['eid' => $evaluation_id]);
+} catch (Exception $e) {
+    error_log('Form setup Step 1 update failed: ' . $e->getMessage());
 }
 
 // 7. Initialize stats and ratings

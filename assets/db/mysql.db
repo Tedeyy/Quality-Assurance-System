@@ -464,3 +464,18 @@ CREATE TABLE activity_evaluation_monitoring(
         REFERENCES activity_evaluation(evaluation_id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE form_setup (
+  form_id INT PRIMARY KEY AUTO_INCREMENT,
+  evaluation_id INT NOT NULL UNIQUE,
+  step1 TINYINT(1) NOT NULL DEFAULT 0,
+  step2 TINYINT(1) NOT NULL DEFAULT 0,
+  step3 TINYINT(1) NOT NULL DEFAULT 0,
+  step4 TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_form_setup_evaluation
+      FOREIGN KEY (evaluation_id)
+      REFERENCES activity_evaluation(evaluation_id)
+      ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

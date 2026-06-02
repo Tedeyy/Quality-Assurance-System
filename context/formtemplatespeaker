@@ -31,22 +31,22 @@ Options:
 
 --SECTION 2---------------------
 TITLE
-(Title of the Activity) *Required
+##(Title of the Activity)##
 ----------------------------------
 
 --SECTION 3----------------------
 VENUE
-(Venue of the Activity) *Required
+##(Venue of the Activity)##
 -----------------------------------
 
 --SECTION 4----------------------
 DATE
-(Date of the Activity) *Required
+##(Date of the Activity)##
 ------------------------------------
 
 --SECTION 5-----------------------
 SDG
-(SDG(s) Addressed) *Required
+##(SDG(s) Addressed)##
 --------------------------------
 
 --SECTION 6------------------------	

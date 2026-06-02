@@ -124,41 +124,47 @@ try {
     }
     
     $qMap = [];
-    $qMap[extractId($items[0])] = 'email';
-    $qMap[extractId($items[1])] = 'fullname';
-    $qMap[extractId($items[2])] = 'age';
-    $qMap[extractId($items[3])] = 'contact';
-    $qMap[extractId($items[4])] = 'unit';
-    $qMap[extractId($items[5])] = 'gender';
-    $qMap[extractId($items[6])] = 'osr';
+    // 0: Data Privacy consent question
+    $qMap[extractId($items[0])] = 'data_privacy';
+    // 1-4: Static Text Items (Title, Venue, Date, SDG)
+    // 5: Name
+    $qMap[extractId($items[5])] = 'fullname';
+    // 6: Age
+    $qMap[extractId($items[6])] = 'age';
+    // 7: Unit
+    $qMap[extractId($items[7])] = 'unit';
+    // 8: Contact
+    $qMap[extractId($items[8])] = 'contact';
+    // 9: Gender
+    $qMap[extractId($items[9])] = 'gender';
+    // 10: OSR
+    $qMap[extractId($items[10])] = 'osr';
     
-    $idx = 7;
+    $idx = 11;
     for($i=0; $i<$facilitatorsCount; $i++) {
-        $gridQs = $items[$idx]['questionGroupItem']['questions'];
-        $qMap[extractId($gridQs[0])] = "fac_{$i}_eff";
-        $qMap[extractId($gridQs[1])] = "fac_{$i}_mot";
-        $qMap[extractId($gridQs[2])] = "fac_{$i}_atf";
-        $idx++;
+        $idx++; // Skip Name TextItem
+        $qMap[extractId($items[$idx++])] = "fac_{$i}_eff";
+        $qMap[extractId($items[$idx++])] = "fac_{$i}_mot";
+        $qMap[extractId($items[$idx++])] = "fac_{$i}_atf";
     }
     
-    // Program Grid
-    $gridQs = $items[$idx]['questionGroupItem']['questions'];
-    $qMap[extractId($gridQs[0])] = 'prog_0';
-    $qMap[extractId($gridQs[1])] = 'prog_1';
-    $qMap[extractId($gridQs[2])] = 'prog_2';
-    $qMap[extractId($gridQs[3])] = 'prog_3';
-    $idx++;
+    // Program Section
+    $idx++; // Skip III. Program TextItem
+    $qMap[extractId($items[$idx++])] = 'prog_0';
+    $qMap[extractId($items[$idx++])] = 'prog_1';
+    $qMap[extractId($items[$idx++])] = 'prog_2';
     
-    // Logistics Grid
-    $gridQs = $items[$idx]['questionGroupItem']['questions'];
-    $qMap[extractId($gridQs[0])] = 'log_0';
-    $qMap[extractId($gridQs[1])] = 'log_1';
-    $qMap[extractId($gridQs[2])] = 'log_2';
-    $idx++;
+    // Logistics Section
+    $idx++; // Skip IV. Activity Management TextItem
+    $qMap[extractId($items[$idx++])] = 'log_0';
+    $qMap[extractId($items[$idx++])] = 'log_1';
+    $qMap[extractId($items[$idx++])] = 'log_2';
     
     $qMap[extractId($items[$idx++])] = 'best_topics';
     $qMap[extractId($items[$idx++])] = 'improvements';
+    $qMap[extractId($items[$idx++])] = 'suggestions';
     $qMap[extractId($items[$idx++])] = 'oe';
+
     
     // 2. Fetch Responses
     $responsesData = $formsService->forms_responses->listFormsResponses($formId);

@@ -20,7 +20,7 @@ $database = new Database();
 $db = $database->getConnection();
 
 // 1. Fetch Evaluation and User Token
-$stmt = $db->prepare("SELECT e.ame_form_link, u.google_access_token, u.google_refresh_token 
+$stmt = $db->prepare("SELECT e.evaluation_id, e.ame_form_link, u.google_access_token, u.google_refresh_token 
                       FROM activity_evaluation e 
                       JOIN users u ON u.user_id = :uid 
                       WHERE e.activity_id = :aid");
@@ -60,8 +60,17 @@ if ($formId && !empty($data['google_access_token'])) {
 }
 
 // 2. Clear from Database
-$stmt = $db->prepare("UPDATE activity_evaluation SET ame_form_link = NULL WHERE activity_id = :aid");
+$stmt = $db->prepare("UPDATE activity_evaluation SET ame_form_link = NULL, ame_form_id = NULL WHERE activity_id = :aid");
 $stmt->execute(['aid' => $activity_id]);
+
+if (!empty($data['evaluation_id'])) {
+    try {
+        $stmt = $db->prepare("DELETE FROM form_setup WHERE evaluation_id = :eid");
+        $stmt->execute(['eid' => $data['evaluation_id']]);
+    } catch (Exception $e) {
+        error_log('Form setup reset failed: ' . $e->getMessage());
+    }
+}
 
 $_SESSION['success'] = "AME Form deleted and reset successfully.";
 header("Location: ../views/feed.php?action=view_activity&id=" . $activity_id);
