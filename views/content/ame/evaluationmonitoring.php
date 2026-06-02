@@ -32,77 +32,97 @@ foreach ($monitoring_data as $r) {
 ?>
 
 <style>
-    .em-page { padding: 2rem 5% 4rem; min-height: calc(100vh - 80px); }
+    .em-page { padding: 2rem 5% 4rem; min-height: calc(100vh - 80px); background-color: #f8fafc; font-family: 'Inter', sans-serif;}
 
     .em-header {
-        background: linear-gradient(135deg, var(--accent-blue) 0%, #1e3a8a 100%);
-        color: white; padding: 2rem; border-radius: 12px;
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        color: white; padding: 2.5rem 2rem; border-radius: 16px;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 25px -5px rgba(30,58,138,.2);
+        box-shadow: 0 10px 25px -5px rgba(30,58,138,.25);
+        position: relative;
+        overflow: hidden;
     }
-    .em-title { font-size: 2rem; font-weight: 800; margin-bottom: .5rem; display: flex; align-items: center; gap: 12px; color: white; }
-    .em-subtitle { color: #e2e8f0; font-size: 1rem; max-width: 800px; line-height: 1.5; }
+    .em-header::after {
+        content: ''; position: absolute; top: -50%; right: -10%; width: 50%; height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        transform: rotate(-45deg); pointer-events: none;
+    }
+    .em-title { font-size: 2.2rem; font-weight: 800; margin-bottom: .75rem; display: flex; align-items: center; gap: 14px; color: white; letter-spacing: -0.5px;}
+    .em-subtitle { color: #e0e7ff; font-size: 1.05rem; max-width: 800px; line-height: 1.6; font-weight: 400;}
 
-    .em-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-    .em-stat-card { background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,.05); transition: transform .2s, box-shadow .2s; }
-    .em-stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,.1); }
-    .em-stat-title { font-size: .78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
-    .em-stat-value { font-size: 2rem; font-weight: 800; color: #0f172a; }
+    .em-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .em-stat-card { 
+        background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.5rem; 
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -1px rgba(0,0,0,.03); 
+        transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .3s cubic-bezier(0.4, 0, 0.2, 1); 
+        display: flex; flex-direction: column; position: relative; overflow: hidden;
+    }
+    .em-stat-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -5px rgba(0,0,0,.1), 0 8px 10px -5px rgba(0,0,0,.04); }
+    .em-stat-icon-wrapper {
+        width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        margin-bottom: 12px;
+    }
+    .em-stat-title { font-size: .85rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .em-stat-value { font-size: 2.2rem; font-weight: 800; color: #0f172a; line-height: 1.1; }
 
-    .em-table-wrap { background: white; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 10px 15px -3px rgba(0,0,0,.05); overflow: visible; }
+    .em-table-wrap { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,.05), 0 4px 6px -2px rgba(0,0,0,.025); overflow: visible; }
 
-    .em-toolbar { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-color); background: #f8fafc; border-radius: 12px 12px 0 0; }
-    .em-search-wrap { flex: 1; position: relative; min-width: 240px; }
-    .em-search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-    .em-search-input { width: 100%; padding: .65rem .65rem .65rem 2.4rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: .9rem; background: white; box-sizing: border-box; }
-    .em-search-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
-    .em-filter-select { padding: .65rem .9rem; border: 1px solid var(--border-color); border-radius: 8px; outline: none; font-size: .9rem; background: white; min-width: 160px; cursor: pointer; }
-    .em-filter-select:focus { border-color: #3b82f6; }
+    .em-toolbar { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; border-radius: 16px 16px 0 0; }
+    .em-search-wrap { flex: 1; position: relative; min-width: 260px; }
+    .em-search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+    .em-search-input { width: 100%; padding: .75rem .75rem .75rem 2.75rem; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: .95rem; background: white; box-sizing: border-box; transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit;}
+    .em-search-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,.15); }
+    .em-filter-select { padding: .75rem 1rem; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: .95rem; background: white; min-width: 170px; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit; appearance: auto;}
+    .em-filter-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,.15); }
 
-    .em-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .em-table thead tr { background: #f8fafc; border-bottom: 2px solid var(--border-color); }
-    .em-table th { padding: 1rem 1.2rem; font-size: .8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; }
-    .em-table td { padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-    .em-table tbody tr:hover { background: #f8fafc; }
+    .em-table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+    .em-table thead tr { background: #f8fafc; }
+    .em-table th { padding: 1.25rem 1.5rem; font-size: .8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; border-bottom: 2px solid #e2e8f0; }
+    .em-table td { padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; transition: background-color 0.2s;}
+    .em-table tbody tr:hover td { background-color: #f8fafc; }
     .em-table tbody tr:last-child td { border-bottom: none; }
 
-    .em-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
-    .badge-complaint  { background: #fee2e2; color: #991b1b; }
-    .badge-suggestion { background: #f3e8ff; color: #6b21a8; }
-    .badge-resolved   { background: #dcfce7; color: #166534; }
-    .badge-unresolved { background: #fef9c3; color: #854d0e; }
+    .em-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; border-radius: 9999px; font-size: .75rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.3px;}
+    .badge-complaint  { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;}
+    .badge-suggestion { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
+    .badge-resolved   { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;}
+    .badge-unresolved { background: #fef9c3; color: #a16207; border: 1px solid #fef08a;}
 
-    /* three-dot dropdown — mirrors activityevaluation.php */
+    /* three-dot dropdown */
     .action-dropdown { position: relative; display: inline-block; }
-    .three-dots-btn { background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: all .2s; color: #64748b; display: flex; align-items: center; justify-content: center; }
-    .three-dots-btn:hover { background: #f1f5f9; color: var(--accent-blue); }
+    .three-dots-btn { background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: all .2s; color: #94a3b8; display: flex; align-items: center; justify-content: center; }
+    .three-dots-btn:hover { background: #f1f5f9; color: #3b82f6; }
     .em-dropdown-menu {
-        display: none; position: absolute; right: 0; top: 100%;
-        background: white; min-width: 170px;
-        box-shadow: 0 10px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1);
-        border-radius: 12px; border: 1px solid var(--border-color);
-        z-index: 1000; padding: 8px 0; margin-top: 5px;
-        animation: emFadeIn .15s ease-out;
+        display: none; position: absolute; right: 0; top: calc(100% + 4px);
+        background: white; min-width: 180px;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,.15), 0 8px 10px -6px rgba(0,0,0,.1);
+        border-radius: 12px; border: 1px solid #e2e8f0;
+        z-index: 1000; padding: 8px 0;
+        animation: emFadeIn .2s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: top right;
     }
-    @keyframes emFadeIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
-    .em-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #334155; text-decoration: none; font-size: .88rem; transition: background .15s; cursor: pointer; border: none; width: 100%; text-align: left; background: transparent; font-family: inherit; }
-    .em-dropdown-item:hover { background: #f8fafc; color: var(--accent-blue); }
-    .em-dropdown-item svg { color: #94a3b8; flex-shrink: 0; }
+    @keyframes emFadeIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+    .em-dropdown-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; color: #475569; text-decoration: none; font-size: .9rem; font-weight: 500; transition: background .15s, color .15s; cursor: pointer; border: none; width: 100%; text-align: left; background: transparent; font-family: inherit; }
+    .em-dropdown-item:hover { background: #f8fafc; color: #3b82f6; }
+    .em-dropdown-item svg { color: #94a3b8; flex-shrink: 0; transition: color 0.15s;}
+    .em-dropdown-item:hover svg { color: #3b82f6; }
     .em-dropdown-item.danger { color: #dc2626; }
-    .em-dropdown-item.danger:hover { background: #fff5f5; }
-    .em-dropdown-divider { border-top: 1px solid var(--border-color); margin: 4px 0; }
+    .em-dropdown-item.danger:hover { background: #fef2f2; color: #b91c1c; }
+    .em-dropdown-item.danger:hover svg { color: #b91c1c; }
+    .em-dropdown-divider { border-top: 1px solid #f1f5f9; margin: 6px 0; }
 
     /* pagination */
-    .em-pagination { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; border-top: 1px solid var(--border-color); background: #f8fafc; border-radius: 0 0 12px 12px; flex-wrap: wrap; gap: 8px; }
-    .em-page-info { font-size: .85rem; color: #64748b; }
-    .em-page-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-    .em-page-btn { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: white; color: #475569; font-size: .85rem; font-weight: 500; text-decoration: none; cursor: pointer; transition: all .15s; display: inline-block; }
-    .em-page-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
-    .em-page-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); font-weight: 700; }
-    .em-page-btn.disabled { opacity: .35; pointer-events: none; cursor: default; }
+    .em-pagination { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-top: 1px solid #e2e8f0; background: white; border-radius: 0 0 16px 16px; flex-wrap: wrap; gap: 12px; }
+    .em-page-info { font-size: .9rem; color: #64748b; font-weight: 500;}
+    .em-page-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .em-page-btn { padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; color: #475569; font-size: .9rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; justify-content: center; min-width: 36px;}
+    .em-page-btn:hover:not(.disabled):not(.active) { background: #f8fafc; border-color: #94a3b8; color: #1e293b;}
+    .em-page-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.25);}
+    .em-page-btn.disabled { opacity: .4; pointer-events: none; cursor: not-allowed; background: #f8fafc;}
 
-    .em-empty { padding: 3.5rem; text-align: center; color: #94a3b8; }
-    .em-empty strong { display: block; color: #475569; font-size: 1rem; margin-bottom: 4px; }
+    .em-empty { padding: 4rem 2rem; text-align: center; color: #94a3b8; }
+    .em-empty strong { display: block; color: #334155; font-size: 1.1rem; margin-bottom: 8px; font-weight: 700;}
+    .em-empty span { font-size: .95rem; color: #64748b;}
 
     .em-hidden { display: none !important; }
 </style>
@@ -124,24 +144,39 @@ foreach ($monitoring_data as $r) {
     <!-- Stats -->
     <div class="em-stats">
         <div class="em-stat-card">
+            <div class="em-stat-icon-wrapper" style="background: #f1f5f9; color: #64748b;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
             <div class="em-stat-title">Total Cases</div>
             <div class="em-stat-value"><?= $stats['total'] ?></div>
         </div>
         <div class="em-stat-card">
+            <div class="em-stat-icon-wrapper" style="background: #fef2f2; color: #ef4444;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
             <div class="em-stat-title">Complaints</div>
-            <div class="em-stat-value" style="color:#dc2626;"><?= $stats['complaint'] ?></div>
+            <div class="em-stat-value" style="color:#b91c1c;"><?= $stats['complaint'] ?></div>
         </div>
         <div class="em-stat-card">
+            <div class="em-stat-icon-wrapper" style="background: #f3e8ff; color: #a855f7;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/></svg>
+            </div>
             <div class="em-stat-title">Suggestions</div>
-            <div class="em-stat-value" style="color:#7c3aed;"><?= $stats['suggestion'] ?></div>
+            <div class="em-stat-value" style="color:#7e22ce;"><?= $stats['suggestion'] ?></div>
         </div>
         <div class="em-stat-card">
+            <div class="em-stat-icon-wrapper" style="background: #dcfce7; color: #22c55e;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
             <div class="em-stat-title">Resolved</div>
-            <div class="em-stat-value" style="color:#16a34a;"><?= $stats['resolved'] ?></div>
+            <div class="em-stat-value" style="color:#15803d;"><?= $stats['resolved'] ?></div>
         </div>
         <div class="em-stat-card">
+            <div class="em-stat-icon-wrapper" style="background: #fef3c7; color: #f59e0b;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
             <div class="em-stat-title">Unresolved</div>
-            <div class="em-stat-value" style="color:#d97706;"><?= $stats['unresolved'] ?></div>
+            <div class="em-stat-value" style="color:#b45309;"><?= $stats['unresolved'] ?></div>
         </div>
     </div>
 
@@ -206,8 +241,11 @@ foreach ($monitoring_data as $r) {
                             data-case="<?= htmlspecialchars($row['case_status']) ?>">
 
                             <td>
-                                <div style="font-weight:700; color:#334155; font-family:monospace; font-size:.88rem;">#<?= htmlspecialchars($row['feedback_id']) ?></div>
-                                <div style="font-size:.76rem; color:#94a3b8; margin-top:3px;"><?= date('M d, Y', strtotime($row['created_at'])) ?></div>
+                                <div style="font-weight:700; color:#1e293b; font-family:monospace; font-size:.95rem; letter-spacing: 0.5px;">#<?= htmlspecialchars($row['feedback_id']) ?></div>
+                                <div style="font-size:.8rem; color:#64748b; margin-top:4px; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    <?= date('M d, Y', strtotime($row['created_at'])) ?>
+                                </div>
                             </td>
 
                             <td>

@@ -106,21 +106,26 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
         display: flex;
         align-items: center;
         gap: 8px;
-        color: #475569;
+        color: #64748b;
         text-decoration: none;
         font-weight: 600;
         font-size: 0.95rem;
-        transition: color 0.2s;
+        transition: color 0.2s, transform 0.2s;
     }
     .md-back:hover {
-        color: var(--accent-blue, #2563eb);
+        color: #3b82f6;
+        transform: translateX(-4px);
     }
     .md-card {
         background: white;
-        border-radius: 12px;
+        border-radius: 16px;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
         padding: 2rem;
+        transition: box-shadow 0.3s;
+    }
+    .md-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
     }
     .md-card-header {
         font-size: 0.85rem;
@@ -135,24 +140,33 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
         border-bottom: 1px solid #f1f5f9;
         padding-bottom: 1rem;
     }
+    .md-card-header svg {
+        color: #94a3b8;
+    }
     
     /* Top Div (Activity) */
     .md-activity-title {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
         font-weight: 800;
         color: #0f172a;
         margin: 0 0 1.5rem 0;
+        line-height: 1.3;
+        letter-spacing: -0.5px;
     }
     .md-meta-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.25rem;
     }
     .md-meta-item {
         background: #f8fafc;
-        padding: 1rem;
-        border-radius: 8px;
+        padding: 1.25rem;
+        border-radius: 12px;
         border: 1px solid #f1f5f9;
+        transition: background 0.2s;
+    }
+    .md-meta-item:hover {
+        background: #f1f5f9;
     }
     .md-meta-item small {
         display: block;
@@ -160,30 +174,43 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
         font-size: 0.75rem;
         text-transform: uppercase;
         font-weight: 700;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
     }
     .md-meta-item strong {
-        color: #334155;
-        font-size: 0.95rem;
+        color: #1e293b;
+        font-size: 1rem;
+        line-height: 1.4;
+        display: block;
     }
 
     /* Middle Div (Feedback) */
     .md-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border-radius: 9999px;
         font-size: 0.75rem;
         font-weight: 700;
+        letter-spacing: 0.3px;
     }
-    .badge-complaint { background: #fee2e2; color: #991b1b; }
-    .badge-suggestion { background: #f3e8ff; color: #6b21a8; }
+    .badge-complaint { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;}
+    .badge-suggestion { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
+    
     .md-feedback-text {
-        font-size: 1.1rem;
-        color: #1e293b;
+        font-size: 1.05rem;
+        color: #334155;
         line-height: 1.7;
         margin-top: 1rem;
         white-space: pre-wrap;
+        background: #f8fafc;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid #cbd5e1;
     }
+    .md-feedback-text.complaint-border { border-left-color: #fca5a5; }
+    .md-feedback-text.suggestion-border { border-left-color: #d8b4fe; }
 
     /* Bottom Div (Actions) */
     .md-form-group {
@@ -198,18 +225,24 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
     }
     .md-input {
         width: 100%;
-        padding: 12px;
+        padding: 12px 16px;
         border: 1px solid #cbd5e1;
-        border-radius: 8px;
+        border-radius: 10px;
         font-family: inherit;
         font-size: 0.95rem;
-        color: #334155;
+        color: #1e293b;
         background: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
     }
     .md-input:focus {
         outline: none;
         border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    }
+    textarea.md-input {
+        resize: vertical;
+        min-height: 100px;
     }
     .md-form-row {
         display: grid;
@@ -217,34 +250,46 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
         gap: 1.5rem;
     }
     .md-btn-submit {
-        background: #2563eb;
+        background: #3b82f6;
         color: white;
         border: none;
-        padding: 12px 24px;
-        border-radius: 8px;
+        padding: 12px 28px;
+        border-radius: 10px;
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 0.95rem;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
         display: flex;
         align-items: center;
         gap: 8px;
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.25);
     }
     .md-btn-submit:hover {
-        background: #1d4ed8;
+        background: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.3);
+    }
+    .md-btn-submit:active {
+        transform: translateY(0);
     }
     
     .md-alert {
         background: #dcfce7;
-        color: #166534;
+        color: #15803d;
         border: 1px solid #bbf7d0;
-        padding: 1rem;
-        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        border-radius: 10px;
         margin-bottom: 1.5rem;
         font-weight: 600;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        animation: slideDown 0.3s ease-out;
+    }
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 
@@ -282,14 +327,18 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
                     <small>Date & Venue</small>
                     <strong><?= $details['eventdate'] ? date('M d, Y', strtotime($details['eventdate'])) : 'N/A' ?> • <?= htmlspecialchars($details['eventvenue'] ?: 'N/A') ?></strong>
                 </div>
+                <?php if (!empty($speaker_names)): ?>
                 <div class="md-meta-item">
                     <small>Speaker/s</small>
                     <strong><?= htmlspecialchars($speaker_str) ?></strong>
                 </div>
+                <?php endif; ?>
+                <?php if (!empty($organizer_names)): ?>
                 <div class="md-meta-item">
                     <small>Organizer/s</small>
                     <strong><?= htmlspecialchars($organizer_str) ?></strong>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -305,7 +354,7 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
                 </span>
             </div>
             
-            <div class="md-feedback-text">
+            <div class="md-feedback-text <?= $details['tag'] === 'Complaint' ? 'complaint-border' : 'suggestion-border' ?>">
                 <?= nl2br(htmlspecialchars($details['complaints'] ?: $details['suggestions_for_improvement'] ?: 'No feedback text.')) ?>
             </div>
         </div>
