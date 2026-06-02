@@ -53,30 +53,34 @@ class AIService {
                 return ["error" => "Gemini API Key not configured in .env"];
             }
 
-            $prompt = "You are a Quality Assurance analyst. Analyze the following respondent feedback from an institutional activity and provide a summarized interpretation.
+            $prompt = "You are a strict Quality Assurance analyst tasked with summarizing open-text respondent feedback from an institutional activity.
 
-            DATA:
-            " . json_encode($responses) . "
+DATA:
+" . json_encode($responses) . "
 
-            INSTRUCTIONS:
-            1. Extract common themes for 'Complaints' (things that went wrong or were disliked).
-            2. Extract 'Suggestions for Improvement' (actionable feedback).
-            3. Return the results in a valid JSON format with keys: 'complaints' and 'suggestions'.
-            4. Keep descriptions professional, concise, and grouped by theme. 
-            5. If there are no complaints or suggestions, state 'None reported'.
+STRICT RULES:
+1. Only extract REAL, SPECIFIC complaints — things that respondents explicitly described as problems, issues, dissatisfactions, or negative experiences. DO NOT invent complaints.
+2. Only extract REAL, SPECIFIC suggestions for improvement — actionable ideas that respondents explicitly proposed. DO NOT invent suggestions.
+3. Vague or generic praise (e.g. 'all good', 'nothing to improve', 'N/A', 'none', empty strings) must be treated as NO complaint and NO suggestion.
+4. If there are genuinely no complaints found in the data, return null for 'complaints'. Do NOT write phrases like 'None reported' or 'No complaints'.
+5. If there are genuinely no suggestions found in the data, return null for 'suggestions'. Do NOT write phrases like 'None reported' or 'No suggestions'.
+6. Group and summarize by theme when multiple respondents raise the same issue. Be concise and professional.
+7. Return ONLY valid JSON — no markdown, no extra text, no code fences.
 
-            OUTPUT FORMAT:
-            {
-                \"complaints\": \"Summary text here...\",
-                \"suggestions\": \"Summary text here...\"
-            }";
+OUTPUT FORMAT (strict JSON only):
+{
+    \"complaints\": \"Grouped summary of real complaints, or null if none\",
+    \"suggestions\": \"Grouped summary of real suggestions, or null if none\"
+}";
 
             $response = $this->callGemini($prompt);
             
-            // Extract JSON if AI wraps it in markdown blocks
-            if (preg_match('/\{.*\}/s', $response, $matches)) {
-                $json = json_decode($matches[0], true);
-                if ($json) return $json;
+            // Extract JSON — strip possible markdown code fences
+            $cleaned = preg_replace('/```(?:json)?\s*/i', '', $response);
+            $cleaned = preg_replace('/```/', '', $cleaned);
+            if (preg_match('/(\{.*\})/s', $cleaned, $matches)) {
+                $json = json_decode($matches[1], true);
+                if (is_array($json)) return $json;
             }
 
             return ["error" => "Failed to parse AI response: " . $response];

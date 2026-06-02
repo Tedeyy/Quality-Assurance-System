@@ -45,13 +45,17 @@ try {
 }
 
 $query = "SELECT a.*, o.name as office_name, e.*, s.*,
-                 GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles
+                 GROUP_CONCAT(sdg.title SEPARATOR ', ') as sdg_titles,
+                 mc.complaints as complaints,
+                 ms.suggestions_for_improvement as suggestions_for_improvement
           FROM activities a 
           LEFT JOIN divisions_offices o ON a.requesting_office_id = o.office_id
           LEFT JOIN activity_evaluation e ON a.activity_id = e.activity_id
           LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
           LEFT JOIN activity_sdgs asg ON a.activity_id = asg.activity_id
           LEFT JOIN sdgs sdg ON asg.sdg_id = sdg.sdg_id
+          LEFT JOIN activity_evaluation_monitoring mc ON e.complaint_id = mc.feedback_id
+          LEFT JOIN activity_evaluation_monitoring ms ON e.suggestion_id = ms.feedback_id
           WHERE 1=1";
 
 $is_archived = isset($_GET['is_archived']) && $_GET['is_archived'] === '1' ? 1 : 0;
@@ -192,8 +196,8 @@ foreach ($data as $r) {
         ensurePercent($r['oe_wa']),
         ensurePercent($r['overall_average']),
         $performanceRanks[(int)$r['activity_id']] ?? 'Pending',
-        $r['complaints'],
-        $r['suggestions_for_improvement'],
+        $r['complaints'] ?? '',
+        $r['suggestions_for_improvement'] ?? '',
         $r['published_options'],
         $r['deadline'],
         $r['date_released'],
