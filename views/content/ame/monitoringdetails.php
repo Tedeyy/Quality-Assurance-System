@@ -301,7 +301,13 @@ $organizer_str = !empty($organizer_names) ? implode(', ', $organizer_names) : 'N
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                 Back to Monitoring
             </a>
-            <span style="font-family: monospace; font-weight: 800; color: #94a3b8;">ID: #<?= htmlspecialchars($details['feedback_id']) ?></span>
+            <div style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 14px;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                    <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8;">Case No.</span>
+                </div>
+                <span style="font-family: 'Courier New', monospace; font-weight: 900; color: #334155; font-size: 0.95rem; letter-spacing: 1px;"><?= htmlspecialchars($details['feedback_id']) ?></span>
+            </div>
         </div>
 
         <?php if (isset($_GET['success'])): ?>
