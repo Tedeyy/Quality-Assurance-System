@@ -110,19 +110,21 @@ CREATE TABLE `activity_evaluation` (
   `ame_form_id` text DEFAULT NULL,
   `number_of_respondents` int(11) DEFAULT NULL,
   `response_rate` float DEFAULT NULL,
-  `complaints` text DEFAULT NULL,
-  `suggestions_for_improvement` text DEFAULT NULL,
+  `complaint_id` VARCHAR(6) DEFAULT NULL,
+  `suggestion_id` VARCHAR(6) DEFAULT NULL,
   `published_options` enum('Open','Closed') DEFAULT NULL,
   `date_released` date DEFAULT NULL,
   `deadline` date DEFAULT NULL,
   `evaluation_status` enum('Pending','In Progress','Completed','Overdue') DEFAULT 'Pending',
   `justification_letter` text DEFAULT NULL,
-  `created_at` datetime DEFAULT current_timestamp(),
+  `created_at` datetime DEzFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`evaluation_id`),
   KEY `activity_id` (`activity_id`),
-  CONSTRAINT `activity_evaluation_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`activity_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CONSTRAINT `activity_evaluation_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`activity_id`),
+  CONSTRAINT `activity_evaluation_ibfk_2` FOREIGN KEY (`complaint_id`) REFERENCES `activity_evaluation_monitoring` (`feedback_id`),
+  CONSTRAINT `activity_evaluation_ibfk_3` FOREIGN KEY (`suggestion_id`) REFERENCES `activity_evaluation_monitoring` (`feedback_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_genera0l_ci;
 
 DROP TABLE IF EXISTS `activity_facilitators`;
 
@@ -438,4 +440,27 @@ CREATE TABLE document_bridge (
         FOREIGN KEY (submission_id) 
         REFERENCES accreditation_requirement_submissions(submission_id)
         ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE activity_evaluation_monitoring(
+    feedback_id VARCHAR(6) NOT NULL UNIQUE PRIMARY KEY, --Random 6 Digits and Letters
+    evaluation_id INT NOT NULL,
+    complaints text DEFAULT NULL, 
+    suggestions_for_improvement text DEFAULT NULL,
+    tag enum('Complaint', 'Suggestions') NOT NULL,
+
+    actions_taken text DEFAULT NULL,
+    date_implemented datetime DEFAULT NULL,
+    status enum('Pending', 'In Progress', 'Implemented', 'Solved', 'Improved') DEFAULT 'Pending',
+    
+    case_status enum('Unresolved', 'Resolved') DEFAULT 'Unresolved',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_evaluation_id (evaluation_id),
+    CONSTRAINT fk_feedback_evaluation 
+        FOREIGN KEY (evaluation_id) 
+        REFERENCES activity_evaluation(evaluation_id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

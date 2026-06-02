@@ -440,7 +440,22 @@ $evaluation = [];
 $eval_id = $activity['evaluation_id'] ?? null;
 if ($eval_id) {
     // We already have some evaluation fields in $activity, let's fetch the full evaluation record
-    $eval_stmt = $db->prepare("SELECT e.*, s.* FROM activity_evaluation e LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id WHERE e.evaluation_id = :id");
+    $eval_stmt = $db->prepare("
+        SELECT e.*, s.*,
+               mc.feedback_id AS complaint_feedback_id,
+               mc.complaints,
+               mc.status AS complaint_status,
+               mc.case_status AS complaint_case_status,
+               ms.feedback_id AS suggestion_feedback_id,
+               ms.suggestions_for_improvement,
+               ms.status AS suggestion_status,
+               ms.case_status AS suggestion_case_status
+        FROM activity_evaluation e
+        LEFT JOIN activity_statistics s ON e.evaluation_id = s.evaluation_id
+        LEFT JOIN activity_evaluation_monitoring mc ON e.complaint_id = mc.feedback_id
+        LEFT JOIN activity_evaluation_monitoring ms ON e.suggestion_id = ms.feedback_id
+        WHERE e.evaluation_id = :id
+    ");
     $eval_stmt->execute([':id' => $eval_id]);
     $evaluation = $eval_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1278,21 +1293,27 @@ if ($eval_id) {
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
                         <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
-                            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                            <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 6 0v-4"/><path d="M10 5h6a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z"/></svg>
                                 Complaints
+                                <?php if (!empty($evaluation['complaint_feedback_id'])): ?>
+                                    <span style="margin-left: auto; font-size: 0.7rem; font-weight: 800; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px; font-family: monospace;">#<?= htmlspecialchars($evaluation['complaint_feedback_id']) ?></span>
+                                <?php endif; ?>
                             </h4>
                             <div id="complaints-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
-                                <?= $evaluation['complaints'] ? nl2br(htmlspecialchars($evaluation['complaints'])) : '<i>No complaints reported.</i>' ?>
+                                <?= !empty($evaluation['complaints']) ? nl2br(htmlspecialchars($evaluation['complaints'])) : '<i>No complaints reported.</i>' ?>
                             </div>
                         </div>
                         <div style="background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); position: relative;">
-                            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                            <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 Suggestions for Improvement
+                                <?php if (!empty($evaluation['suggestion_feedback_id'])): ?>
+                                    <span style="margin-left: auto; font-size: 0.7rem; font-weight: 800; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px; font-family: monospace;">#<?= htmlspecialchars($evaluation['suggestion_feedback_id']) ?></span>
+                                <?php endif; ?>
                             </h4>
                             <div id="suggestions-display" style="font-size: 0.9rem; color: #64748b; line-height: 1.6; min-height: 50px;">
-                                <?= $evaluation['suggestions_for_improvement'] ? nl2br(htmlspecialchars($evaluation['suggestions_for_improvement'])) : '<i>No suggestions provided.</i>' ?>
+                                <?= !empty($evaluation['suggestions_for_improvement']) ? nl2br(htmlspecialchars($evaluation['suggestions_for_improvement'])) : '<i>No suggestions provided.</i>' ?>
                             </div>
                         </div>
                     </div>
