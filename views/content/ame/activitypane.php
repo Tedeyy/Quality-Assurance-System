@@ -533,6 +533,144 @@ if ($evaluation) {
                         </div>
                     </div>
                 <?php endif; ?>
+
+                <!-- Justification Section -->
+                <div style="margin-top: 2rem; border: 1px solid <?= !empty($evaluation['justification_letter']) ? '#fca5a5' : '#e2e8f0' ?>; background: <?= !empty($evaluation['justification_letter']) ? '#fef2f2' : '#ffffff' ?>; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);" id="justificationDiv">
+                    <div onclick="toggleJustification()" style="padding: 1.25rem 1.5rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; <?= !empty($evaluation['justification_letter']) ? 'color: #b91c1c;' : 'color: #334155;' ?>" onmouseover="this.style.background='<?= !empty($evaluation['justification_letter']) ? '#fee2e2' : '#f8fafc' ?>'" onmouseout="this.style.background='transparent'">
+                        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 10px; letter-spacing: -0.3px;">
+                            <div style="padding: 6px; border-radius: 8px; background: <?= !empty($evaluation['justification_letter']) ? '#fca5a5' : '#f1f5f9' ?>; color: <?= !empty($evaluation['justification_letter']) ? '#991b1b' : '#64748b' ?>; display: flex;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </div>
+                            Justification Letter
+                        </h3>
+                        <svg id="justificationIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: #94a3b8;"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    
+                    <div id="justificationContent" style="display: none; padding: 0 1.5rem 1.5rem; border-top: 1px solid <?= !empty($evaluation['justification_letter']) ? '#fecaca' : '#f1f5f9' ?>; animation: fadeDown 0.3s ease-out;">
+                        <style>
+                            @keyframes fadeDown {
+                                from { opacity: 0; transform: translateY(-5px); }
+                                to { opacity: 1; transform: translateY(0); }
+                            }
+                            .custom-file-upload {
+                                display: flex; align-items: center; gap: 10px; flex: 1; padding: 10px 16px; border: 2px dashed <?= !empty($evaluation['justification_letter']) ? '#fca5a5' : '#cbd5e1' ?>; border-radius: 10px; background: <?= !empty($evaluation['justification_letter']) ? '#fff5f5' : '#f8fafc' ?>; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; color: #64748b;
+                            }
+                            .custom-file-upload:hover { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; }
+                            input[type="file"]#justificationFile { display: none; }
+                        </style>
+
+                        <?php if (!empty($evaluation['justification_letter'])): 
+                            $jUrl = $evaluation['justification_letter'];
+                            $isUrl = filter_var($jUrl, FILTER_VALIDATE_URL) !== false;
+                            $jName = $isUrl ? "Google Drive Document" : $jUrl;
+                            $jHref = $isUrl ? $jUrl : "../assets/activity_form/" . $jUrl;
+
+                            $folderUrl = null;
+                            if ($isUrl) {
+                                $parsedUrl = parse_url($jUrl);
+                                if (isset($parsedUrl['query'])) {
+                                    parse_str($parsedUrl['query'], $queryParams);
+                                    if (isset($queryParams['folderId'])) {
+                                        $folderUrl = "https://drive.google.com/drive/folders/" . $queryParams['folderId'];
+                                    }
+                                }
+                            }
+                        ?>
+                            <div style="margin-top: 1.25rem; display: flex; align-items: center; justify-content: space-between; background: white; padding: 12px 16px; border-radius: 10px; border: 1px solid #fecaca; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="padding: 8px; background: #fef2f2; border-radius: 8px;">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: #ef4444; font-weight: 700; margin-bottom: 2px;">Uploaded File</div>
+                                        <div style="font-size: 0.95rem; color: #1e293b; font-weight: 600; font-family: monospace; letter-spacing: -0.5px;"><?= htmlspecialchars($jName) ?></div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <a href="<?= htmlspecialchars($jHref) ?>" target="_blank" title="View Document" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: #ef4444; color: white; border-radius: 8px; text-decoration: none; transition: background 0.2s, box-shadow 0.2s;" onmouseover="this.style.background='#dc2626'; this.style.boxShadow='0 4px 6px -1px rgba(220, 38, 38, 0.3)'" onmouseout="this.style.background='#ef4444'; this.style.boxShadow='none'">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </a>
+                                    <?php if ($folderUrl): ?>
+                                    <a href="<?= htmlspecialchars($folderUrl) ?>" target="_blank" title="Open Folder" style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.color='#3b82f6'; this.style.borderColor='#93c5fd'" onmouseout="this.style.background='#f8fafc'; this.style.color='#64748b'; this.style.borderColor='#cbd5e1'">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <form id="justificationForm" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 12px;">
+                            <label style="font-size: 0.9rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Upload New Justification Letter
+                            </label>
+                            <div style="display: flex; gap: 12px; align-items: stretch;">
+                                <label class="custom-file-upload">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                                    <span id="fileNameDisplay">Choose a file (PDF, Word, Image)...</span>
+                                    <input type="file" id="justificationFile" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="document.getElementById('fileNameDisplay').textContent = this.files[0] ? this.files[0].name : 'Choose a file (PDF, Word, Image)...'">
+                                </label>
+                                <button type="button" onclick="uploadJustification(<?= $activity_id ?>)" style="background: var(--accent-blue); color: white; border: none; padding: 0 24px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(59,130,246,0.25);" onmouseover="this.style.background='#2563eb'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 8px -1px rgba(59,130,246,0.3)'" onmouseout="this.style.background='var(--accent-blue)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(59,130,246,0.25)'" onmousedown="this.style.transform='translateY(1px)'">
+                                    Upload
+                                </button>
+                            </div>
+                            <div id="justificationStatus" style="font-size: 0.85rem; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 6px;"></div>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                function toggleJustification() {
+                    const content = document.getElementById('justificationContent');
+                    const icon = document.getElementById('justificationIcon');
+                    if (content.style.display === 'none' || content.style.display === '') {
+                        content.style.display = 'block';
+                        icon.style.transform = 'rotate(180deg)';
+                    } else {
+                        content.style.display = 'none';
+                        icon.style.transform = 'rotate(0deg)';
+                    }
+                }
+
+                async function uploadJustification(activityId) {
+                    const fileInput = document.getElementById('justificationFile');
+                    const status = document.getElementById('justificationStatus');
+                    
+                    if (!fileInput.files[0]) {
+                        status.textContent = 'Please select a file to upload.';
+                        status.style.color = '#ef4444';
+                        return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('justification_letter', fileInput.files[0]);
+                    formData.append('activity_id', activityId);
+                    
+                    status.textContent = 'Uploading...';
+                    status.style.color = '#3b82f6';
+                    
+                    try {
+                        const response = await fetch('../api/upload_justification.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            status.textContent = 'Upload successful! Reloading...';
+                            status.style.color = '#10b981';
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            status.textContent = result.error || 'Upload failed.';
+                            status.style.color = '#ef4444';
+                        }
+                    } catch (error) {
+                        status.textContent = 'Network error occurred.';
+                        status.style.color = '#ef4444';
+                    }
+                }
+                </script>
             </div>
 
             <!-- Sidebar Info -->
