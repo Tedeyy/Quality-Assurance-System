@@ -1356,11 +1356,21 @@ if ($eval_id) {
                                 <!-- Manual Input Form -->
                                 <div style="padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
                                     <div style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Complaints</label>
+                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+                                            Complaints
+                                            <span style="font-size: 0.7rem; font-weight: 800; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px; font-family: monospace;">
+                                                <?= !empty($evaluation['complaint_feedback_id']) ? '#' . htmlspecialchars($evaluation['complaint_feedback_id']) : 'No ID yet' ?>
+                                            </span>
+                                        </label>
                                         <textarea id="manualComplaints" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize common complaints..."><?= htmlspecialchars($evaluation['complaints'] ?? '') ?></textarea>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 8px;">
-                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase;">Suggestions</label>
+                                        <label style="font-size: 0.85rem; font-weight: 700; color: #475569; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+                                            Suggestions
+                                            <span style="font-size: 0.7rem; font-weight: 800; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px; font-family: monospace;">
+                                                <?= !empty($evaluation['suggestion_feedback_id']) ? '#' . htmlspecialchars($evaluation['suggestion_feedback_id']) : 'No ID yet' ?>
+                                            </span>
+                                        </label>
                                         <textarea id="manualSuggestions" rows="6" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical;" placeholder="Summarize suggestions for improvement..."><?= htmlspecialchars($evaluation['suggestions_for_improvement'] ?? '') ?></textarea>
                                     </div>
                                 </div>
