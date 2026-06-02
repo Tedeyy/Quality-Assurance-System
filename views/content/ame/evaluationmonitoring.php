@@ -28,7 +28,21 @@ while ($row = $stat_query->fetch(PDO::FETCH_ASSOC)) {
     }
 }
 
-// Fetch monitoring entries
+// Pagination setup
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$limit = 10;
+$offset = ($page - 1) * $limit;
+
+// Count total records for pagination
+$total_query = $db->query("
+    SELECT COUNT(*) FROM activity_evaluation_monitoring m
+    JOIN activity_evaluation e ON m.evaluation_id = e.evaluation_id
+    JOIN activities a ON e.activity_id = a.activity_id
+");
+$total_records = $total_query->fetchColumn();
+$total_pages = ceil($total_records / $limit);
+
+// Fetch monitoring entries with pagination
 $query = "
     SELECT 
         m.feedback_id as id,
@@ -37,11 +51,12 @@ $query = "
         m.tag as type,
         COALESCE(m.complaints, m.suggestions_for_improvement) as feedback,
         m.actions_taken as action_taken,
-        m.status
+        m.case_status as status
     FROM activity_evaluation_monitoring m
     JOIN activity_evaluation e ON m.evaluation_id = e.evaluation_id
     JOIN activities a ON e.activity_id = a.activity_id
     ORDER BY m.created_at DESC
+    LIMIT $limit OFFSET $offset
 ";
 $monitoring_data = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -63,6 +78,7 @@ $monitoring_data = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
         display: flex;
         align-items: center;
         gap: 12px;
+        color: white;
     }
     
     .em-subtitle {
@@ -152,12 +168,71 @@ $monitoring_data = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
         display: inline-block;
     }
 
-    .badge-improved { background: #dcfce7; color: #166534; }
-    .badge-inprogress { background: #dbeafe; color: #1e40af; }
-    .badge-pending { background: #fef9c3; color: #854d0e; }
+    .badge-resolved { background: #dcfce7; color: #166534; }
+    .badge-unresolved { background: #fee2e2; color: #991b1b; }
     
     .badge-complaint { background: #fee2e2; color: #991b1b; }
     .badge-suggestion { background: #f3e8ff; color: #6b21a8; }
+    
+    .action-cell {
+        position: relative;
+        text-align: center;
+    }
+    .three-dots-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px;
+        color: #64748b;
+    }
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        z-index: 10;
+        min-width: 120px;
+    }
+    .dropdown-menu.show {
+        display: block;
+    }
+    .dropdown-item {
+        display: block;
+        padding: 8px 16px;
+        color: #334155;
+        text-decoration: none;
+        font-size: 0.85rem;
+        text-align: left;
+    }
+    .dropdown-item:hover {
+        background: #f8fafc;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        padding: 1rem;
+        background: white;
+        border-top: 1px solid var(--border-color);
+    }
+    .page-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: white;
+        color: #475569;
+        text-decoration: none;
+        font-size: 0.85rem;
+    }
+    .page-btn.active {
+        background: var(--accent-blue);
+        color: white;
+        border-color: var(--accent-blue);
+    }
 </style>
 
 <main class="hero" style="min-height: calc(100vh - 100px); display: block; padding-top: 2rem; padding-bottom: 4rem;">
@@ -208,6 +283,7 @@ $monitoring_data = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
                         <th style="width: 30%;">Feedback</th>
                         <th style="width: 30%;">Action Taken</th>
                         <th>Status</th>
+                        <th style="text-align: center;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -245,20 +321,62 @@ $monitoring_data = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
                                 <td>
                                     <?php
-                                        $statusClass = 'badge-pending';
-                                        if (in_array($row['status'], ['Improved', 'Solved', 'Implemented'])) $statusClass = 'badge-improved';
-                                        elseif ($row['status'] === 'In Progress') $statusClass = 'badge-inprogress';
+                                        $statusClass = 'badge-unresolved';
+                                        if ($row['status'] === 'Resolved') {
+                                            $statusClass = 'badge-resolved';
+                                        }
                                     ?>
                                     <span class="em-badge <?= $statusClass ?>">
                                         <?= htmlspecialchars($row['status']) ?>
                                     </span>
+                                </td>
+                                <td class="action-cell">
+                                    <button class="three-dots-btn" onclick="toggleDropdown(event, 'dropdown-<?= htmlspecialchars($row['id']) ?>')">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                    </button>
+                                    <div id="dropdown-<?= htmlspecialchars($row['id']) ?>" class="dropdown-menu">
+                                        <a href="#" class="dropdown-item">Details</a>
+                                        <a href="#" class="dropdown-item">Archive</a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
+            
+            <?php if ($total_pages > 1): ?>
+                <div class="pagination">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?= $page - 1 ?>" class="page-btn">Previous</a>
+                    <?php endif; ?>
+                    
+                    <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                        <a href="?page=<?= $i ?>" class="page-btn <?= $i === $page ? 'active' : '' ?>"><?= $i ?></a>
+                    <?php endfor; ?>
+                    
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?page=<?= $page + 1 ?>" class="page-btn">Next</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
     </div>
 </main>
+
+<script>
+    function toggleDropdown(event, id) {
+        event.stopPropagation();
+        const dropdowns = document.querySelectorAll('.dropdown-menu');
+        dropdowns.forEach(d => {
+            if (d.id !== id) d.classList.remove('show');
+        });
+        document.getElementById(id).classList.toggle('show');
+    }
+
+    document.addEventListener('click', () => {
+        const dropdowns = document.querySelectorAll('.dropdown-menu');
+        dropdowns.forEach(d => d.classList.remove('show'));
+    });
+</script>
