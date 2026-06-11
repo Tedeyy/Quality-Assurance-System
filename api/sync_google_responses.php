@@ -111,10 +111,18 @@ try {
     $formStructure = $formsService->forms->get($formId);
     $items = $formStructure->getItems();
     
-    // Fetch facilitators to know how many speakers there are
-    $fac_stmt = $db->prepare("SELECT af.role FROM activity_facilitators af WHERE af.activity_id = :id ORDER BY af.role, af.af_id");
+    // Fetch facilitators with their roles
+    $fac_stmt = $db->prepare(
+        "SELECT af.role, af.person_id,
+                COALESCE(sp.name, og.name) AS name
+         FROM   activity_facilitators af
+         LEFT JOIN speakers   sp ON af.role = 'speaker'   AND af.person_id = sp.speaker_id
+         LEFT JOIN organizers og ON af.role = 'organizer' AND af.person_id = og.organizer_id
+         WHERE  af.activity_id = :id
+         ORDER BY af.role, af.af_id"
+    );
     $fac_stmt->execute(['id' => $activity_id]);
-    $facilitatorsCount = count($fac_stmt->fetchAll(PDO::FETCH_ASSOC));
+    $facilitatorsList = $fac_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     function extractId($item) {
         if(isset($item['questionItem']['question']['questionId'])) return $item['questionItem']['question']['questionId'];
@@ -137,33 +145,48 @@ try {
     $qMap[extractId($items[8])] = 'contact';
     // 9: Gender
     $qMap[extractId($items[9])] = 'gender';
-    // 10: OSR
+    // 10: OSR (Overall Service Rating)
     $qMap[extractId($items[10])] = 'osr';
     
+    // 11+: Facilitator Sections (speakers and organizers)
     $idx = 11;
-    for($i=0; $i<$facilitatorsCount; $i++) {
+    $speakerIdx = 0;
+    $organizerIdx = 0;
+    
+    foreach($facilitatorsList as $fac) {
         $idx++; // Skip Name TextItem
-        $qMap[extractId($items[$idx++])] = "fac_{$i}_eff";
-        $qMap[extractId($items[$idx++])] = "fac_{$i}_mot";
-        $qMap[extractId($items[$idx++])] = "fac_{$i}_atf";
+        if($fac['role'] === 'speaker') {
+            // For speakers: Effectiveness, Mastery of Topic, Ability to Facilitate
+            $qMap[extractId($items[$idx++])] = "speaker_{$speakerIdx}_effectiveness";
+            $qMap[extractId($items[$idx++])] = "speaker_{$speakerIdx}_mastery";
+            $qMap[extractId($items[$idx++])] = "speaker_{$speakerIdx}_facilitation";
+            $speakerIdx++;
+        } else {
+            // For organizers: Organization & Coordination, Clarity of Communication, Engagement & Interaction
+            $qMap[extractId($items[$idx++])] = "organizer_{$organizerIdx}_coordination";
+            $qMap[extractId($items[$idx++])] = "organizer_{$organizerIdx}_clarity";
+            $qMap[extractId($items[$idx++])] = "organizer_{$organizerIdx}_engagement";
+            $organizerIdx++;
+        }
     }
     
-    // Program Section
+    // Program Section (III. Program and Methodology)
     $idx++; // Skip III. Program TextItem
-    $qMap[extractId($items[$idx++])] = 'prog_0';
-    $qMap[extractId($items[$idx++])] = 'prog_1';
-    $qMap[extractId($items[$idx++])] = 'prog_2';
+    $qMap[extractId($items[$idx++])] = 'prog_flow';
+    $qMap[extractId($items[$idx++])] = 'prog_contents';
+    $qMap[extractId($items[$idx++])] = 'prog_relevance';
     
-    // Logistics Section
+    // Activity Management Section (IV. Activity Management)
     $idx++; // Skip IV. Activity Management TextItem
-    $qMap[extractId($items[$idx++])] = 'log_0';
-    $qMap[extractId($items[$idx++])] = 'log_1';
-    $qMap[extractId($items[$idx++])] = 'log_2';
+    $qMap[extractId($items[$idx++])] = 'mgmt_facilitation';
+    $qMap[extractId($items[$idx++])] = 'mgmt_venue';
+    $qMap[extractId($items[$idx++])] = 'mgmt_time';
     
-    $qMap[extractId($items[$idx++])] = 'best_topics';
-    $qMap[extractId($items[$idx++])] = 'improvements';
-    $qMap[extractId($items[$idx++])] = 'suggestions';
-    $qMap[extractId($items[$idx++])] = 'oe';
+    // Qualitative Feedback (Section V-VIII)
+    $qMap[extractId($items[$idx++])] = 'feedback_best';
+    $qMap[extractId($items[$idx++])] = 'feedback_least';
+    $qMap[extractId($items[$idx++])] = 'feedback_suggestions';
+    $qMap[extractId($items[$idx++])] = 'feedback_overall';
 
     
     // 2. Fetch Responses
@@ -180,20 +203,112 @@ try {
     
     // Create table if it doesn't exist
     $create_sql = "CREATE TABLE IF NOT EXISTS $quoted_table (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        response_id VARCHAR(255) UNIQUE,
-        submitted_at DATETIME";
-        
-    $uniqueCols = array_unique(array_values($qMap));
-    foreach ($uniqueCols as $colName) {
-        $create_sql .= ",\n        `$colName` TEXT";
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `response_id` VARCHAR(255) UNIQUE,
+        `submitted_at` DATETIME,
+        `data_privacy` VARCHAR(50),
+        `fullname` VARCHAR(255),
+        `age` VARCHAR(50),
+        `unit` VARCHAR(255),
+        `contact` VARCHAR(50),
+        `gender` VARCHAR(50),
+        `osr` INT,
+        `prog_flow` INT,
+        `prog_contents` INT,
+        `prog_relevance` INT,
+        `mgmt_facilitation` INT,
+        `mgmt_venue` INT,
+        `mgmt_time` INT,
+        `feedback_best` TEXT,
+        `feedback_least` TEXT,
+        `feedback_suggestions` TEXT,
+        `feedback_overall` INT";
+    
+    // Add facilitator columns dynamically
+    $speakerIdx = 0;
+    $organizerIdx = 0;
+    foreach($facilitatorsList as $fac) {
+        if($fac['role'] === 'speaker') {
+            $create_sql .= ",\n        `speaker_{$speakerIdx}_effectiveness` INT,\n        `speaker_{$speakerIdx}_mastery` INT,\n        `speaker_{$speakerIdx}_facilitation` INT";
+            $speakerIdx++;
+        } else {
+            $create_sql .= ",\n        `organizer_{$organizerIdx}_coordination` INT,\n        `organizer_{$organizerIdx}_clarity` INT,\n        `organizer_{$organizerIdx}_engagement` INT";
+            $organizerIdx++;
+        }
     }
-    $create_sql .= "\n    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+    
+    $create_sql .= "\n    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
     
     try {
         $rdb->exec($create_sql);
     } catch(Exception $e) {
         error_log("Failed to create responses table: " . $e->getMessage());
+    }
+    
+    // Check if table exists and add missing columns if needed
+    try {
+        $checkTable = $rdb->query("DESCRIBE $quoted_table")->fetchAll(PDO::FETCH_ASSOC);
+        $existingCols = array_column($checkTable, 'Field');
+        
+        // Define all required columns
+        $requiredCols = [
+            'data_privacy' => 'VARCHAR(50)',
+            'fullname' => 'VARCHAR(255)',
+            'age' => 'VARCHAR(50)',
+            'unit' => 'VARCHAR(255)',
+            'contact' => 'VARCHAR(50)',
+            'gender' => 'VARCHAR(50)',
+            'osr' => 'INT',
+            'prog_flow' => 'INT',
+            'prog_contents' => 'INT',
+            'prog_relevance' => 'INT',
+            'mgmt_facilitation' => 'INT',
+            'mgmt_venue' => 'INT',
+            'mgmt_time' => 'INT',
+            'feedback_best' => 'TEXT',
+            'feedback_least' => 'TEXT',
+            'feedback_suggestions' => 'TEXT',
+            'feedback_overall' => 'INT'
+        ];
+        
+        // Add facilitator columns to required list
+        $speakerIdx = 0;
+        $organizerIdx = 0;
+        foreach($facilitatorsList as $fac) {
+            if($fac['role'] === 'speaker') {
+                $requiredCols["speaker_{$speakerIdx}_effectiveness"] = 'INT';
+                $requiredCols["speaker_{$speakerIdx}_mastery"] = 'INT';
+                $requiredCols["speaker_{$speakerIdx}_facilitation"] = 'INT';
+                $speakerIdx++;
+            } else {
+                $requiredCols["organizer_{$organizerIdx}_coordination"] = 'INT';
+                $requiredCols["organizer_{$organizerIdx}_clarity"] = 'INT';
+                $requiredCols["organizer_{$organizerIdx}_engagement"] = 'INT';
+                $organizerIdx++;
+            }
+        }
+        
+        // Add missing columns
+        foreach ($requiredCols as $colName => $colType) {
+            if (!in_array($colName, $existingCols)) {
+                $alterSql = "ALTER TABLE $quoted_table ADD COLUMN `$colName` $colType";
+                try {
+                    $rdb->exec($alterSql);
+                    error_log("Added missing column: $colName");
+                } catch (Exception $e) {
+                    error_log("Failed to add column $colName: " . $e->getMessage());
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error checking table structure: " . $e->getMessage());
+    }
+    
+    // Get the actual columns in the table to avoid inserting into non-existent columns
+    $tableColumns = [];
+    $columnInfo = $rdb->query("DESCRIBE $quoted_table")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($columnInfo as $col) {
+        $tableColumns[] = $col['Field'];
     }
     
     $insertedCount = 0;
@@ -202,24 +317,71 @@ try {
         $submittedAt = date('Y-m-d H:i:s', strtotime($response['createTime']));
         $answers = $response['answers'];
         
-        $row = ['response_id' => $responseId, 'submitted_at' => $submittedAt];
+        $row = [];
+        
+        // Always include response_id and submitted_at if they exist in table
+        if(in_array('response_id', $tableColumns)) {
+            $row['response_id'] = $responseId;
+        }
+        if(in_array('submitted_at', $tableColumns)) {
+            $row['submitted_at'] = $submittedAt;
+        }
+        
+        // Build list of numeric columns for this request
+        $numericCols = ['osr', 'prog_flow', 'prog_contents', 'prog_relevance', 
+                       'mgmt_facilitation', 'mgmt_venue', 'mgmt_time', 'feedback_overall'];
+        $speakerCounter = 0;
+        $organizerCounter = 0;
+        foreach($facilitatorsList as $fac) {
+            if($fac['role'] === 'speaker') {
+                $numericCols[] = "speaker_{$speakerCounter}_effectiveness";
+                $numericCols[] = "speaker_{$speakerCounter}_mastery";
+                $numericCols[] = "speaker_{$speakerCounter}_facilitation";
+                $speakerCounter++;
+            } else {
+                $numericCols[] = "organizer_{$organizerCounter}_coordination";
+                $numericCols[] = "organizer_{$organizerCounter}_clarity";
+                $numericCols[] = "organizer_{$organizerCounter}_engagement";
+                $organizerCounter++;
+            }
+        }
+        
         foreach($qMap as $qId => $colName) {
             if(!$qId) continue;
+            // Only process columns that exist in the table
+            if(!in_array($colName, $tableColumns)) {
+                continue;
+            }
+            
             if(isset($answers[$qId])) {
+                // Extract value from textAnswers (works for both text and choice responses)
                 $val = $answers[$qId]['textAnswers']['answers'][0]['value'] ?? null;
-                $row[$colName] = $val;
+                
+                if(in_array($colName, $numericCols) && $val !== null) {
+                    $row[$colName] = (int)$val;
+                } else {
+                    $row[$colName] = $val;
+                }
             } else {
                 $row[$colName] = null;
             }
         }
         
-        // Build Insert Query
-        $cols = array_keys($row);
-        $placeholders = array_map(function($c) { return ":$c"; }, $cols);
+        // Build Insert Query - only use columns that exist
+        $cols = array_filter(array_keys($row), function($c) use ($tableColumns) {
+            return in_array($c, $tableColumns);
+        });
         
-        $sql = "INSERT IGNORE INTO $quoted_table (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $placeholders) . ")";
+        if(empty($cols)) {
+            continue; // Skip if no valid columns to insert
+        }
+        
+        $placeholders = array_map(function($c) { return ":$c"; }, $cols);
+        $rowData = array_intersect_key($row, array_flip($cols));
+        
+        $sql = "INSERT IGNORE INTO $quoted_table (`" . implode('`, `', $cols) . "`) VALUES (" . implode(', ', $placeholders) . ")";
         $stmt = $rdb->prepare($sql);
-        $stmt->execute($row);
+        $stmt->execute($rowData);
         if ($stmt->rowCount() > 0) {
             $insertedCount++;
         }

@@ -115,7 +115,7 @@ $activityFolderId = getOrCreateDriveFolder($driveService, $activityCode, $monthY
 
 // 4. Form & Sheet Creation
 $formsService = new Google\Service\Forms($client);
-$documentTitle = "AME Evaluation: " . $activityTitle;
+$documentTitle = $activityTitle;
 $formTitle = "Activity Evaluation | Client Satisfaction Survey";
 $formDescription = "Dear Participant:\n\nGreetings from the Quality Assurance Office!\n\nThis is the Activity Evaluation Form/ Client Satisfaction Survey to the activity you have just participated. This Monitoring and Evaluation (M&E) implementation was presented and approved by the Administrative Council last March 11, 2024 to ensure the quality implementation of all PAPs (Programs/Activities/Projects) of NBSC.\nWe are interested in knowing your feedback on the activity and we would appreciate it if you could take a few seconds to complete this form.\n\nYour comments will enable us to continuously improve the Quality Management System of Northern Bukidnon State College in our programs/activities/projects.\n\nThank you very much and God bless you abundantly!\n\nSincerely,\n\nThe Quality Assurance Office";
 
@@ -353,12 +353,12 @@ $requests[] = createScaleQuestion("I. Overall Service Rating", 1, 5, "Poor", "Ex
 // Section 13+: Facilitators
 foreach ($facilitators_list as $fac) {
     if ($fac['role'] === 'speaker') {
-        $requests[] = createTextItem("NAME", makeBoldText($fac['name'] . " (Speaker)"), $index);
+        $requests[] = createTextItem("NAME", makeBoldText($fac['name']), $index);
         $requests[] = createScaleQuestion("Effectiveness", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Mastery of Topic", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Ability to Facilitate", 1, 5, "Poor", "Excellent", $index);
     } else {
-        $requests[] = createTextItem("ORGANIZER'S NAME", makeBoldText($fac['name'] . " (Organizer)"), $index);
+        $requests[] = createTextItem("ORGANIZER'S NAME", makeBoldText($fac['name']), $index);
         $requests[] = createScaleQuestion("Organization and Coordination of the Event", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Clarity of Communication and Information Provided", 1, 5, "Poor", "Excellent", $index);
         $requests[] = createScaleQuestion("Engagement and Interaction Opportunities", 1, 5, "Poor", "Excellent", $index);

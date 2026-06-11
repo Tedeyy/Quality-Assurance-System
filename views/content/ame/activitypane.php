@@ -807,7 +807,7 @@ if ($evaluation && !empty($evaluation['evaluation_id'])) {
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <div style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">Step 3: Link Form</div>
-                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Open the generated form for review and response-sheet linking.</div>
+                            <div style="font-size: 0.75rem; color: #64748b; line-height: 1.3;">Open the generated form for review and create a new spreadsheet for the responses.</div>
                             <?php if ($evaluation && $evaluation['ame_form_link']): 
                                 $form_url = $evaluation['ame_form_link'];
                                 $edit_url = !empty($evaluation['ame_form_id']) ? "https://docs.google.com/forms/d/" . $evaluation['ame_form_id'] . "/edit" : str_replace('/viewform', '/edit', $form_url);
