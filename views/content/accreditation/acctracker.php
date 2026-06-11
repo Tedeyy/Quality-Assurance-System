@@ -261,8 +261,12 @@ function renderRequirements($parent_id, $reqs_by_parent, $submissions, $is_qao, 
         } elseif ($progress['status'] === 'Returned') {
             $cb_color = '#ef4444';
         }
+        
+        // Check if requirement has a submission
+        $has_submission = $sub !== null;
+        $box_bg = $has_submission ? '#dcfce7' : 'transparent';
         ?>
-        <div id="requirement-<?= $req_id ?>" data-requirement-id="<?= $req_id ?>" style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem;">
+        <div id="requirement-<?= $req_id ?>" data-requirement-id="<?= $req_id ?>" style="margin-left: <?= $depth * 1.5 ?>rem; margin-bottom: 0.3rem; background: <?= $box_bg ?>; padding: 8px 12px; border-radius: 6px; transition: background 0.2s;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; padding: 2px 0;">
                 <div style="display: flex; align-items: flex-start; gap: 8px;">
                     <?php if ($depth > 0): ?>
