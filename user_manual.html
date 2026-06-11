@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Manual — QA System | NBSC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #001C57;
+      --gold: #DFB641;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #d97706;
+      --purple: #7c3aed;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    /* ── COVER ── */
+    .cover {
+      background: linear-gradient(135deg, var(--navy) 0%, #1e3a8a 60%, #1d4ed8 100%);
+      color: white;
+      padding: 5rem 3rem 4rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 30%, rgba(223,182,65,0.18) 0%, transparent 60%);
+    }
+    .cover-badge {
+      display: inline-block;
+      background: rgba(223,182,65,0.2);
+      border: 1px solid rgba(223,182,65,0.5);
+      color: var(--gold);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 18px;
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+    }
+    .cover h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+    }
+    .cover h1 span { color: var(--gold); }
+    .cover .subtitle {
+      font-size: 1.1rem;
+      opacity: 0.8;
+      max-width: 560px;
+      margin: 0.75rem auto 0;
+    }
+    .cover-meta {
+      margin-top: 2.5rem;
+      font-size: 0.85rem;
+      opacity: 0.6;
+    }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: flex;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+
+    /* ── SIDEBAR TOC ── */
+    .toc {
+      width: 260px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 1.5rem;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    .toc-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .toc a {
+      display: block;
+      padding: 6px 10px;
+      border-radius: 7px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .toc a:hover { background: #f1f5f9; color: var(--navy); }
+    .toc a.h2 { font-weight: 700; color: var(--navy); margin-top: 0.75rem; }
+    .toc a.h3 { padding-left: 1.5rem; font-size: 0.8rem; }
+
+    /* ── MAIN CONTENT ── */
+    .content { flex: 1; min-width: 0; }
+
+    /* ── SECTIONS ── */
+    .section {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 1rem;
+    }
+    .badge-blue  { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: var(--green); }
+    .badge-gold  { background: #fef3c7; color: var(--amber); }
+    .badge-purple{ background: #f3e8ff; color: var(--purple); }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    h2 .num {
+      background: var(--navy);
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+    .section-desc {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 2rem 0 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h3::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 20px;
+      background: var(--gold);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin: 1.25rem 0 0.4rem;
+    }
+
+    p { margin-bottom: 0.75rem; color: #334155; font-size: 0.95rem; }
+
+    /* ── STEPS ── */
+    .steps { display: flex; flex-direction: column; gap: 0.75rem; margin: 1rem 0; }
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+    }
+    .step-num {
+      background: var(--navy);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .step-body { flex: 1; }
+    .step-title { font-weight: 700; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+    .step-desc { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── TABLE ── */
+    .manual-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 1rem 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .manual-table th {
+      background: #f1f5f9;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+    }
+    .manual-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      vertical-align: middle;
+    }
+    .manual-table tr:last-child td { border-bottom: none; }
+    .manual-table tr:hover td { background: #fafcff; }
+
+    /* ── BADGES ── */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .pill-green   { background: #dcfce7; color: #15803d; }
+    .pill-blue    { background: #dbeafe; color: #1e40af; }
+    .pill-red     { background: #fee2e2; color: #b91c1c; }
+    .pill-amber   { background: #fef3c7; color: #92400e; }
+    .pill-grey    { background: #f1f5f9; color: #475569; }
+    .pill-purple  { background: #f3e8ff; color: #6b21a8; }
+    .pill-orange  { background: #fff7ed; color: #c2410c; }
+
+    /* ── CALLOUTS ── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin: 1.25rem 0;
+      font-size: 0.88rem;
+    }
+    .callout-icon { flex-shrink: 0; font-size: 1.1rem; margin-top: 1px; }
+    .callout-body strong { display: block; margin-bottom: 2px; font-size: 0.85rem; }
+    .callout-note   { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; }
+    .callout-tip    { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+    .callout-warn   { background: #fefce8; border: 1px solid #fde68a; color: #78350f; }
+    .callout-danger { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
+
+    /* ── IMAGES ── */
+    .screenshot {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      margin: 1.25rem 0;
+      display: block;
+    }
+    .screenshot-caption {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: -0.5rem;
+      margin-bottom: 1.25rem;
+      font-style: italic;
+    }
+
+    /* ── CHECKBOX LEGEND ── */
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 1rem 0; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .cb {
+      width: 18px; height: 18px;
+      border-radius: 4px;
+      border: 2px solid;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .cb-green { border-color: #22c55e; background: #22c55e; }
+    .cb-blue  { border-color: #3b82f6; background: transparent; }
+    .cb-red   { border-color: #ef4444; background: transparent; }
+    .cb-grey  { border-color: #e2e8f0; background: transparent; }
+
+    /* ── ROLES TABLE ── */
+    .check { color: var(--green); font-size: 1rem; }
+    .cross { color: #cbd5e1; font-size: 1rem; }
+
+    /* ── DIVIDER ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+    /* ── NAV BACK ── */
+    .top-nav {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+    }
+    .top-nav a {
+      color: var(--navy);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .top-nav a:hover { color: var(--blue); }
+    .top-nav-sep { color: var(--border); font-weight: 300; }
+    .top-nav-title { font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+
+    /* ── PRINT ── */
+    @media print {
+      .toc, .top-nav { display: none; }
+      .layout { display: block; padding: 0; }
+      .section { box-shadow: none; border: none; page-break-inside: avoid; }
+    }
+
+    @media (max-width: 900px) {
+      .toc { display: none; }
+      .layout { padding: 1rem; }
+      .section { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="top-nav">
+  <a href="index.php">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Back to System
+  </a>
+  <span class="top-nav-sep">|</span>
+  <span class="top-nav-title">Quality Assurance System — User Manual</span>
+</nav>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-badge">NBSC Quality Assurance Office</div>
+  <h1>Quality Assurance System<br><span>User Manual</span></h1>
+  <p class="subtitle">A complete guide to Accreditation Archiving, Activity Evaluation, and Document Registry.</p>
+  <p class="cover-meta">Northern Bukidnon State College &nbsp;·&nbsp; Version 1.0 &nbsp;·&nbsp; 2025</p>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR TOC -->
+  <aside class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <a class="h2" href="#getting-started">1. Getting Started</a>
+    <a class="h3" href="#login">Logging In</a>
+    <a class="h3" href="#profile">Profile Completion</a>
+    <a class="h3" href="#navigation">Navigation</a>
+
+    <a class="h2" href="#accreditation">2. Accreditation & File Archiving</a>
+    <a class="h3" href="#masterlist">Masterlist</a>
+    <a class="h3" href="#tracker">Accreditation Tracker</a>
+    <a class="h3" href="#submitting">Submitting Proof</a>
+    <a class="h3" href="#approving">Approving Submissions</a>
+    <a class="h3" href="#managing-reqs">Managing Categories</a>
+
+    <a class="h2" href="#activity">3. Activity Evaluation</a>
+    <a class="h3" href="#activities-list">Activities List</a>
+    <a class="h3" href="#activity-detail">Activity Detail</a>
+    <a class="h3" href="#generate-form">Generating a Form</a>
+    <a class="h3" href="#statistics">Evaluation Statistics</a>
+    <a class="h3" href="#monitoring">Evaluation Monitoring</a>
+    <a class="h3" href="#export">Exporting Reports</a>
+
+    <a class="h2" href="#documents">4. Document Registry</a>
+    <a class="h3" href="#doc-register">Registering Documents</a>
+    <a class="h3" href="#similarity">Similarity Checking</a>
+    <a class="h3" href="#linkages">Accreditation Linkages</a>
+
+    <a class="h2" href="#roles">5. User Roles</a>
+    <a class="h2" href="#faq">6. FAQ</a>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- ══════════════════════════════════════
+         SECTION 1 — GETTING STARTED
+    ══════════════════════════════════════ -->
+    <section class="section" id="getting-started">
+      <div class="section-badge badge-blue">Section 1</div>
+      <h2><span class="num">1</span> Getting Started</h2>
+      <p class="section-desc">How to log in, complete your profile, and navigate the system.</p>
+
+      <h3 id="login">Logging In</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Open the System URL</div><div class="step-desc">Go to the system address provided by your administrator in any modern browser.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Sign in with Google</div><div class="step-desc">Click <strong>Sign in with Google</strong> and select your institutional account. Your account must be pre-registered by the QAO.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Access Granted</div><div class="step-desc">You will be redirected to the dashboard. First-time users will see the Profile Completion gate.</div></div></div>
+      </div>
+
+      <div class="callout callout-note">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Note</strong> Contact the Quality Assurance Office if your Google account cannot access the system.</div>
+      </div>
+
+      <h3 id="profile">Profile Completion</h3>
+      <p>On first login, you must complete your profile before accessing any module. Fill in:</p>
+      <ul style="margin: 0.5rem 0 0.75rem 1.5rem; color: #334155; font-size: 0.92rem; display: flex; flex-direction: column; gap: 4px;">
+        <li><strong>Full Name</strong> — First and last name</li>
+        <li><strong>Division / Office</strong> — Your home office or department</li>
+        <li><strong>Address</strong> — Province, City/Municipality, Barangay (auto-populated from PSGC)</li>
+      </ul>
+      <p>Click <strong>Save Profile</strong> when done to unlock all modules.</p>
+
+      <h3 id="navigation">Navigation</h3>
+      <table class="manual-table">
+        <thead><tr><th>Menu Item</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Activities</strong></td><td>Manage institutional activities and their evaluations</td></tr>
+          <tr><td><strong>Accreditation</strong></td><td>Track compliance and upload proof documents</td></tr>
+          <tr><td><strong>Documents</strong></td><td>Register documents, check similarity, view linkages</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+
+    <!-- ══════════════════════════════════════
+         SECTION 2 — ACCREDITATION
+    ══════════════════════════════════════ -->
+    <section class="section" id="accreditation">
+      <div class="section-badge badge-blue">Section 2</div>
+      <h2><span class="num">2</span> Accreditation File Archiving &amp; Document Uploading</h2>
+      <p class="section-desc">Manage accreditation standards, upload proof documents for compliance requirements, and track overall submission progress with real-time progress bars.</p>
+
+      <!-- VISUAL -->
+      <img src="assets/manual/accreditation_tracker.png" alt="Accreditation Tracker Interface" class="screenshot" />
+      <p class="screenshot-caption">Figure 1 — The Accreditation Tracker: left sidebar shows all accreditations; the main panel shows categories, requirements, and compliance checkboxes.</p>
+
+      <h3 id="masterlist">2.1 Accreditation Masterlist</h3>
+      <p>Navigate to <strong>Accreditation → Masterlist</strong> to see all registered standards.</p>
+
+      <table class="manual-table">
+        <thead><tr><th>Column</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Code</strong></td><td>Short identifier, e.g., <code>AACCUP-IA</code></td></tr>
+          <tr><td><strong>Name</strong></td><td>Full name of the accreditation standard</td></tr>
+          <tr><td><strong>Deadline</strong></td><td>Target compliance date</td></tr>
+          <tr><td><strong>Progress Bar</strong></td><td>Visual showing approved requirements out of total</td></tr>
+          <tr><td><strong>Status</strong></td><td><span class="pill pill-blue">In Progress</span> <span class="pill pill-green">Completed</span> <span class="pill pill-grey">Inactive</span></td></tr>
+        </tbody>
+      </table>
+
+      <h4>Adding a New Accreditation <em>(QAO Staff only)</em></h4>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Click + Add Accreditation</div><div class="step-desc">Found in the top-right corner of the Masterlist page.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Fill in the Form</div><div class="step-desc">Enter the Code, Name, Description, Deadline Date, and Initial Status.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Click Create Standard</div><div class="step-desc">The accreditation appears in the masterlist and sidebar.</div></div></div>
+      </div>
+
+      <h4>Importing from Excel <em>(QAO Staff only)</em></h4>
+      <p>Click the green <strong>↓ Import</strong> button to bulk-register requirements from an Excel template. Supported formats: AACCUP Institutional, AACCUP Program, SUC, COPC.</p>
+
+      <hr />
+
+      <h3 id="tracker">2.2 The Accreditation Tracker</h3>
+      <p>Navigate to <strong>Accreditation → Tracker</strong> or click an accreditation from the Masterlist. This is your primary workspace for file archiving and compliance tracking.</p>
+
+      <h4>Requirement Status Legend</h4>
+      <div class="legend">
+        <div class="legend-item"><div class="cb cb-green"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg></div> Approved</div>
+        <div class="legend-item"><div class="cb cb-blue"></div> Pending Review</div>
+        <div class="legend-item"><div class="cb cb-red"></div> Returned / Disapproved</div>
+        <div class="legend-item"><div class="cb cb-grey"></div> Missing (No Submission)</div>
+      </div>
+
+      <p>Each <strong>category heading</strong> displays a mini progress bar (e.g., <em>65% · 13/20</em>). Click any category to expand or collapse its requirements.</p>
+
+      <div class="callout callout-warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>QAO Only</strong> The <strong>⋮ action menus</strong> for managing categories, requirements, and proof approvals are only visible to Quality Assurance Office staff.</div>
+      </div>
+
+      <hr />
+
+      <h3 id="submitting">2.3 Submitting Proof Documents</h3>
+      <img src="assets/manual/submission_approval.png" alt="Proof Submission Panel" class="screenshot" />
+      <p class="screenshot-caption">Figure 2 — Proof submission panel: upload a file or paste a Google Drive link, view existing submissions and their approval status.</p>
+
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Click a Requirement Name</div><div class="step-desc">Any underlined requirement name in the tracker opens its submission panel.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Upload or Link a File</div><div class="step-desc">Either upload a file directly (saved to Google Drive) or paste an existing Google Drive link.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Add Remarks (Optional)</div><div class="step-desc">Include any notes or context for the reviewer.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Click Submit</div><div class="step-desc">The submission enters <span class="pill pill-blue">Pending</span> status and is queued for QAO review.</div></div></div>
+      </div>
+
+      <hr />
+
+      <h3 id="approving">2.4 Reviewing &amp; Approving Submissions <em>(QAO Staff only)</em></h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Open the ⋮ Menu on a Requirement</div><div class="step-desc">Then select <strong>Manage Proofs</strong>.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Review Each Proof</div><div class="step-desc">Click the view link to open the submitted document on Google Drive.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Approve or Return</div><div class="step-desc">Click <strong>Approve</strong> to mark compliant, or <strong>Return</strong> with a remark to request revision.</div></div></div>
+      </div>
+      <p>Once all proofs for a requirement are approved, its checkbox turns <span class="pill pill-green">Green ✓</span> automatically.</p>
+
+      <hr />
+
+      <h3 id="managing-reqs">2.5 Managing Categories &amp; Requirements <em>(QAO Staff only)</em></h3>
+      <p>From the <strong>⋮ main action menu</strong> (top-right of the main panel):</p>
+      <table class="manual-table">
+        <thead><tr><th>Action</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Change Status</td><td>Update the accreditation's overall status</td></tr>
+          <tr><td>Add Category</td><td>Create a new top-level area (e.g., "Instruction")</td></tr>
+          <tr><td>Add Requirement</td><td>Add a specific evidence item under a category</td></tr>
+          <tr><td>Edit Accreditation</td><td>Update title, description, or code</td></tr>
+          <tr><td>Delete Accreditation</td><td>⚠️ Permanently removes all data</td></tr>
+        </tbody>
+      </table>
+      <p>From each <strong>category's ⋮ menu</strong> you can also Add Sub-category, Add Requirement, Edit Category, or Delete.</p>
+    </section>
+
+
+    <!-- ══════════════════════════════════════
+         SECTION 3 — ACTIVITY EVALUATION
+    ══════════════════════════════════════ -->
+    <section class="section" id="activity">
+      <div class="section-badge badge-green">Section 3</div>
+      <h2><span class="num">3</span> Activity Evaluation Form Generation &amp; Results Gathering</h2>
+      <p class="section-desc">Register institutional activities, auto-generate Google Form evaluations, sync participant responses, and view statistical results with AI-powered qualitative analysis.</p>
+
+      <img src="assets/manual/activity_evaluation.png" alt="Activity Evaluation Dashboard" class="screenshot" />
+      <p class="screenshot-caption">Figure 3 — Activity Evaluation Dashboard: stat cards, SDG icon grid, monthly tabs, and activities table with evaluation scores.</p>
+
+      <h3 id="activities-list">3.1 Activities List</h3>
+      <p>Navigate to <strong>Activities</strong>. The page shows:</p>
+      <table class="manual-table">
+        <thead><tr><th>Element</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Stat Cards</strong></td><td>Total Activities · Avg Evaluation Score · Upcoming Events</td></tr>
+          <tr><td><strong>SDG Dashboard</strong></td><td>17 UN SDG icons — colored if linked to activities, grey if not</td></tr>
+          <tr><td><strong>Month Tabs</strong></td><td>Filter activities by month (e.g., June 2025)</td></tr>
+          <tr><td><strong>Search Bar</strong></td><td>Search by title, description, or facilitator name</td></tr>
+          <tr><td><strong>Position / Office Filters</strong></td><td>Cascading filter: pick a position level first, then a specific office</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Adding a New Activity</h4>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Click + Add Activity</div><div class="step-desc">Top-right of the Activities page.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Fill in the Modal</div><div class="step-desc">Title, Date &amp; Venue, Description, Requesting Office, Target Participants (Faculty / Staff / Students / etc.), Speakers &amp; Organizers, SDGs, and optional links.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Save Activity</div><div class="step-desc">The activity appears in the list.</div></div></div>
+      </div>
+
+      <h4>Archiving an Activity</h4>
+      <p>Open the <strong>⋮ menu</strong> on an activity row → <strong>Archive</strong>. Archived activities move to <strong>Archived Activities</strong> and no longer appear in the main list but retain all evaluation data.</p>
+
+      <hr />
+
+      <h3 id="activity-detail">3.2 Activity Detail Page</h3>
+      <p>Click any activity title to open its detail view containing: activity metadata, facilitators, target participants, SDG linkages, links &amp; resources, and the Evaluation &amp; Statistics section.</p>
+
+      <hr />
+
+      <h3 id="generate-form">3.3 Generating an Evaluation Form</h3>
+
+      <div class="callout callout-note">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Prerequisite</strong> The Google Apps Script webhook must be configured by your system administrator for form generation to work.</div>
+      </div>
+
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Open the Activity Detail Page</div><div class="step-desc">Click an activity title from the list.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Scroll to "Activity Links &amp; Resources"</div><div class="step-desc">If no form exists, a <strong>Generate Evaluation Form</strong> button appears.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Confirm Generation</div><div class="step-desc">The system creates a Google Form + linked Google Sheet and saves the URL automatically.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Distribute the Form Link</div><div class="step-desc">Click <strong>Activity Evaluation Form → View Form (Live)</strong> to open the shareable link.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Sync Responses</div><div class="step-desc">Click <strong>Activity Evaluation Form → Force Sync Responses</strong> to pull latest submissions from Google Sheets into the system.</div></div></div>
+      </div>
+
+      <h4>Form Setup Checklist</h4>
+      <table class="manual-table">
+        <thead><tr><th>Step</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Step 1</td><td>Verify form was generated successfully</td></tr>
+          <tr><td>Step 2</td><td>Send form link to participants</td></tr>
+          <tr><td>Step 3</td><td>Monitor response collection</td></tr>
+          <tr><td>Step 4</td><td>Mark evaluation as complete</td></tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h3 id="statistics">3.4 Evaluation Statistics &amp; AI Analysis</h3>
+      <p>After responses are synced, the <strong>Evaluation &amp; Statistics</strong> section shows:</p>
+      <table class="manual-table">
+        <thead><tr><th>Element</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Status Card</strong></td><td><span class="pill pill-green">Completed</span> <span class="pill pill-amber">Overdue</span> <span class="pill pill-blue">Pending</span></td></tr>
+          <tr><td><strong>Date Released</strong></td><td>When the form was distributed</td></tr>
+          <tr><td><strong>Deadline</strong></td><td>Response cutoff (shown in red if past due)</td></tr>
+          <tr><td><strong>Quantitative Stats</strong></td><td>Average scores per criterion, response count, response rate</td></tr>
+          <tr><td><strong>AI Interpretation</strong></td><td>Automatically categorizes open-ended suggestions and complaints into themes</td></tr>
+          <tr><td><strong>Justification Letter</strong></td><td>Collapsible panel with formal justification text if applicable</td></tr>
+        </tbody>
+      </table>
+      <p>Click <strong>Download PDF</strong> to export the full activity report as a printable PDF.</p>
+
+      <hr />
+
+      <h3 id="monitoring">3.5 Evaluation Monitoring</h3>
+
+      <img src="assets/manual/evaluation_monitoring.png" alt="Evaluation Monitoring Dashboard" class="screenshot" />
+      <p class="screenshot-caption">Figure 4 — Evaluation Monitoring Dashboard: tracks individual complaints and suggestions with case status and action logging.</p>
+
+      <p>Navigate to <strong>Activities → Monitoring</strong>. This dashboard tracks individual complaints and suggestions gathered from evaluation responses.</p>
+
+      <h4>Summary Stats</h4>
+      <div class="legend" style="gap: 10px;">
+        <div class="legend-item" style="background: #f1f5f9;">📋 Total Cases</div>
+        <div class="legend-item" style="background: #fee2e2; color: #b91c1c;">🔴 Complaints</div>
+        <div class="legend-item" style="background: #f3e8ff; color: #7e22ce;">🟣 Suggestions</div>
+        <div class="legend-item" style="background: #fef9c3; color: #a16207;">🟡 Unresolved</div>
+      </div>
+
+      <table class="manual-table">
+        <thead><tr><th>Column</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ID</strong></td><td>Unique case reference number</td></tr>
+          <tr><td><strong>Date</strong></td><td>When the feedback was recorded</td></tr>
+          <tr><td><strong>Type</strong></td><td><span class="pill pill-red">Complaint</span> or <span class="pill pill-purple">Suggestion</span></td></tr>
+          <tr><td><strong>Activity Name</strong></td><td>Activity that generated this feedback</td></tr>
+          <tr><td><strong>Feedback</strong></td><td>Preview of participant's comment (truncated)</td></tr>
+          <tr><td><strong>Case Status</strong></td><td><span class="pill pill-amber">Unresolved</span> or <span class="pill pill-green">Resolved</span></td></tr>
+        </tbody>
+      </table>
+
+      <p>Click <strong>⋮ → Details</strong> to open the full case page, log actions taken, and mark the case as <span class="pill pill-green">Resolved</span>.</p>
+
+      <hr />
+
+      <h3 id="export">3.6 Exporting Activity Reports</h3>
+      <p>Click <strong>Export Report</strong> (top-right of the Activities page) and choose from four export types:</p>
+      <table class="manual-table">
+        <thead><tr><th>Report Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>All Activities (Full History)</td><td>Every activity in the system as Excel</td></tr>
+          <tr><td>All Activities (Date Range)</td><td>Activities within a specified start and end date</td></tr>
+          <tr><td>Office Performance (Monthly)</td><td>All activities from a specific office in a selected month</td></tr>
+          <tr><td>Office Performance (Date Range)</td><td>All activities from a specific office within a date range</td></tr>
+        </tbody>
+      </table>
+      <p>Click <strong>Download Excel</strong> to generate the report file.</p>
+    </section>
+
+
+    <!-- ══════════════════════════════════════
+         SECTION 4 — DOCUMENTS
+    ══════════════════════════════════════ -->
+    <section class="section" id="documents">
+      <div class="section-badge badge-gold">Section 4</div>
+      <h2><span class="num">4</span> Document Registry, Similarity Checking &amp; Accreditation Linkages</h2>
+      <p class="section-desc">Maintain an institutional document registry, detect overlapping documents using AI-powered similarity scoring, and link documents directly to accreditation proof requirements.</p>
+
+      <img src="assets/manual/document_registry.png" alt="Document Registry and Similarity Checker" class="screenshot" />
+      <p class="screenshot-caption">Figure 5 — Document Mapping page: registry table with confidentiality badges, tags, and the Overlap Scoring comparison modal.</p>
+
+      <h3 id="doc-register">4.1 Registering a Document</h3>
+      <p>Navigate to <strong>Documents → Document Mapping</strong>, then click <strong>+ Add Document</strong>.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Enter a Document Code</div><div class="step-desc">A unique identifier, e.g., <code>QAO-MAN-2024-01</code>.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Select Office of Origin</div><div class="step-desc">Choose from the registered offices dropdown.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Set Category &amp; Confidentiality</div><div class="step-desc">Pick from existing categories (Policy, Manual, Guidelines, SOP, etc.) or create a new one. Select the confidentiality level.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Add Purpose &amp; Tags</div><div class="step-desc">Describe what the document is used for and add searchable keyword tags.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Click Register Document</div><div class="step-desc">The document is saved and indexed in the registry.</div></div></div>
+      </div>
+
+      <h4>Confidentiality Levels</h4>
+      <table class="manual-table">
+        <thead><tr><th>Level</th><th>Label</th><th>Use Case</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><span class="pill pill-green">Public</span></td><td>Freely shareable</td></tr>
+          <tr><td>2</td><td><span class="pill pill-blue">Internal</span></td><td>For all institutional staff</td></tr>
+          <tr><td>3</td><td><span class="pill pill-amber">Restricted</span></td><td>Limited to specific divisions</td></tr>
+          <tr><td>4</td><td><span class="pill pill-orange">Confidential</span></td><td>Management and above</td></tr>
+          <tr><td>5</td><td><span class="pill pill-red">Strictly Confidential</span></td><td>Executive / legal use only</td></tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h3 id="similarity">4.2 Document Similarity Checking (Overlap Scoring)</h3>
+      <p>Click the <strong>Compare Overlap</strong> button on any document row to run an AI-assisted similarity analysis.</p>
+
+      <p>The system compares tags, category, office of origin, and purpose text against all other documents, then returns a ranked similarity score:</p>
+      <table class="manual-table">
+        <thead><tr><th>Score Range</th><th>Interpretation</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><strong>80–100%</strong></td><td>High overlap — possible duplicate</td><td>Consider consolidating</td></tr>
+          <tr><td><strong>50–79%</strong></td><td>Moderate overlap — related documents</td><td>Review scope differences</td></tr>
+          <tr><td><strong>20–49%</strong></td><td>Low overlap — similar theme</td><td>No action needed</td></tr>
+          <tr><td><strong>0–19%</strong></td><td>Minimal overlap — distinct documents</td><td>No action needed</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body"><strong>Tip</strong> Use similarity scoring during accreditation preparation to identify single documents that can serve as proof for multiple requirements — reducing duplication.</div>
+      </div>
+
+      <hr />
+
+      <h3 id="linkages">4.3 Accreditation Linkages</h3>
+      <p>Navigate to <strong>Documents → Accreditation Linkages</strong> to see all institutional documents formally linked to at least one accreditation proof requirement.</p>
+
+      <h4>Filtering the Linkage Table</h4>
+      <table class="manual-table">
+        <thead><tr><th>Filter</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Search Bar</td><td>Search by doc code, office, category, or accreditation name</td></tr>
+          <tr><td>Accreditation Filter</td><td>Show only documents linked to a specific accreditation</td></tr>
+          <tr><td>Office Filter</td><td>Show only documents from a specific office</td></tr>
+        </tbody>
+      </table>
+
+      <p>Click <strong>View</strong> on any row to open the <strong>Document Linkage Details</strong> modal, showing:</p>
+      <ul style="margin: 0.5rem 0 0.75rem 1.5rem; color: #334155; font-size: 0.92rem; display: flex; flex-direction: column; gap: 4px;">
+        <li>Full document metadata</li>
+        <li>Every accreditation requirement this document is linked to</li>
+        <li>A <strong>Goto</strong> button that jumps directly to that requirement in the Accreditation Tracker</li>
+      </ul>
+
+      <div class="callout callout-note">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Note</strong> A document only appears here if it has been formally linked through the <strong>Manage Proofs</strong> feature in the Accreditation Tracker (QAO Staff only).</div>
+      </div>
+    </section>
+
+
+    <!-- ══════════════════════════════════════
+         SECTION 5 — USER ROLES
+    ══════════════════════════════════════ -->
+    <section class="section" id="roles">
+      <div class="section-badge badge-purple">Section 5</div>
+      <h2><span class="num">5</span> User Roles &amp; Permissions</h2>
+      <p class="section-desc">QAO staff have elevated permissions automatically detected by their registered office assignment.</p>
+      <table class="manual-table">
+        <thead><tr><th>Feature</th><th style="text-align:center">Regular Staff</th><th style="text-align:center">QAO Staff</th></tr></thead>
+        <tbody>
+          <tr><td>View accreditation tracker</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Submit proof documents</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Approve / Return submissions</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Add / Edit / Delete accreditations</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Manage categories &amp; requirements</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Link documents to requirements</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>View &amp; add activities</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Generate evaluation forms</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>View evaluation statistics</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>View document registry</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Register / Edit documents</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+          <tr><td>Run similarity checks</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+
+    <!-- ══════════════════════════════════════
+         SECTION 6 — FAQ
+    ══════════════════════════════════════ -->
+    <section class="section" id="faq">
+      <div class="section-badge badge-blue">Section 6</div>
+      <h2><span class="num">6</span> Frequently Asked Questions</h2>
+      <p class="section-desc">Common questions and quick answers for all users.</p>
+
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem;">
+          <h4 style="margin: 0 0 6px; color: var(--navy);">My submission was "Returned" — what do I do?</h4>
+          <p style="margin: 0; font-size: 0.9rem;">Open the requirement, read the reviewer's remark in the proof card, upload a corrected version, and resubmit.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem;">
+          <h4 style="margin: 0 0 6px; color: var(--navy);">The evaluation form generation is stuck or failed.</h4>
+          <p style="margin: 0; font-size: 0.9rem;">Check your internet connection and try again. If the issue persists, the Google Apps Script webhook may need reconfiguration. Contact your system administrator.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem;">
+          <h4 style="margin: 0 0 6px; color: var(--navy);">New form responses aren't showing in the system.</h4>
+          <p style="margin: 0; font-size: 0.9rem;">Open the activity detail page → click <strong>Activity Evaluation Form</strong> → select <strong>Force Sync Responses</strong>.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem;">
+          <h4 style="margin: 0 0 6px; color: var(--navy);">Can I use the same document as proof for multiple accreditations?</h4>
+          <p style="margin: 0; font-size: 0.9rem;">Yes. Register the document once in the Document Registry, then link it to any number of requirements across different accreditations through the Accreditation Tracker's Manage Proofs feature.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem;">
+          <h4 style="margin: 0 0 6px; color: var(--navy);">How is the similarity score calculated?</h4>
+          <p style="margin: 0; font-size: 0.9rem;">The system compares tags, document category, office of origin, and purpose text between documents. Documents sharing more attributes receive higher overlap scores.</p>
+        </div>
+
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 1.1rem 1.25rem;">
+          <h4 style="margin: 0 0 6px; color: #b91c1c;">What happens if I delete an accreditation?</h4>
+          <p style="margin: 0; font-size: 0.9rem;">⚠️ Deleting an accreditation <strong>permanently removes</strong> all of its categories, requirements, and submitted proofs. This cannot be undone. Always confirm with QAO leadership first.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 2rem 0 1rem; color: var(--muted); font-size: 0.8rem;">
+      Quality Assurance System User Manual &nbsp;·&nbsp; Version 1.0 &nbsp;·&nbsp;
+      Northern Bukidnon State College &nbsp;·&nbsp; Quality Assurance Office
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

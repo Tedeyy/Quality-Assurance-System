@@ -315,6 +315,7 @@ $contact_status = $_GET['contact'] ?? '';
                     <a href="https://www.facebook.com/">Facebook</a>
                     <a href="https://www.twitter.com/">Twitter</a>
                     <a href="https://www.linkedin.com/">LinkedIn</a>
+                    <a href="user_manual.html" target="_blank">User Manual</a>
                     <a href="terms.php">Terms & Policy</a>
                 </div>
             </div>
