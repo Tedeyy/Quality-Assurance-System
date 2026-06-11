@@ -1,5 +1,4 @@
 .env
-.env.hosting
 scratch/
 vendor/
 tools/

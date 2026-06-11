@@ -31,9 +31,6 @@ jobs:
       - name: Install Composer Dependencies
         run: composer install --no-dev --optimize-autoloader --prefer-dist
 
-      - name: Copy .env.hosting to .env
-        run: cp .env.hosting .env
-
       - name: FTP Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -48,7 +45,6 @@ jobs:
             **/.github*/**
             **/composer.json
             **/composer.lock
-            **/.env.hosting
             **/dump_schema.php
             **/scratch/**
             **/tools/**
