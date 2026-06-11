@@ -60,7 +60,7 @@ DATA:
 
 STRICT RULES:
 1. Only extract REAL, SPECIFIC complaints — things that respondents explicitly described as problems, issues, dissatisfactions, or negative experiences. DO NOT invent complaints.
-2. Only extract REAL, SPECIFIC suggestions for improvement — actionable ideas that respondents explicitly proposed. DO NOT invent suggestions.
+2. Only extract REAL, SPECIFIC suggestions for improvement — actionable ideas that respondents explicitly proposed. DO NOT invent suggestions. 
 3. Vague or generic praise (e.g. 'all good', 'nothing to improve', 'N/A', 'none', empty strings) must be treated as NO complaint and NO suggestion.
 4. If there are genuinely no complaints found in the data, return null for 'complaints'. Do NOT write phrases like 'None reported' or 'No complaints'.
 5. If there are genuinely no suggestions found in the data, return null for 'suggestions'. Do NOT write phrases like 'None reported' or 'No suggestions'.

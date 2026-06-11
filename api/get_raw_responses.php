@@ -31,7 +31,7 @@ try {
         exit;
     }
 
-    $resp_stmt = $resp_db->query("SELECT fullname, email, best_topics, improvements FROM $table_name ORDER BY id DESC");
+    $resp_stmt = $resp_db->query("SELECT fullname, contact, feedback_best, feedback_suggestions FROM $table_name ORDER BY id DESC");
     $responses = $resp_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(['success' => true, 'responses' => $responses]);

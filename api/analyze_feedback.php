@@ -53,7 +53,7 @@ try {
     }
 
     $table_name = "activity_" . (int)$activity_id;
-    $resp_stmt = $resp_db->query("SELECT best_topics, improvements FROM $table_name");
+    $resp_stmt = $resp_db->query("SELECT feedback_best, feedback_suggestions FROM $table_name");
     $responses = $resp_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($responses)) {

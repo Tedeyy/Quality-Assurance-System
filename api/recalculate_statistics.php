@@ -25,17 +25,19 @@ function recalculateActivityStatistics(PDO $db, PDO $rdb, int $activity_id, int 
 
     $stats_map = [
         'osr' => ['fields' => ['osr']],
-        'peor' => ['fields' => ['prog_0', 'prog_1', 'prog_2', 'prog_3']],
-        'pam' => ['fields' => []], // Will be filled dynamically
-        'pamlss' => ['fields' => ['log_0', 'log_1', 'log_2']],
-        'oe' => ['fields' => ['oe']]
+        'peor' => ['fields' => ['prog_flow', 'prog_contents', 'prog_relevance']],
+        'pam' => ['fields' => []], // Will be filled dynamically with facilitator fields
+        'pamlss' => ['fields' => ['mgmt_facilitation', 'mgmt_venue', 'mgmt_time']],
+        'oe' => ['fields' => ['feedback_overall']]
     ];
 
     // Find all facilitator fields in the first response
     if (!empty($all_responses)) {
         foreach (array_keys($all_responses[0]) as $key) {
-            if (strpos($key, 'fac_') === 0) {
-                $stats_map['pam']['fields'][] = $key;
+            if (strpos($key, 'speaker_') === 0 || strpos($key, 'organizer_') === 0) {
+                if (preg_match('/(effectiveness|mastery|facilitation|coordination|clarity|engagement)$/', $key)) {
+                    $stats_map['pam']['fields'][] = $key;
+                }
             }
         }
     }
@@ -97,36 +99,83 @@ function recalculateActivityStatistics(PDO $db, PDO $rdb, int $activity_id, int 
     $db->prepare($update_query)->execute($final_stats_db);
 
     // Update individual facilitator ratings
-    $fac_stmt = $db->prepare("SELECT af.role, af.person_id FROM activity_facilitators af WHERE af.activity_id = :aid");
+    $fac_stmt = $db->prepare(
+        "SELECT af.role, af.person_id, af.af_id
+         FROM activity_facilitators af 
+         WHERE af.activity_id = :aid
+         ORDER BY af.role, af.af_id"
+    );
     $fac_stmt->execute(['aid' => $activity_id]);
     $facilitators = $fac_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    foreach ($facilitators as $i => $fac) {
-        $f_counts = ['eff' => 0, 'mot' => 0, 'atf' => 0];
-        $f_totals = ['eff' => 0, 'mot' => 0, 'atf' => 0];
-        
-        foreach ($all_responses as $resp) {
-            foreach (['eff', 'mot', 'atf'] as $m) {
-                $rating = normalizeStoredRating($resp["fac_{$i}_{$m}"] ?? null);
-                
-                if ($rating > 0) {
-                    $f_totals[$m] += $rating;
-                    $f_counts[$m]++;
+    $speakerIdx = 0;
+    $organizerIdx = 0;
+
+    foreach ($facilitators as $fac) {
+        if ($fac['role'] === 'speaker') {
+            $metrics = ['effectiveness', 'mastery', 'facilitation'];
+            $f_counts = array_fill_keys($metrics, 0);
+            $f_totals = array_fill_keys($metrics, 0);
+            
+            foreach ($all_responses as $resp) {
+                foreach ($metrics as $metric) {
+                    $colName = "speaker_{$speakerIdx}_{$metric}";
+                    $rating = normalizeStoredRating($resp[$colName] ?? null);
+                    
+                    if ($rating > 0) {
+                        $f_totals[$metric] += $rating;
+                        $f_counts[$metric]++;
+                    }
                 }
             }
-        }
 
-        $metrics_avg = [];
-        foreach (['eff', 'mot', 'atf'] as $m) {
-            $metrics_avg[$m] = $f_counts[$m] > 0 ? ($f_totals[$m] / $f_counts[$m]) : 0;
-        }
+            $metrics_avg = [];
+            foreach ($metrics as $metric) {
+                $metrics_avg[$metric] = $f_counts[$metric] > 0 ? ($f_totals[$metric] / $f_counts[$metric]) : 0;
+            }
 
-        if ($fac['role'] === 'speaker') {
             $db->prepare("UPDATE activity_speaker_rating SET eff = :eff, mot = :mot, atf = :atf WHERE evaluation_id = :eid AND speaker_id = :sid")
-               ->execute(['eff' => $metrics_avg['eff'], 'mot' => $metrics_avg['mot'], 'atf' => $metrics_avg['atf'], 'eid' => $evaluation_id, 'sid' => $fac['person_id']]);
+               ->execute([
+                   'eff' => $metrics_avg['effectiveness'],
+                   'mot' => $metrics_avg['mastery'],
+                   'atf' => $metrics_avg['facilitation'],
+                   'eid' => $evaluation_id,
+                   'sid' => $fac['person_id']
+               ]);
+            
+            $speakerIdx++;
         } else {
+            $metrics = ['coordination', 'clarity', 'engagement'];
+            $f_counts = array_fill_keys($metrics, 0);
+            $f_totals = array_fill_keys($metrics, 0);
+            
+            foreach ($all_responses as $resp) {
+                foreach ($metrics as $metric) {
+                    $colName = "organizer_{$organizerIdx}_{$metric}";
+                    $rating = normalizeStoredRating($resp[$colName] ?? null);
+                    
+                    if ($rating > 0) {
+                        $f_totals[$metric] += $rating;
+                        $f_counts[$metric]++;
+                    }
+                }
+            }
+
+            $metrics_avg = [];
+            foreach ($metrics as $metric) {
+                $metrics_avg[$metric] = $f_counts[$metric] > 0 ? ($f_totals[$metric] / $f_counts[$metric]) : 0;
+            }
+
             $db->prepare("UPDATE activity_organizer_rating SET eff = :eff, mot = :mot, atf = :atf WHERE evaluation_id = :eid AND organizer_id = :oid")
-               ->execute(['eff' => $metrics_avg['eff'], 'mot' => $metrics_avg['mot'], 'atf' => $metrics_avg['atf'], 'eid' => $evaluation_id, 'oid' => $fac['person_id']]);
+               ->execute([
+                   'eff' => $metrics_avg['coordination'],
+                   'mot' => $metrics_avg['clarity'],
+                   'atf' => $metrics_avg['engagement'],
+                   'eid' => $evaluation_id,
+                   'oid' => $fac['person_id']
+               ]);
+            
+            $organizerIdx++;
         }
     }
 

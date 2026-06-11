@@ -31,22 +31,22 @@ Options:
 
 --SECTION 2---------------------
 TITLE
-##(Title of the Activity)##
+(Title of the Activity) *Required
 ----------------------------------
 
 --SECTION 3----------------------
 VENUE
-##(Venue of the Activity)##
+(Venue of the Activity) *Required
 -----------------------------------
 
 --SECTION 4----------------------
 DATE
-##(Date of the Activity)##
+(Date of the Activity) *Required
 ------------------------------------
 
 --SECTION 5-----------------------
 SDG
-##(SDG(s) Addressed)##
+(SDG(s) Addressed) *Required
 --------------------------------
 
 --SECTION 6------------------------	
@@ -102,27 +102,29 @@ I. Overall Service Rating *Required
 -----------------------------------
 
 --SECTION 13-------------------------------------
-II. Presenter/Facilitator's Rating
-Effectiveness, Mastery of Topic, and Ability to Facilitate
+II. Overall Organizer Rating
+Organization and Coordination of the Event, 
+Clarity of Communication and Information Provided, and 
+Engagement and Interaction Opportunities.
 -----------------------------------
 
 --SECTION 14---------------------------------
-NAME
-(Speaker Name)
+ORGANIZER'S NAME
+(Organizer's Office/Unit)
 -------------------------------------
 
 --SECTION 15---------------------------------
-Effectiveness *Required
+Organization and Coordination of the Event *Required
 [Rating 1(Poor) to 5(Excellent]
 -------------------------------
 
 --SECTION 16---------------------------------
-Mastery of Topic *Required
+Clarity of Communication and Information Provided *Required
 [Rating 1(Poor) to 5(Excellent]
 -------------------------------
 
 --SECTION 17---------------------------------
-Ability to Facilitate *Required
+Engagement and Interaction Opportunities *Required
 [Rating 1(Poor) to 5(Excellent]
 -------------------------------
 

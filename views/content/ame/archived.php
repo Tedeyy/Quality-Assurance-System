@@ -253,16 +253,15 @@ usort($months, function($a, $b) {
         </div>
 
         <div style="background: white; border-radius: 12px; border: 1px solid var(--border-color); overflow: visible; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 2px solid var(--border-color);">
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Activity Details</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Facilitator</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Date</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Status</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Rating</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Archived</th>
-                        <th style="padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; text-align: right;">Action</th>
+                        <th style="width: 25%; padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Activity Details</th>
+                        <th style="width: 20%; padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Facilitator</th>
+                        <th style="width: 18%; padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Date</th>
+                        <th style="width: 12%; padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Status</th>
+                        <th style="width: 20%; padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Archived</th>
+                        <th style="width: 5%; padding: 1.2rem; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -336,16 +335,7 @@ usort($months, function($a, $b) {
                                     ?>
                                     <span style="<?= $statusStyle ?> padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;"><?= htmlspecialchars($activity['eventstatus'] ?? 'Pending') ?></span>
                                 </td>
-                                <td style="padding: 1.2rem;">
-                                    <?php if (!empty($activity['overall_average'])): ?>
-                                        <div style="display: flex; align-items: center; gap: 4px;">
-                                            <svg width="14" height="14" fill="#DFB641" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                                            <span style="font-weight: 700; font-size: 0.9rem;"><?= htmlspecialchars($activity['overall_average']) ?></span>
-                                        </div>
-                                    <?php else: ?>
-                                        <span style="color: #94a3b8; font-size: 0.85rem;">Pending</span>
-                                    <?php endif; ?>
-                                </td>
+
                                 <td style="padding: 1.2rem;">
                                     <div style="font-size: 0.85rem; font-weight: 700; color: #475569;"><?= $archivedTs ? date('M d, Y', $archivedTs) : 'Archived' ?></div>
                                 </td>

@@ -38,9 +38,53 @@ if (!$user || empty($user['google_access_token'])) {
     exit;
 }
 
-$access_token = $user['google_access_token'];
 $division_id = $user['division_id'] ?? null;
 $office_id = $user['office_id'] ?? null;
+
+// Initialize Google Client and handle token refresh
+require_once __DIR__ . '/../vendor/autoload.php';
+$client = new Google\Client();
+$client->setClientId($_ENV['GOOGLE_CLIENT_ID']);
+$client->setClientSecret($_ENV['GOOGLE_CLIENT_SECRET']);
+
+$storedAccessToken = json_decode($user['google_access_token'], true);
+$hasValidStoredAccessToken = json_last_error() === JSON_ERROR_NONE && is_array($storedAccessToken) && !empty($storedAccessToken);
+
+if ($hasValidStoredAccessToken) {
+    $client->setAccessToken($storedAccessToken);
+} elseif (!empty($user['google_refresh_token'])) {
+    $newToken = $client->fetchAccessTokenWithRefreshToken($user['google_refresh_token']);
+    if (!empty($newToken['error'])) {
+        echo json_encode(['success' => false, 'message' => 'Google access could not be refreshed. Please link your Google account again.']);
+        exit;
+    }
+    $client->setAccessToken($newToken);
+    $stmt = $db->prepare("UPDATE users SET google_access_token = :token WHERE user_id = :uid");
+    $stmt->execute(['token' => json_encode($client->getAccessToken()), 'uid' => $_SESSION['user_id']]);
+} else {
+    echo json_encode(['success' => false, 'message' => 'Stored Google access is invalid. Please link your Google account again.']);
+    exit;
+}
+
+if ($client->isAccessTokenExpired() && $user['google_refresh_token']) {
+    $newToken = $client->fetchAccessTokenWithRefreshToken($user['google_refresh_token']);
+    if (!empty($newToken['error'])) {
+        echo json_encode(['success' => false, 'message' => 'Google access could not be refreshed. Please link your Google account again.']);
+        exit;
+    }
+    $client->setAccessToken($newToken);
+    $stmt = $db->prepare("UPDATE users SET google_access_token = :token WHERE user_id = :uid");
+    $stmt->execute(['token' => json_encode($client->getAccessToken()), 'uid' => $_SESSION['user_id']]);
+} elseif ($client->isAccessTokenExpired()) {
+    echo json_encode(['success' => false, 'message' => 'Google access expired. Please link your Google account again.']);
+    exit;
+}
+
+$access_token = $client->getAccessToken()['access_token'] ?? null;
+if (!$access_token) {
+    echo json_encode(['success' => false, 'message' => 'Failed to obtain valid Google access token.']);
+    exit;
+}
 
 // Helper for Google API Calls
 function driveApiRequest($url, $method = 'GET', $body = null, $token) {

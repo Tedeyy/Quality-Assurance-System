@@ -53,6 +53,24 @@ if (empty($facilitators)) {
     }
 }
 
+// Reorganize facilitators into separate speakers and organizers arrays for proper column matching
+$speakers_list = [];
+$organizers_list = [];
+foreach ($facilitators as $fac) {
+    if ($fac['role'] === 'speaker') {
+        $speakers_list[] = $fac;
+    } elseif ($fac['role'] === 'organizer') {
+        $organizers_list[] = $fac;
+    }
+}
+
+// Merge back for compatibility - keep the original array but also provide role-specific access
+// Create a lookup array indexed by role_index for use in UI
+$facilitators_by_role = [
+    'speakers' => $speakers_list,
+    'organizers' => $organizers_list
+];
+
 $responses = [];
 $table_exists = false;
 $rating_columns = [];
@@ -69,15 +87,27 @@ $response_db = (new ResponsesDatabase())->getConnection();
 $table_name = 'activity_' . $activity_id;
 
 if ($response_db) {
-    $check = $response_db->query("SHOW TABLES LIKE " . $response_db->quote($table_name));
-    $table_exists = $check && $check->rowCount() > 0;
+    try {
+        $check = $response_db->query("SHOW TABLES LIKE " . $response_db->quote($table_name));
+        $table_exists = $check && $check->rowCount() > 0;
+    } catch (Exception $e) {
+        $table_exists = false;
+        error_log("Error checking table existence: " . $e->getMessage());
+    }
 
     if ($table_exists) {
         $quoted_table = "`" . str_replace("`", "``", $table_name) . "`";
-        $responses = $response_db->query("SELECT * FROM $quoted_table ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $responses = $response_db->query("SELECT * FROM $quoted_table ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            $responses = [];
+            $table_exists = false;
+            error_log("Error querying responses table: " . $e->getMessage());
+        }
+        
         if (!empty($responses)) {
             $all_columns = array_keys($responses[0]);
-            $excluded = ['id', 'email', 'fullname', 'age', 'gender', 'contact', 'unit', 'best_topics', 'improvements', 'created_at', 'submitted_at'];
+            $excluded = ['id', 'response_id', 'fullname', 'age', 'gender', 'contact', 'unit', 'feedback_best', 'feedback_least', 'feedback_suggestions', 'created_at', 'submitted_at', 'data_privacy'];
             foreach ($all_columns as $column) {
                 if (!in_array($column, $excluded, true)) {
                     $has_numeric = false;
@@ -160,16 +190,41 @@ function pretty_field_name(string $column): string
 {
     $labels = [
         'osr' => 'Overall Service Rating',
-        'oe' => 'Overall Experience',
-        'eff' => 'Effectiveness',
-        'mot' => 'Mastery of Topic',
-        'atf' => 'Ability to Facilitate'
+        'feedback_overall' => 'Overall Experience',
+        'effectiveness' => 'Effectiveness',
+        'mastery' => 'Mastery of Topic',
+        'facilitation' => 'Ability to Facilitate',
+        'coordination' => 'Organization & Coordination',
+        'clarity' => 'Clarity of Communication',
+        'engagement' => 'Engagement & Interaction',
+        'prog_flow' => 'Program Flow',
+        'prog_contents' => 'Program Contents',
+        'prog_relevance' => 'Relevance to Objective',
+        'mgmt_facilitation' => 'Facilitation/Secretariat Service',
+        'mgmt_venue' => 'Venue and Physical Arrangements',
+        'mgmt_time' => 'Time Allotted'
     ];
 
     if (isset($labels[$column])) return $labels[$column];
 
+    // New speaker format: speaker_{i}_{metric}
+    if (preg_match('/^speaker_(\d+)_(\w+)$/', $column, $matches)) {
+        $speakerIdx = (int)$matches[1];
+        $metric = $matches[2];
+        return 'Speaker ' . ($speakerIdx + 1) . ' - ' . ($labels[$metric] ?? ucwords(str_replace('_', ' ', $metric)));
+    }
+
+    // New organizer format: organizer_{i}_{metric}
+    if (preg_match('/^organizer_(\d+)_(\w+)$/', $column, $matches)) {
+        $organizerIdx = (int)$matches[1];
+        $metric = $matches[2];
+        return 'Organizer ' . ($organizerIdx + 1) . ' - ' . ($labels[$metric] ?? ucwords(str_replace('_', ' ', $metric)));
+    }
+
+    // Old format fallback for backward compatibility
     if (preg_match('/^fac_(\d+)_(eff|mot|atf)$/', $column, $matches)) {
-        return 'Facilitator ' . ((int)$matches[1] + 1) . ' - ' . $labels[$matches[2]];
+        $metricLabels = ['eff' => 'Effectiveness', 'mot' => 'Mastery of Topic', 'atf' => 'Ability to Facilitate'];
+        return 'Facilitator ' . ((int)$matches[1] + 1) . ' - ' . $metricLabels[$matches[2]];
     }
 
     if (preg_match('/^prog_(\d+)$/', $column, $matches)) {
@@ -180,7 +235,7 @@ function pretty_field_name(string $column): string
         return 'Logistics Support ' . ((int)$matches[1] + 1);
     }
 
-    $name = preg_replace('/^(fac|prog|log)_/i', '', $column);
+    $name = preg_replace('/^(fac|prog|log|speaker|organizer)_/i', '', $column);
     $name = str_replace('_', ' ', $name);
     return ucwords($name);
 }
@@ -300,30 +355,15 @@ function add_chart_if_present(array &$groups, string $group_key, string $group_t
 function build_rating_groups(array $rating_columns, array $source_responses, array $facilitators, array $pie_colors): array
 {
     $groups = [];
-    $fac_metrics = [
-        'eff' => ['label' => 'Effectiveness', 'desc' => 'How well the facilitator achieved the intended goals of the session.'],
-        'mot' => ['label' => 'Mastery of Topic', 'desc' => 'The depth of knowledge and command shown over the subject matter.'],
-        'atf' => ['label' => 'Ability to Facilitate', 'desc' => 'The facilitator\'s skill in managing the discussion and audience participation.']
-    ];
-    $program_questions = [
-        ['label' => 'Program Flow', 'desc' => 'Smoothness and logical transition between the various parts of the activity.'],
-        ['label' => 'Program Contents', 'desc' => 'Quality, relevance, and substance of the materials and topics presented.'],
-        ['label' => 'Relevance to Objective', 'desc' => 'How well the program aligned with the stated goals and expectations.'],
-        ['label' => 'Future Applicability', 'desc' => 'The likelihood of using the knowledge or skills gained in your future work.']
-    ];
-    $logistics_questions = [
-        ['label' => 'Secretariat Service', 'desc' => 'Efficiency, courtesy, and responsiveness of the registration and support staff.'],
-        ['label' => 'Logistics/Venue', 'desc' => 'Comfort, cleanliness, accessibility, and adequacy of the facilities provided.'],
-        ['label' => 'Timing/Scheduling', 'desc' => 'Punctuality, appropriate time allocation, and overall duration of the session.']
-    ];
-
+    
+    // Overall Ratings
     add_chart_if_present(
         $groups,
         'overall',
         'Overall Ratings',
         'General activity and experience ratings.',
         'osr',
-        'General success of the totality of the activity execution',
+        'Overall Service Rating',
         'Overall assessment of how the activity was conducted from start to finish.',
         $rating_columns,
         $source_responses,
@@ -334,7 +374,7 @@ function build_rating_groups(array $rating_columns, array $source_responses, arr
         'overall',
         'Overall Ratings',
         'General activity and experience ratings.',
-        'oe',
+        'feedback_overall',
         'Overall Experience',
         'Summarize your total experience with this activity.',
         $rating_columns,
@@ -342,16 +382,43 @@ function build_rating_groups(array $rating_columns, array $source_responses, arr
         $pie_colors
     );
 
-    foreach ($facilitators as $index => $facilitator) {
-        $name = $facilitator['name'] ?? ('Facilitator ' . ($index + 1));
-        $role = !empty($facilitator['role']) ? ucfirst($facilitator['role']) : 'Facilitator';
-        foreach ($fac_metrics as $metric => $question) {
+    // Speaker Evaluations (New Format)
+    // Find all speaker indices in rating columns
+    $speakerIndices = [];
+    foreach ($rating_columns as $col) {
+        if (preg_match('/^speaker_(\d+)_/', $col, $matches)) {
+            $speakerIndices[] = (int)$matches[1];
+        }
+    }
+    $speakerIndices = array_unique($speakerIndices);
+    sort($speakerIndices);
+    
+    // Build speaker name lookup from facilitators array
+    $speakers_list = array_filter($facilitators, fn($f) => ($f['role'] ?? '') === 'speaker');
+    $speakers_by_idx = [];
+    $speaker_counter = 0;
+    foreach ($facilitators as $fac) {
+        if (($fac['role'] ?? '') === 'speaker') {
+            $speakers_by_idx[$speaker_counter] = $fac['name'] ?? ('Speaker ' . ($speaker_counter + 1));
+            $speaker_counter++;
+        }
+    }
+    
+    foreach ($speakerIndices as $idx) {
+        $name = $speakers_by_idx[$idx] ?? ('Speaker ' . ($idx + 1));
+        $speaker_metrics = [
+            'effectiveness' => ['label' => 'Effectiveness', 'desc' => 'How well the speaker achieved the intended goals of the session.'],
+            'mastery' => ['label' => 'Mastery of Topic', 'desc' => 'The depth of knowledge and command shown over the subject matter.'],
+            'facilitation' => ['label' => 'Ability to Facilitate', 'desc' => 'The speaker\'s skill in managing the discussion and audience participation.']
+        ];
+        
+        foreach ($speaker_metrics as $metric => $question) {
             add_chart_if_present(
                 $groups,
-                'fac_' . $index,
-                'Facilitator Ratings: ' . $name,
-                $role . ' performance ratings.',
-                "fac_{$index}_{$metric}",
+                'speaker_' . $idx,
+                'Speaker Ratings: ' . $name,
+                'Speaker performance ratings.',
+                "speaker_{$idx}_{$metric}",
                 $question['label'],
                 $question['desc'],
                 $rating_columns,
@@ -361,13 +428,65 @@ function build_rating_groups(array $rating_columns, array $source_responses, arr
         }
     }
 
-    foreach ($program_questions as $index => $question) {
+    // Organizer Evaluations (New Format)
+    // Find all organizer indices in rating columns
+    $organizerIndices = [];
+    foreach ($rating_columns as $col) {
+        if (preg_match('/^organizer_(\d+)_/', $col, $matches)) {
+            $organizerIndices[] = (int)$matches[1];
+        }
+    }
+    $organizerIndices = array_unique($organizerIndices);
+    sort($organizerIndices);
+    
+    // Build organizer name lookup from facilitators array
+    $organizers_by_idx = [];
+    $organizer_counter = 0;
+    foreach ($facilitators as $fac) {
+        if (($fac['role'] ?? '') === 'organizer') {
+            $organizers_by_idx[$organizer_counter] = $fac['name'] ?? ('Organizer ' . ($organizer_counter + 1));
+            $organizer_counter++;
+        }
+    }
+    
+    foreach ($organizerIndices as $idx) {
+        $name = $organizers_by_idx[$idx] ?? ('Organizer ' . ($idx + 1));
+        $organizer_metrics = [
+            'coordination' => ['label' => 'Organization & Coordination', 'desc' => 'How well the organizer coordinated and managed the event.'],
+            'clarity' => ['label' => 'Clarity of Communication', 'desc' => 'Effectiveness in communicating event information and instructions.'],
+            'engagement' => ['label' => 'Engagement & Interaction', 'desc' => 'The organizer\'s ability to engage participants and facilitate interaction.']
+        ];
+        
+        foreach ($organizer_metrics as $metric => $question) {
+            add_chart_if_present(
+                $groups,
+                'organizer_' . $idx,
+                'Organizer Ratings: ' . $name,
+                'Organizer performance ratings.',
+                "organizer_{$idx}_{$metric}",
+                $question['label'],
+                $question['desc'],
+                $rating_columns,
+                $source_responses,
+                $pie_colors
+            );
+        }
+    }
+
+    // Program Evaluation (New Format)
+    $program_questions = [
+        'prog_flow' => ['label' => 'Program Flow', 'desc' => 'Smoothness and logical transition between the various parts of the activity.'],
+        'prog_contents' => ['label' => 'Program Contents', 'desc' => 'Quality, relevance, and substance of the materials and topics presented.'],
+        'prog_relevance' => ['label' => 'Relevance to Objective', 'desc' => 'How well the program aligned with the stated goals and expectations.']
+    ];
+    
+    foreach ($program_questions as $column => $question) {
         add_chart_if_present(
             $groups,
             'program',
             'Program Evaluation',
-            'Ratings for program flow, contents, relevance, and future applicability.',
-            'prog_' . $index,
+            'Ratings for program flow, contents, and relevance.',
+            $column,
             $question['label'],
             $question['desc'],
             $rating_columns,
@@ -376,13 +495,20 @@ function build_rating_groups(array $rating_columns, array $source_responses, arr
         );
     }
 
-    foreach ($logistics_questions as $index => $question) {
+    // Activity Management (New Format)
+    $logistics_questions = [
+        'mgmt_facilitation' => ['label' => 'Facilitation/Secretariat Service', 'desc' => 'Efficiency, courtesy, and responsiveness of the support staff.'],
+        'mgmt_venue' => ['label' => 'Venue and Physical Arrangements', 'desc' => 'Comfort, cleanliness, accessibility, and adequacy of the facilities provided.'],
+        'mgmt_time' => ['label' => 'Time Allotted', 'desc' => 'Punctuality, appropriate time allocation, and overall duration of the session.']
+    ];
+    
+    foreach ($logistics_questions as $column => $question) {
         add_chart_if_present(
             $groups,
             'logistics',
-            'Logistics',
-            'Ratings for secretariat service, venue, and scheduling.',
-            'log_' . $index,
+            'Activity Management',
+            'Ratings for facilitation, venue, and scheduling.',
+            $column,
             $question['label'],
             $question['desc'],
             $rating_columns,
@@ -436,9 +562,10 @@ $speaker_ratings = [];
 $organizer_ratings = [];
 $evaluation = [];
 
-// Get the evaluation_id
+// Only load statistics if the responses table exists (i.e., synced data is available)
+// If the table doesn't exist, show no data (empty results)
 $eval_id = $activity['evaluation_id'] ?? null;
-if ($eval_id) {
+if ($eval_id && $table_exists) {
     // We already have some evaluation fields in $activity, let's fetch the full evaluation record
     $eval_stmt = $db->prepare("
         SELECT e.*, s.*,
@@ -1142,8 +1269,8 @@ if ($eval_id) {
                                 <tbody>
                                     <?php foreach ($responses as $response): ?>
                                         <?php
-                                            $most_liked = trim((string)($response['best_topics'] ?? ''));
-                                            $least_liked = trim((string)($response['improvements'] ?? ''));
+                                            $most_liked = trim((string)($response['feedback_best'] ?? ''));
+                                            $least_liked = trim((string)($response['feedback_suggestions'] ?? ''));
                                         ?>
                                         <?php if ($most_liked !== '' || $least_liked !== ''): ?>
                                             <tr>
@@ -1173,7 +1300,7 @@ if ($eval_id) {
                                 <?php $search_blob = strtolower(implode(' ', array_map('strval', $response))); ?>
                                 <button type="button" class="responder-button <?= $index === 0 ? 'active' : '' ?>" data-search="<?= htmlspecialchars($search_blob) ?>" data-responder="<?= $index ?>" onclick="selectResponder(<?= $index ?>)">
                                     <div class="responder-name"><?= htmlspecialchars($response['fullname'] ?? 'Unnamed respondent') ?></div>
-                                    <div class="respondent-muted"><?= htmlspecialchars($response['email'] ?? 'No email') ?></div>
+                                    <div class="respondent-muted"><?= htmlspecialchars($response['contact'] ?? 'No contact') ?></div>
                                     <div class="respondent-muted"><?= htmlspecialchars($response['unit'] ?? 'Unit not provided') ?></div>
                                 </button>
                             <?php endforeach; ?>
@@ -1190,7 +1317,7 @@ if ($eval_id) {
                                     <div class="detail-head">
                                         <div>
                                             <h3><?= htmlspecialchars($response['fullname'] ?? 'Unnamed respondent') ?></h3>
-                                            <div class="respondent-muted"><?= htmlspecialchars($response['email'] ?? 'No email') ?></div>
+                                            <div class="respondent-muted"><?= htmlspecialchars($response['contact'] ?? 'No contact') ?></div>
                                         </div>
                                         <div class="detail-score">
                                             <span class="rating-pill" style="background: <?= $rating_color ?>;"><?= number_format((float)$response['_average'], 1) ?>%</span>
@@ -1253,11 +1380,11 @@ if ($eval_id) {
 
                                         <div class="detail-field feedback-card">
                                             <span>Best Topics / Insights</span>
-                                            <div><?= htmlspecialchars($response['best_topics'] ?? 'No answer') ?></div>
+                                            <div><?= htmlspecialchars($response['feedback_best'] ?? 'No answer') ?></div>
                                         </div>
                                         <div class="detail-field feedback-card">
                                             <span>Suggested Improvements</span>
-                                            <div><?= htmlspecialchars($response['improvements'] ?? 'No answer') ?></div>
+                                            <div><?= htmlspecialchars($response['feedback_suggestions'] ?? 'No answer') ?></div>
                                         </div>
                                     </div>
                                 </article>
@@ -1637,8 +1764,8 @@ if ($eval_id) {
                             } else {
                                 tableBody.innerHTML = data.responses.map(r => `
                                     <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5; border-right: 1px solid #f1f5f9;">${r.best_topics || '<span style="color: #cbd5e1;">N/A</span>'}</td>
-                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5;">${r.improvements || '<span style="color: #cbd5e1;">N/A</span>'}</td>
+                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5; border-right: 1px solid #f1f5f9;">${r.feedback_best || '<span style="color: #cbd5e1;">N/A</span>'}</td>
+                                        <td style="padding: 16px; font-size: 0.85rem; color: #475569; vertical-align: top; line-height: 1.5;">${r.feedback_suggestions || '<span style="color: #cbd5e1;">N/A</span>'}</td>
                                     </tr>
                                 `).join('');
                             }
